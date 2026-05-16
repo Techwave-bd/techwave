@@ -19,7 +19,7 @@ import Pusher from "pusher-js";
 
 window.Pusher = Pusher;
 
-// Temporary debug log. Remove later if you want.
+// Temporary debug log
 Pusher.logToConsole = true;
 
 window.Echo = new Echo({
@@ -30,16 +30,16 @@ window.Echo = new Echo({
     wsPort: Number(import.meta.env.VITE_REVERB_PORT ?? 80),
     wssPort: Number(import.meta.env.VITE_REVERB_PORT ?? 443),
 
-    forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? "https") === "https",
+    forceTLS: true,
     encrypted: true,
 
-    // Important: use only WSS on production HTTPS site
-    enabledTransports: ["wss"],
+    // Revert this
+    enabledTransports: ["ws", "wss"],
 
-    disableStats: true,
+    // Use this instead of disableStats
+    enableStats: false,
 });
 
-// Temporary connection logs. Remove later if you want.
 window.Echo.connector.pusher.connection.bind("connected", () => {
     console.log("✅ Reverb connected");
 });
