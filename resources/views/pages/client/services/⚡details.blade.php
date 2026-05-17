@@ -246,7 +246,7 @@ new class extends Component {
                                 $planGridClass = match (true) {
                                     $planCount === 1 => 'grid gap-6 md:grid-cols-1 md:max-w-md md:mx-auto',
                                     $planCount === 2 => 'grid gap-6 md:grid-cols-2 md:max-w-5xl md:mx-auto',
-                                    default => 'grid gap-6 md:grid-cols-2 xl:grid-cols-3',
+                                    default => 'grid gap-6 md:grid-cols-2',
                                 };
                             @endphp
 
