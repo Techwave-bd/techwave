@@ -14,15 +14,11 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
     public string $slug = '';
     public string $badge = '';
     public string $description = '';
-
     public string $price = '';
     public string $discount_price = '';
-
     public string $buy_url = '';
-
     public int $sort_order = 0;
     public bool $is_active = true;
-
     public array $features = [];
     public string $feature = '';
 
@@ -30,21 +26,15 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
     {
         return [
             'service_id' => ['required', 'integer', 'exists:services,id'],
-
             'name' => ['required', 'string', 'max:160'],
             'slug' => ['nullable', 'string', 'max:190', 'unique:service_plans,slug'],
-
             'badge' => ['nullable', 'string', 'max:80'],
             'description' => ['nullable', 'string', 'max:800'],
-
             'price' => ['required', 'numeric', 'min:0'],
             'discount_price' => ['nullable', 'numeric', 'min:0', 'lt:price'],
-
-            'buy_url' => ['required', 'url', 'max:255'],
-
+            'buy_url' => ['nullable', 'url', 'max:255'],
             'sort_order' => ['required', 'integer', 'min:0'],
             'is_active' => ['boolean'],
-
             'features' => ['required', 'array'],
             'features.*' => ['required', 'string', 'max:180'],
         ];

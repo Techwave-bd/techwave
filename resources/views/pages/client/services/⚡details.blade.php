@@ -314,13 +314,13 @@ new class extends Component {
                                         <div class="mt-6">
                                             @if ($plan->price)
                                                 @if ($hasDiscount)
-                                                    <div class="flex flex-wrap items-end gap-3">
+                                                    <div class="flex flex-wrap items-center gap-3">
                                                         <span class="text-4xl font-bold text-white">
                                                             ৳ {{ number_format((float) $plan->discount_price, 0) }}
                                                         </span>
 
                                                         <span
-                                                            class="pb-1 text-lg font-semibold text-blue-100/40 line-through">
+                                                            class="text-lg font-semibold text-blue-100/40 line-through">
                                                             ৳ {{ number_format((float) $plan->price, 0) }}
                                                         </span>
                                                         <span
@@ -347,8 +347,8 @@ new class extends Component {
                                             </a>
                                         @else
                                             <a href="#quote-form" wire:click="selectQuotePlan({{ $plan->id }})"
-                                                class="mt-6 inline-flex w-full items-center justify-center rounded-full border border-white/15 bg-white/8 px-6 py-3.5 font-semibold text-white backdrop-blur-xl transition hover:bg-white/12">
-                                                Request This Plan
+                                                class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
+                                                Choose Plan
                                             </a>
                                         @endif
 

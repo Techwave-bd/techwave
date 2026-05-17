@@ -12,20 +12,15 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
     public ServicePlan $servicePlan;
 
     public ?int $service_id = null;
-
     public string $name = '';
     public string $slug = '';
     public string $badge = '';
     public string $description = '';
-
     public string $price = '';
     public string $discount_price = '';
-
     public string $buy_url = '';
-
     public int $sort_order = 0;
     public bool $is_active = true;
-
     public array $features = [];
     public string $feature = '';
 
@@ -55,22 +50,15 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
     {
         return [
             'service_id' => ['required', 'integer', 'exists:services,id'],
-
             'name' => ['required', 'string', 'max:160'],
-
             'slug' => ['required', 'string', 'max:190', Rule::unique('service_plans', 'slug')->ignore($this->servicePlan->id)],
-
             'badge' => ['nullable', 'string', 'max:80'],
             'description' => ['nullable', 'string', 'max:800'],
-
             'price' => ['required', 'numeric', 'min:0'],
             'discount_price' => ['nullable', 'numeric', 'min:0', 'lt:price'],
-
-            'buy_url' => ['required', 'url', 'max:255'],
-
+            'buy_url' => ['nullable', 'url', 'max:255'],
             'sort_order' => ['required', 'integer', 'min:0'],
             'is_active' => ['boolean'],
-
             'features' => ['required', 'array'],
             'features.*' => ['required', 'string', 'max:180'],
         ];

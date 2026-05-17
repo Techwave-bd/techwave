@@ -16,11 +16,11 @@ return new class extends Migration
             $table->foreignId('service_id')->constrained('services')->cascadeOnDelete();
             $table->string('name');
             $table->string('slug')->unique();
-            $table->string('badge')->nullable(); // Popular, Best Value
+            $table->string('badge')->nullable();
             $table->text('description')->nullable();
-            $table->decimal('price', 10, 2); // ৳ 2,500 / year,
+            $table->decimal('price', 10, 2);
             $table->json('features');
-            $table->string('buy_url');
+            $table->string('buy_url')->nullable();
             $table->unsignedInteger('sort_order')->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
