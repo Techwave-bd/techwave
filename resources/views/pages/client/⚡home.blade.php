@@ -1008,6 +1008,27 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
                         };
 
                         $features = is_array($plan->features) ? $plan->features : [];
+
+                        $monthlyPrice = $plan->monthly_price !== null ? (float) $plan->monthly_price : null;
+                        $monthlyDiscountPrice =
+                            $plan->monthly_discount_price !== null ? (float) $plan->monthly_discount_price : null;
+
+                        $yearlyPrice = $plan->yearly_price !== null ? (float) $plan->yearly_price : null;
+                        $yearlyDiscountPrice =
+                            $plan->yearly_discount_price !== null ? (float) $plan->yearly_discount_price : null;
+
+                        $hasMonthlyDiscount =
+                            $monthlyPrice && $monthlyDiscountPrice && $monthlyDiscountPrice < $monthlyPrice;
+                        $hasYearlyDiscount =
+                            $yearlyPrice && $yearlyDiscountPrice && $yearlyDiscountPrice < $yearlyPrice;
+
+                        $monthlySavePercent = $hasMonthlyDiscount
+                            ? round((($monthlyPrice - $monthlyDiscountPrice) / $monthlyPrice) * 100)
+                            : null;
+
+                        $yearlySavePercent = $hasYearlyDiscount
+                            ? round((($yearlyPrice - $yearlyDiscountPrice) / $yearlyPrice) * 100)
+                            : null;
                     @endphp
 
                     <div
@@ -1051,29 +1072,67 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
 
                         <div class="mt-6">
                             <div x-show="billing === 'monthly'" x-transition>
-                                <div class="flex items-end gap-2">
-                                    @if ($plan->monthly_price)
-                                        <span class="text-4xl font-bold text-white">
-                                            ৳ {{ number_format($plan->monthly_price, 0) }}
-                                        </span>
-                                        <span class="pb-1 text-sm text-blue-100/60">/ month</span>
+                                @if ($monthlyPrice)
+                                    @if ($hasMonthlyDiscount)
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm text-blue-100/45 line-through">
+                                                ৳ {{ number_format($monthlyPrice, 0) }}
+                                            </span>
+
+                                            <span class="text-xs font-semibold text-emerald-300">
+                                                {{ $monthlySavePercent }}% OFF
+                                            </span>
+                                        </div>
+
+                                        <div class="flex items-end gap-2">
+                                            <span class="text-5xl font-bold text-white">
+                                                ৳ {{ number_format($monthlyDiscountPrice, 0) }}
+                                            </span>
+                                            <span class="pb-1 text-sm text-blue-100/60">/ month</span>
+                                        </div>
                                     @else
-                                        <span class="text-3xl font-bold text-white">Custom</span>
+                                        <div class="flex items-end gap-2">
+                                            <span class="text-4xl font-bold text-white">
+                                                ৳ {{ number_format($monthlyPrice, 0) }}
+                                            </span>
+                                            <span class="pb-1 text-sm text-blue-100/60">/ month</span>
+                                        </div>
                                     @endif
-                                </div>
+                                @else
+                                    <span class="text-3xl font-bold text-white">Custom</span>
+                                @endif
                             </div>
 
                             <div x-show="billing === 'yearly'" x-transition style="display: none;">
-                                <div class="flex items-end gap-2">
-                                    @if ($plan->yearly_price)
-                                        <span class="text-4xl font-bold text-white">
-                                            ৳ {{ number_format($plan->yearly_price, 0) }}
-                                        </span>
-                                        <span class="pb-1 text-sm text-blue-100/60">/ year</span>
+                                @if ($yearlyPrice)
+                                    @if ($hasYearlyDiscount)
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm text-blue-100/45 line-through">
+                                                ৳ {{ number_format($yearlyPrice, 0) }}
+                                            </span>
+
+                                            <span class="text-xs font-semibold text-emerald-300">
+                                                {{ $yearlySavePercent }}% OFF
+                                            </span>
+                                        </div>
+
+                                        <div class="flex items-end gap-2">
+                                            <span class="text-5xl font-bold text-white">
+                                                ৳ {{ number_format($yearlyDiscountPrice, 0) }}
+                                            </span>
+                                            <span class="pb-1 text-sm text-blue-100/60">/ year</span>
+                                        </div>
                                     @else
-                                        <span class="text-3xl font-bold text-white">Custom</span>
+                                        <div class="flex items-end gap-2">
+                                            <span class="text-4xl font-bold text-white">
+                                                ৳ {{ number_format($yearlyPrice, 0) }}
+                                            </span>
+                                            <span class="pb-1 text-sm text-blue-100/60">/ year</span>
+                                        </div>
                                     @endif
-                                </div>
+                                @else
+                                    <span class="text-3xl font-bold text-white">Custom</span>
+                                @endif
                             </div>
                         </div>
 
@@ -1095,11 +1154,11 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
                         </ul>
 
                         {{-- @if ($plan->purchase_count > 0)
-                            <div
-                                class="mt-6 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-blue-100/70">
-                                {{ $plan->purchase_count }} customers already selected this plan.
-                            </div>
-                        @endif --}}
+                        <div
+                            class="mt-6 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-blue-100/70">
+                            {{ $plan->purchase_count }} customers already selected this plan.
+                        </div>
+                    @endif --}}
                     </div>
                 @empty
                     <div

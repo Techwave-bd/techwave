@@ -19,6 +19,8 @@ new #[Layout('layouts.admin-app')] #[Title('Pricing Management')] class extends 
 
     public ?float $monthly_price = null;
     public ?float $yearly_price = null;
+    public ?float $monthly_discount_price = null;
+    public ?float $yearly_discount_price = null;
 
     public array $features = [];
     public string $feature = '';
@@ -52,6 +54,8 @@ new #[Layout('layouts.admin-app')] #[Title('Pricing Management')] class extends 
 
             'monthly_price' => ['nullable', 'numeric', 'min:0'],
             'yearly_price' => ['nullable', 'numeric', 'min:0'],
+            'monthly_discount_price' => ['nullable', 'numeric', 'min:0', 'lt:monthly_price'],
+            'yearly_discount_price' => ['nullable', 'numeric', 'min:0', 'lt:yearly_price'],
 
             'features' => ['required', 'array', 'min:1'],
             'features.*' => ['required', 'string', 'max:160'],
@@ -65,6 +69,8 @@ new #[Layout('layouts.admin-app')] #[Title('Pricing Management')] class extends 
         return [
             'features.required' => 'Please add at least one included feature.',
             'features.min' => 'Please add at least one included feature.',
+            'monthly_discount_price.lt' => 'Monthly discount price must be lower than monthly price.',
+            'yearly_discount_price.lt' => 'Yearly discount price must be lower than yearly price.',
         ];
     }
 
@@ -180,7 +186,9 @@ new #[Layout('layouts.admin-app')] #[Title('Pricing Management')] class extends 
             'icon' => $validated['icon'] ?: null,
             'description' => $validated['description'],
             'monthly_price' => $validated['monthly_price'] ?? null,
+            'monthly_discount_price' => $validated['monthly_discount_price'] ?? null,
             'yearly_price' => $validated['yearly_price'] ?? null,
+            'yearly_discount_price' => $validated['yearly_discount_price'] ?? null,
             'features' => array_values(array_filter($validated['features'])),
             'status' => $validated['status'],
         ]);
@@ -202,8 +210,10 @@ new #[Layout('layouts.admin-app')] #[Title('Pricing Management')] class extends 
         $this->description = $plan->description ?? '';
 
         $this->monthly_price = $plan->monthly_price !== null ? (float) $plan->monthly_price : null;
+        $this->monthly_discount_price = $plan->monthly_discount_price !== null ? (float) $plan->monthly_discount_price : null;
 
         $this->yearly_price = $plan->yearly_price !== null ? (float) $plan->yearly_price : null;
+        $this->yearly_discount_price = $plan->yearly_discount_price !== null ? (float) $plan->yearly_discount_price : null;
 
         $this->features = $plan->features ?: [];
         $this->status = $plan->status;
@@ -229,7 +239,9 @@ new #[Layout('layouts.admin-app')] #[Title('Pricing Management')] class extends 
             'icon' => $validated['icon'] ?: null,
             'description' => $validated['description'],
             'monthly_price' => $validated['monthly_price'] ?? null,
+            'monthly_discount_price' => $validated['monthly_discount_price'] ?? null,
             'yearly_price' => $validated['yearly_price'] ?? null,
+            'yearly_discount_price' => $validated['yearly_discount_price'] ?? null,
             'features' => array_values(array_filter($validated['features'])),
             'status' => $validated['status'],
         ]);
@@ -282,11 +294,13 @@ new #[Layout('layouts.admin-app')] #[Title('Pricing Management')] class extends 
 
         $this->monthly_price = null;
         $this->yearly_price = null;
+        $this->monthly_discount_price = null;
+        $this->yearly_discount_price = null;
 
         $this->features = [];
         $this->feature = '';
 
-        $this->status = 'draft';
+        $this->status = 'active';
 
         $this->resetValidation();
     }
@@ -445,6 +459,21 @@ new #[Layout('layouts.admin-app')] #[Title('Pricing Management')] class extends 
                         @enderror
                     </div>
 
+                    <!-- Monthly Discount Price -->
+                    <div>
+                        <label class="mb-stack-xs block text-label-md text-on-surface-variant">
+                            Monthly Discount Price
+                        </label>
+
+                        <input wire:model="monthly_discount_price"
+                            class="w-full rounded border border-outline bg-white px-3 py-2 text-body-md outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                            placeholder="39.00" type="number" step="0.01" min="0" />
+
+                        @error('monthly_discount_price')
+                            <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+                        @enderror
+                    </div>
+
                     <!-- Yearly Price -->
                     <div>
                         <label class="mb-stack-xs block text-label-md text-on-surface-variant">
@@ -456,6 +485,21 @@ new #[Layout('layouts.admin-app')] #[Title('Pricing Management')] class extends 
                             placeholder="499.00" type="number" step="0.01" min="0" />
 
                         @error('yearly_price')
+                            <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <!-- Yearly Discount Price -->
+                    <div>
+                        <label class="mb-stack-xs block text-label-md text-on-surface-variant">
+                            Yearly Discount Price
+                        </label>
+
+                        <input wire:model="yearly_discount_price"
+                            class="w-full rounded border border-outline bg-white px-3 py-2 text-body-md outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                            placeholder="399.00" type="number" step="0.01" min="0" />
+
+                        @error('yearly_discount_price')
                             <p class="mt-1 text-sm text-red-500">{{ $message }}</p>
                         @enderror
                     </div>
@@ -669,11 +713,35 @@ new #[Layout('layouts.admin-app')] #[Title('Pricing Management')] class extends 
                                     </td>
 
                                     <td class="px-6 py-4 font-mono text-body-md">
-                                        {{ $plan->monthly_price !== null ? '$' . number_format((float) $plan->monthly_price, 2) : '—' }}
+                                        @if ($plan->monthly_discount_price !== null)
+                                            <div>
+                                                <span class="text-primary font-semibold">
+                                                    ${{ number_format((float) $plan->monthly_discount_price, 2) }}
+                                                </span>
+
+                                                <span class="block text-xs text-slate-400 line-through">
+                                                    ${{ number_format((float) $plan->monthly_price, 2) }}
+                                                </span>
+                                            </div>
+                                        @else
+                                            {{ $plan->monthly_price !== null ? '$' . number_format((float) $plan->monthly_price, 2) : '—' }}
+                                        @endif
                                     </td>
 
                                     <td class="px-6 py-4 font-mono text-body-md">
-                                        {{ $plan->yearly_price !== null ? '$' . number_format((float) $plan->yearly_price, 2) : '—' }}
+                                        @if ($plan->yearly_discount_price !== null)
+                                            <div>
+                                                <span class="text-primary font-semibold">
+                                                    ${{ number_format((float) $plan->yearly_discount_price, 2) }}
+                                                </span>
+
+                                                <span class="block text-xs text-slate-400 line-through">
+                                                    ${{ number_format((float) $plan->yearly_price, 2) }}
+                                                </span>
+                                            </div>
+                                        @else
+                                            {{ $plan->yearly_price !== null ? '$' . number_format((float) $plan->yearly_price, 2) : '—' }}
+                                        @endif
                                     </td>
 
                                     <td class="px-6 py-4">

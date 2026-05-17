@@ -341,11 +341,13 @@ new class extends Component {
                     </p>
 
                     <div class="flex flex-wrap items-center justify-center gap-4 sm:justify-end">
-                        <a href="#" class="text-sm text-blue-100/55 transition hover:text-white">
+                        <a href="{{ route('client.privacy-policy') }}"
+                            class="text-sm text-blue-100/55 transition hover:text-white">
                             Privacy Policy
                         </a>
 
-                        <a href="#" class="text-sm text-blue-100/55 transition hover:text-white">
+                        <a href="{{ route('client.terms-conditions') }}"
+                            class="text-sm text-blue-100/55 transition hover:text-white">
                             Terms & Conditions
                         </a>
 

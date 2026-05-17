@@ -41,6 +41,12 @@ Route::livewire('/contact', 'pages::client.contact')->name('client.contact');
 // Pricing and orders
 Route::livewire('/checkout/pricing/{pricingPlan}', 'pages::client.checkout.pricing-checkout')->name('client.checkout.pricing');
 
+// Legal Pages
+Route::livewire('/terms-and-conditions', 'pages::client.legal-pages.terms-conditions')->name('client.terms-conditions');
+Route::livewire('/privacy-policy', 'pages::client.legal-pages.privacy-policy')->name('client.privacy-policy');
+
+
+
 /*
 |--------------------------------------------------------------------------
 | Email verification

@@ -73,19 +73,6 @@
 
         <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
         @stack('scripts')
-
-        {{-- <script>
-            document.addEventListener('livewire:init', () => {
-                console.log('Livewire initialized');
-
-                if (window.Echo) {
-                    console.log('Echo loaded for admin');
-                } else {
-                    console.error('Echo not loaded');
-                }
-            });
-        </script> --}}
-
         @livewireScripts
     </div>
 
