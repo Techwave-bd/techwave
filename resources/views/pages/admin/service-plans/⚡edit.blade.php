@@ -19,6 +19,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
     public string $description = '';
 
     public string $price = '';
+    public string $discount_price = '';
 
     public string $buy_url = '';
 
@@ -40,6 +41,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
         $this->description = $servicePlan->description ?? '';
 
         $this->price = $servicePlan->price !== null ? (string) $servicePlan->price : '';
+        $this->discount_price = $servicePlan->discount_price !== null ? (string) $servicePlan->discount_price : '';
 
         $this->buy_url = $servicePlan->buy_url ?? '';
 
@@ -56,17 +58,13 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
 
             'name' => ['required', 'string', 'max:160'],
 
-            'slug' => [
-                'required',
-                'string',
-                'max:190',
-                Rule::unique('service_plans', 'slug')->ignore($this->servicePlan->id),
-            ],
+            'slug' => ['required', 'string', 'max:190', Rule::unique('service_plans', 'slug')->ignore($this->servicePlan->id)],
 
             'badge' => ['nullable', 'string', 'max:80'],
             'description' => ['nullable', 'string', 'max:800'],
 
             'price' => ['required', 'numeric', 'min:0'],
+            'discount_price' => ['nullable', 'numeric', 'min:0', 'lt:price'],
 
             'buy_url' => ['required', 'url', 'max:255'],
 
@@ -83,20 +81,18 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
         return [
             'service_id.required' => 'Please select a service.',
             'buy_url.url' => 'Please enter a valid cart or buy URL.',
+            'discount_price.lt' => 'Discount price must be less than regular price.',
         ];
     }
 
     public function services()
     {
-        return Service::query()
-            ->where('is_active', true)
-            ->orderBy('card_title')
-            ->get();
+        return Service::query()->where('is_active', true)->orderBy('card_title')->get();
     }
 
     public function selectedService()
     {
-        if (! $this->service_id) {
+        if (!$this->service_id) {
             return null;
         }
 
@@ -127,12 +123,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
         $originalSlug = $slug;
         $counter = 1;
 
-        while (
-            ServicePlan::query()
-                ->where('slug', $slug)
-                ->where('id', '!=', $this->servicePlan->id)
-                ->exists()
-        ) {
+        while (ServicePlan::query()->where('slug', $slug)->where('id', '!=', $this->servicePlan->id)->exists()) {
             $slug = $originalSlug . '-' . $counter;
             $counter++;
         }
@@ -150,7 +141,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
             return;
         }
 
-        if (! in_array($feature, $this->features, true)) {
+        if (!in_array($feature, $this->features, true)) {
             $this->features[] = $feature;
         }
 
@@ -178,6 +169,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
             'description' => $validated['description'] ?: null,
 
             'price' => $validated['price'] !== '' ? $validated['price'] : null,
+            'discount_price' => filled($validated['discount_price'] ?? null) ? $validated['discount_price'] : null,
 
             'features' => array_values(array_filter($validated['features'] ?? [])),
 
@@ -205,6 +197,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
         $this->description = $this->servicePlan->description ?? '';
 
         $this->price = $this->servicePlan->price !== null ? (string) $this->servicePlan->price : '';
+        $this->discount_price = $this->servicePlan->discount_price !== null ? (string) $this->servicePlan->discount_price : '';
 
         $this->buy_url = $this->servicePlan->buy_url ?? '';
 
@@ -221,13 +214,12 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
 };
 ?>
 
-
 <div>
     <div class="mb-10 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-            <h1 class="text-h1 font-h1 text-on-surface">Create Service Plan</h1>
+            <h1 class="text-h1 font-h1 text-on-surface">Edit Service Plan</h1>
             <p class="mt-1 text-body-md font-body-md text-secondary">
-                Create service plans and connect each plan to your external cart page.
+                Update service plan details, pricing, features, and cart page.
             </p>
         </div>
 
@@ -251,22 +243,110 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
                         <div class="space-y-2 md:col-span-2">
                             <label class="block font-label-md text-on-surface">Parent Service</label>
 
-                            <div class="relative">
-                                <select wire:model.live="service_id"
-                                    class="w-full appearance-none rounded border border-outline-variant bg-white px-4 py-2.5 pr-10 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10">
-                                    <option value="">Select service</option>
+                            <div x-data="{
+                                open: false,
+                                search: '',
+                                selectedId: @entangle('service_id').live,
+                                services: @js(
+    $this->services()
+        ->map(
+            fn($service) => [
+                'id' => $service->id,
+                'title' => $service->card_title,
+            ],
+        )
+        ->values(),
+),
+                            
+                                get selectedService() {
+                                    return this.services.find(service => service.id == this.selectedId) || null;
+                                },
+                            
+                                get filteredServices() {
+                                    if (!this.search.trim()) {
+                                        return this.services;
+                                    }
+                            
+                                    return this.services.filter(service =>
+                                        service.title.toLowerCase().includes(this.search.toLowerCase())
+                                    );
+                                },
+                            
+                                selectService(service) {
+                                    this.selectedId = service.id;
+                                    this.search = service.title;
+                                    this.open = false;
+                                },
+                            
+                                clearService() {
+                                    this.selectedId = null;
+                                    this.search = '';
+                                    this.open = true;
+                                },
+                            
+                                init() {
+                                    if (this.selectedService) {
+                                        this.search = this.selectedService.title;
+                                    }
+                            
+                                    this.$watch('selectedId', () => {
+                                        if (this.selectedService) {
+                                            this.search = this.selectedService.title;
+                                        }
+                                    });
+                                }
+                            }" class="relative" @click.outside="open = false">
+                                <div class="relative">
+                                    <input type="text" x-model="search" @focus="open = true" @input="open = true"
+                                        @keydown.escape.window="open = false" placeholder="Search and select service..."
+                                        class="w-full rounded border border-outline-variant bg-white px-4 py-2.5 pr-20 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
 
-                                    @foreach ($this->services() as $service)
-                                        <option value="{{ $service->id }}">
-                                            {{ $service->card_title }}
-                                        </option>
-                                    @endforeach
-                                </select>
+                                    <div class="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                                        <button type="button" x-show="selectedId" @click="clearService()"
+                                            class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-red-500">
+                                            <span class="material-symbols-outlined text-[18px]">close</span>
+                                        </button>
 
-                                <span
-                                    class="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                                    expand_more
-                                </span>
+                                        <button type="button" @click="open = !open"
+                                            class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100">
+                                            <span class="material-symbols-outlined text-[22px] transition"
+                                                :class="open ? 'rotate-180' : ''">
+                                                expand_more
+                                            </span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div x-show="open" x-transition
+                                    class="absolute z-50 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
+                                    style="display: none;">
+                                    <template x-if="filteredServices.length">
+                                        <div class="space-y-1">
+                                            <template x-for="service in filteredServices" :key="service.id">
+                                                <button type="button" @click="selectService(service)"
+                                                    class="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition hover:bg-primary/5"
+                                                    :class="selectedId == service.id ? 'bg-primary/10 text-primary' :
+                                                        'text-slate-700'">
+                                                    <span x-text="service.title" class="font-medium"></span>
+
+                                                    <span x-show="selectedId == service.id"
+                                                        class="material-symbols-outlined text-[18px] text-primary">
+                                                        check_circle
+                                                    </span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </template>
+
+                                    <template x-if="!filteredServices.length">
+                                        <div class="rounded-lg bg-slate-50 px-4 py-6 text-center">
+                                            <span class="material-symbols-outlined text-3xl text-slate-300">
+                                                search_off
+                                            </span>
+                                            <p class="mt-2 text-sm font-medium text-slate-500">No service found</p>
+                                        </div>
+                                    </template>
+                                </div>
                             </div>
 
                             @error('service_id')
@@ -306,15 +386,31 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
                         </div>
 
                         <div class="space-y-2">
-                            <label class="block font-label-md text-on-surface">Price</label>
+                            <label class="block font-label-md text-on-surface">Regular Price</label>
 
                             <input type="number" step="0.01" min="0" wire:model.live="price"
-                                placeholder="e.g., 5000"
+                                placeholder="e.g., 20000"
                                 class="w-full rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
 
                             @error('price')
                                 <p class="text-sm text-red-500">{{ $message }}</p>
                             @enderror
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="block font-label-md text-on-surface">Discount Price</label>
+
+                            <input type="number" step="0.01" min="0" wire:model.live="discount_price"
+                                placeholder="e.g., 15000"
+                                class="w-full rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
+
+                            @error('discount_price')
+                                <p class="text-sm text-red-500">{{ $message }}</p>
+                            @enderror
+
+                            <p class="text-xs text-secondary">
+                                Leave empty if there is no discount.
+                            </p>
                         </div>
 
                         <div class="space-y-2">
@@ -482,9 +578,28 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Plan')] class extends C
                         <div class="mt-4 rounded-xl bg-white p-4 shadow-sm">
                             <p class="text-sm text-slate-500">Price (BDT)</p>
 
-                            <p class="text-2xl font-bold text-on-surface">
-                                {{ $price ?: 'Custom' }}
-                            </p>
+                            @if ($discount_price && $price && (float) $discount_price < (float) $price)
+                                <div class="mt-1">
+                                    <div class="flex items-end gap-2">
+                                        <p class="text-2xl font-bold text-on-surface">
+                                            ৳{{ number_format((float) $discount_price, 0) }}
+                                        </p>
+
+                                        <p class="pb-1 text-sm font-semibold text-slate-400 line-through">
+                                            ৳{{ number_format((float) $price, 0) }}
+                                        </p>
+                                    </div>
+
+                                    <p class="mt-1 text-xs font-semibold text-emerald-600">
+                                        {{ round((1 - (float) $discount_price / (float) $price) * 100) }}% discount
+                                        applied
+                                    </p>
+                                </div>
+                            @else
+                                <p class="text-2xl font-bold text-on-surface">
+                                    {{ $price ? '৳' . number_format((float) $price, 0) : 'Custom' }}
+                                </p>
+                            @endif
                         </div>
 
                         <div class="mt-4 space-y-2">

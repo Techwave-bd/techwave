@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 #[Fillable([
     'service_id',
+    'service_plan_id',
     'full_name',
     'phone',
     'email',
@@ -19,6 +20,11 @@ class ServiceBooking extends Model
     public function service()
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function servicePlan()
+    {
+        return $this->belongsTo(ServicePlan::class);
     }
 
     public function assignedService()

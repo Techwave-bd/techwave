@@ -1143,6 +1143,17 @@
     background: rgba(125, 211, 252, 0.42);
 }
 
+/* Admin service plan quill js height */
+.service-plan-quill .ql-container.ql-snow {
+    height: 180px;
+}
+
+.service-plan-quill .ql-editor {
+    height: 180px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
 [x-cloak] {
     display: none !important;
 }

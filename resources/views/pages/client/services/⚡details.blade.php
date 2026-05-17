@@ -4,6 +4,7 @@ use App\Models\Service;
 use App\Models\ServiceBooking;
 use App\Models\SiteSetting;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 new class extends Component {
@@ -11,6 +12,8 @@ new class extends Component {
     public SiteSetting $siteSetting;
 
     public $otherServices;
+
+    public ?int $quote_service_plan_id = null;
 
     public string $quote_full_name = '';
     public string $quote_phone = '';
@@ -37,6 +40,15 @@ new class extends Component {
         $this->otherServices = Service::query()->where('is_active', true)->where('id', '!=', $this->service->id)->latest()->limit(3)->get();
     }
 
+    public function selectQuotePlan(int $planId): void
+    {
+        if (!$this->service->activePlans->contains('id', $planId)) {
+            return;
+        }
+
+        $this->quote_service_plan_id = $planId;
+    }
+
     public function submitQuoteRequest(): void
     {
         if (auth()->check()) {
@@ -45,6 +57,7 @@ new class extends Component {
 
         $validated = $this->validate(
             [
+                'quote_service_plan_id' => ['nullable', 'integer', Rule::exists('service_plans', 'id')->where('service_id', $this->service->id)],
                 'quote_full_name' => ['required', 'string', 'max:255'],
                 'quote_phone' => ['required', 'string', 'regex:/^(?:\+8801|8801|01)[3-9]\d{8}$/'],
                 'quote_email' => ['nullable', 'email', 'max:255'],
@@ -53,11 +66,13 @@ new class extends Component {
             ],
             [
                 'quote_phone.regex' => 'Please enter a valid Bangladeshi phone number. Example: 017XXXXXXXX, +88017XXXXXXXX, or 88017XXXXXXXX.',
+                'quote_service_plan_id.exists' => 'Please select a valid service plan.',
             ],
         );
 
         ServiceBooking::create([
             'service_id' => $this->service->id,
+            'service_plan_id' => $validated['quote_service_plan_id'] ?? null,
             'full_name' => $validated['quote_full_name'],
             'phone' => $validated['quote_phone'],
             'email' => $validated['quote_email'] ?? null,
@@ -66,7 +81,7 @@ new class extends Component {
             'status' => 'pending',
         ]);
 
-        $this->reset(['quote_full_name', 'quote_phone', 'quote_company_name', 'quote_message']);
+        $this->reset(['quote_service_plan_id', 'quote_full_name', 'quote_phone', 'quote_company_name', 'quote_message']);
 
         if (auth()->check()) {
             $this->quote_email = auth()->user()->email;
@@ -167,19 +182,19 @@ new class extends Component {
                         </div>
                     @endif
 
-                    @if ($service->activePlans->count())
-                        <div class="mt-8 flex flex-wrap gap-3">
+                    <div class="mt-8 flex flex-wrap gap-3">
+                        @if ($service->activePlans->count())
                             <a href="#service-plans"
                                 class="inline-flex items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5">
                                 View Plans
                             </a>
+                        @endif
 
-                            <a href="#quote-form"
-                                class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/8 px-6 py-3 text-sm font-semibold text-white backdrop-blur-xl transition hover:bg-white/12">
-                                Request Quote
-                            </a>
-                        </div>
-                    @endif
+                        <a href="#quote-form"
+                            class="inline-flex items-center justify-center rounded-full border border-white/10 bg-white/8 px-6 py-3 text-sm font-semibold text-white backdrop-blur-xl transition hover:bg-white/12">
+                            Request Quote
+                        </a>
+                    </div>
                 </div>
 
                 <div class="relative">
@@ -225,7 +240,17 @@ new class extends Component {
                                 </p>
                             </div>
 
-                            <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                            @php
+                                $planCount = $service->activePlans->count();
+
+                                $planGridClass = match (true) {
+                                    $planCount === 1 => 'grid gap-6 md:grid-cols-1 md:max-w-md md:mx-auto',
+                                    $planCount === 2 => 'grid gap-6 md:grid-cols-2 md:max-w-5xl md:mx-auto',
+                                    default => 'grid gap-6 md:grid-cols-2 xl:grid-cols-3',
+                                };
+                            @endphp
+
+                            <div class="{{ $planGridClass }}">
                                 @foreach ($service->activePlans as $plan)
                                     @php
                                         $isPopular = $plan->badge && str_contains(strtolower($plan->badge), 'popular');
@@ -235,6 +260,15 @@ new class extends Component {
                                             : 'border-white/10 bg-white/6 shadow-[0_20px_60px_rgba(0,0,0,0.18)]';
 
                                         $features = is_array($plan->features) ? $plan->features : [];
+
+                                        $hasDiscount =
+                                            !empty($plan->discount_price) &&
+                                            (float) $plan->discount_price > 0 &&
+                                            (float) $plan->discount_price < (float) $plan->price;
+
+                                        $discountPercent = $hasDiscount
+                                            ? round((1 - (float) $plan->discount_price / (float) $plan->price) * 100)
+                                            : 0;
                                     @endphp
 
                                     <div
@@ -279,11 +313,28 @@ new class extends Component {
 
                                         <div class="mt-6">
                                             @if ($plan->price)
-                                                <div class="flex items-end gap-2">
-                                                    <span class="text-4xl font-bold text-white">
-                                                        ৳ {{ number_format((float) $plan->price, 0) }}
-                                                    </span>
-                                                </div>
+                                                @if ($hasDiscount)
+                                                    <div class="flex flex-wrap items-end gap-3">
+                                                        <span class="text-4xl font-bold text-white">
+                                                            ৳ {{ number_format((float) $plan->discount_price, 0) }}
+                                                        </span>
+
+                                                        <span
+                                                            class="pb-1 text-lg font-semibold text-blue-100/40 line-through">
+                                                            ৳ {{ number_format((float) $plan->price, 0) }}
+                                                        </span>
+                                                        <span
+                                                            class="inline-flex items-center gap-1 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-xs font-bold text-cyan-200">
+                                                            {{ $discountPercent }}% OFF
+                                                        </span>
+                                                    </div>
+                                                @else
+                                                    <div class="flex items-end gap-2">
+                                                        <span class="text-4xl font-bold text-white">
+                                                            ৳ {{ number_format((float) $plan->price, 0) }}
+                                                        </span>
+                                                    </div>
+                                                @endif
                                             @else
                                                 <span class="text-3xl font-bold text-white">Custom</span>
                                             @endif
@@ -295,7 +346,7 @@ new class extends Component {
                                                 Choose Plan
                                             </a>
                                         @else
-                                            <a href="#quote-form"
+                                            <a href="#quote-form" wire:click="selectQuotePlan({{ $plan->id }})"
                                                 class="mt-6 inline-flex w-full items-center justify-center rounded-full border border-white/15 bg-white/8 px-6 py-3.5 font-semibold text-white backdrop-blur-xl transition hover:bg-white/12">
                                                 Request This Plan
                                             </a>
@@ -336,15 +387,15 @@ new class extends Component {
                     @if (!empty($service->overview))
                         <div class="service-detail-card">
                             <h2 class="text-2xl font-bold text-white sm:text-3xl">Service Overview</h2>
-                            <p class="mt-5 text-sm leading-7 text-blue-100/72 sm:text-base sm:leading-8">
+
+                            <div class="service-rich-content mt-5">
                                 {!! $service->overview !!}
-                            </p>
+                            </div>
                         </div>
                     @endif
 
                     <!-- Benefits -->
                     @if ($service->benefits)
-                    
                         <div class="service-detail-card">
                             <h2 class="text-2xl font-bold text-white sm:text-3xl">Key Benefits</h2>
 
@@ -421,7 +472,8 @@ new class extends Component {
 
                             <div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                                 @foreach ($otherServices as $otherService)
-                                    <a href="{{ route('client.services.details', $otherService->slug) }}" wire:navigate
+                                    <a href="{{ route('client.services.details', $otherService->slug) }}"
+                                        wire:navigate
                                         class="other-service-card {{ $loop->last ? 'sm:col-span-2 xl:col-span-1' : '' }}">
                                         <div class="other-service-icon bg-cyan-500/15 text-cyan-200">
                                             @if ($otherService->icon)
@@ -429,8 +481,9 @@ new class extends Component {
                                                     {{ $otherService->icon }}
                                                 </span>
                                             @else
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
-                                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6"
+                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                                    stroke-width="1.8">
                                                     <path stroke-linecap="round" stroke-linejoin="round"
                                                         d="M3.75 4.5h16.5v10.5H3.75zM7.5 20.25h9" />
                                                 </svg>
@@ -482,6 +535,55 @@ new class extends Component {
 
                         <form wire:submit.prevent="submitQuoteRequest" class="mt-6 space-y-4">
                             <input type="hidden" value="{{ $service->id }}">
+
+                            @if ($service->activePlans->count())
+                                <div>
+                                    <label class="mb-2 block text-sm font-medium text-blue-50/85">
+                                        Select Service Plan
+                                    </label>
+
+                                    <div class="relative">
+                                        <select wire:model="quote_service_plan_id"
+                                            class="contact-input appearance-none pr-10 bg-slate-950/80 text-white [color-scheme:dark]">
+                                            <option class="bg-slate-950 text-white" value="">
+                                                Select a plan or request custom quote
+                                            </option>
+
+                                            @foreach ($service->activePlans as $plan)
+                                                @php
+                                                    $hasDiscount =
+                                                        !empty($plan->discount_price) &&
+                                                        (float) $plan->discount_price > 0 &&
+                                                        (float) $plan->discount_price < (float) $plan->price;
+
+                                                    $displayPrice = $plan->price
+                                                        ? ' - ৳' .
+                                                            number_format(
+                                                                (float) ($hasDiscount
+                                                                    ? $plan->discount_price
+                                                                    : $plan->price),
+                                                                0,
+                                                            )
+                                                        : ' - Custom';
+                                                @endphp
+
+                                                <option class="bg-slate-950 text-white" value="{{ $plan->id }}">
+                                                    {{ $plan->name }}{{ $displayPrice }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+
+                                        <span
+                                            class="material-symbols-outlined pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-blue-100/45">
+                                            expand_more
+                                        </span>
+                                    </div>
+
+                                    @error('quote_service_plan_id')
+                                        <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            @endif
 
                             <div>
                                 <label class="mb-2 block text-sm font-medium text-blue-50/85">Full Name</label>
