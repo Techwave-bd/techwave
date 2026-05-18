@@ -24,6 +24,16 @@ new #[Title('Checkout')] class extends Component {
     public string $user_note = '';
     public ?float $requested_price = null;
 
+    /*
+    |--------------------------------------------------------------------------
+    | Future Direct Payment Switch
+    |--------------------------------------------------------------------------
+    | Keep this false for now because all pricing plan requests will go through
+    | booking/negotiation. Later, when you want SSLCommerz direct payment again,
+    | change this to true and update the form action logic if needed.
+    */
+    public bool $directPaymentEnabled = false;
+
     public function mount(PricingPlan $pricingPlan): void
     {
         abort_if($pricingPlan->status !== 'active', 404);
@@ -32,7 +42,7 @@ new #[Title('Checkout')] class extends Component {
 
         $billing = request()->query('billing', 'monthly');
 
-        $this->billing = in_array($billing, ['monthly', 'yearly']) ? $billing : 'monthly';
+        $this->billing = in_array($billing, ['monthly', 'yearly'], true) ? $billing : 'monthly';
 
         $this->amount = $this->getAmount();
 
@@ -43,7 +53,7 @@ new #[Title('Checkout')] class extends Component {
 
     public function updatedBilling(): void
     {
-        $this->billing = in_array($this->billing, ['monthly', 'yearly']) ? $this->billing : 'monthly';
+        $this->billing = in_array($this->billing, ['monthly', 'yearly'], true) ? $this->billing : 'monthly';
 
         $this->amount = $this->getAmount();
     }
@@ -77,31 +87,37 @@ new #[Title('Checkout')] class extends Component {
 
     public function getAmount(): float
     {
-        return (float) ($this->billing === 'yearly'
-            ? $this->pricingPlan->yearly_price
-            : $this->pricingPlan->monthly_price);
+        return (float) ($this->billing === 'yearly' ? $this->pricingPlan->yearly_price : $this->pricingPlan->monthly_price);
     }
 
-    public function isYearlyBooking(): bool
+    public function billingLabel(): string
     {
-        return $this->billing === 'yearly';
+        return $this->billing === 'yearly' ? 'Yearly' : 'Monthly';
     }
 
+    public function bookingAction(): string
+    {
+        return route('client.checkout.pricing.booking', $this->pricingPlan->id);
+    }
+
+    public function paymentAction(): string
+    {
+        return route('client.checkout.pricing.pay', $this->pricingPlan->id);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Future Payment Helpers
+    |--------------------------------------------------------------------------
+    | These are kept for your future SSLCommerz direct-payment flow.
+    */
     public function getTaxAmount(): float
     {
-        if ($this->isYearlyBooking()) {
-            return 0;
-        }
-
         return $this->getAmount() * 0.15;
     }
 
     public function getTotalAmount(): float
     {
-        if ($this->isYearlyBooking()) {
-            return $this->getAmount();
-        }
-
         return $this->getAmount() + $this->getTaxAmount();
     }
 };
@@ -114,33 +130,27 @@ new #[Title('Checkout')] class extends Component {
             {{-- Header --}}
             <div class="mb-10 text-center">
                 <p class="text-sm font-semibold uppercase tracking-[0.28em] text-cyan-300">
-                    {{ $this->isYearlyBooking() ? 'Booking Request' : 'Secure Checkout' }}
+                    Booking Request
                 </p>
 
                 <h1 class="mt-3 text-3xl font-bold sm:text-4xl lg:text-5xl">
-                    {{ $this->isYearlyBooking() ? 'Submit Your Booking Request' : 'Complete Your Order' }}
+                    Submit Your Plan Booking
                 </h1>
 
                 <p class="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-blue-100/60 sm:text-base">
-                    @if ($this->isYearlyBooking())
-                        Yearly plans are negotiable. Submit your details and our team will review your request.
-                    @else
-                        Review your selected plan and continue to secure payment.
-                    @endif
+                    All plans are negotiable. Submit your details and our team will review your request before final
+                    confirmation.
                 </p>
             </div>
 
             <form method="POST" novalidate
                 @guest
-                    x-data
+x-data
                     @submit.prevent="$dispatch('toast', {
                         type: 'error',
-                        message: 'Please login first to purchase or book a plan.'
-                    })"
-                @endguest
-                action="{{ $this->isYearlyBooking()
-                    ? route('client.checkout.pricing.booking', $pricingPlan->id)
-                    : route('client.checkout.pricing.pay', $pricingPlan->id) }}">
+                        message: 'Please login first to book a plan.'
+                    })" @endguest
+                action="{{ $this->bookingAction() }}">
                 @csrf
 
                 @error('pricing_plan')
@@ -153,6 +163,7 @@ new #[Title('Checkout')] class extends Component {
                 @enderror
 
                 <input type="hidden" name="billing" value="{{ $billing }}">
+                <input type="hidden" name="plan_price" value="{{ $this->getAmount() }}">
 
                 <div class="grid gap-8 lg:grid-cols-[1fr_420px]">
 
@@ -171,7 +182,7 @@ new #[Title('Checkout')] class extends Component {
                                 <div>
                                     <h2 class="text-xl font-bold">Billing Cycle</h2>
                                     <p class="mt-1 text-sm text-blue-100/55">
-                                        Choose how you want to continue with this plan.
+                                        Choose your preferred billing cycle. Final price will be confirmed after review.
                                     </p>
                                 </div>
                             </div>
@@ -186,7 +197,7 @@ new #[Title('Checkout')] class extends Component {
                                         <div>
                                             <p class="font-bold text-white">Monthly</p>
                                             <p class="mt-1 text-sm text-blue-100/55">
-                                                Direct payment
+                                                Negotiable booking
                                             </p>
                                         </div>
 
@@ -225,11 +236,6 @@ new #[Title('Checkout')] class extends Component {
                                     <p class="mt-4 text-2xl font-bold">
                                         ৳{{ number_format((float) $pricingPlan->yearly_price, 2) }}
                                     </p>
-
-                                    <p
-                                        class="mt-2 inline-flex rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-200">
-                                        Price negotiable
-                                    </p>
                                 </button>
                             </div>
                         </div>
@@ -246,7 +252,7 @@ new #[Title('Checkout')] class extends Component {
                                 <div>
                                     <h2 class="text-xl font-bold">Personal Information</h2>
                                     <p class="mt-1 text-sm text-blue-100/55">
-                                        This information will be used for account and order communication.
+                                        This information will be used for booking and communication.
                                     </p>
                                 </div>
                             </div>
@@ -307,7 +313,7 @@ new #[Title('Checkout')] class extends Component {
                                     <h2 class="text-xl font-bold">Company Information</h2>
                                     <p class="mt-1 text-sm text-blue-100/55">
                                         If your account has a company profile, this information will be loaded
-                                        automatically. You can change it for this order or booking.
+                                        automatically.
                                     </p>
                                 </div>
                             </div>
@@ -360,7 +366,6 @@ new #[Title('Checkout')] class extends Component {
                                     @enderror
                                 </div>
 
-                                {{-- Company Address --}}
                                 <div class="sm:col-span-2">
                                     <label for="customer_address"
                                         class="mb-2 block text-sm font-semibold text-blue-100/80">
@@ -375,38 +380,35 @@ new #[Title('Checkout')] class extends Component {
                                     @enderror
                                 </div>
 
-                                @if ($this->isYearlyBooking())
-                                    <div>
-                                        <label for="requested_price"
-                                            class="mb-2 block text-sm font-semibold text-blue-100/80">
-                                            Requested Price
-                                        </label>
+                                <div>
+                                    <label for="requested_price"
+                                        class="mb-2 block text-sm font-semibold text-blue-100/80">
+                                        Requested Price
+                                    </label>
 
-                                        <input id="requested_price" type="number" step="0.01" min="0"
-                                            name="requested_price" wire:model.live="requested_price"
-                                            placeholder="Your expected yearly price"
-                                            class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-blue-100/35 focus:border-cyan-300/70 focus:bg-white/15">
+                                    <input id="requested_price" type="number" step="0.01" min="0"
+                                        name="requested_price" wire:model.live="requested_price"
+                                        placeholder="Your expected {{ $billing }} price"
+                                        class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-blue-100/35 focus:border-cyan-300/70 focus:bg-white/15">
 
-                                        @error('requested_price')
-                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                                        @enderror
-                                    </div>
+                                    @error('requested_price')
+                                        <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                    @enderror
+                                </div>
 
-                                    <div class="sm:col-span-2">
-                                        <label for="user_note"
-                                            class="mb-2 block text-sm font-semibold text-blue-100/80">
-                                            Requirement / Message
-                                        </label>
+                                <div class="sm:col-span-2">
+                                    <label for="user_note" class="mb-2 block text-sm font-semibold text-blue-100/80">
+                                        Requirement / Message
+                                    </label>
 
-                                        <textarea id="user_note" name="user_note" rows="4"
-                                            placeholder="Write your requirement, expected service details, or negotiation message..."
-                                            class="w-full resize-none rounded-2xl border border-white/10 bg-white/10 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-blue-100/35 focus:border-cyan-300/70 focus:bg-white/15">{{ old('user_note', $user_note) }}</textarea>
+                                    <textarea id="user_note" name="user_note" rows="4"
+                                        placeholder="Write your requirement, expected service details, or negotiation message..."
+                                        class="w-full resize-none rounded-2xl border border-white/10 bg-white/10 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-blue-100/35 focus:border-cyan-300/70 focus:bg-white/15">{{ old('user_note', $user_note) }}</textarea>
 
-                                        @error('user_note')
-                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                                        @enderror
-                                    </div>
-                                @endif
+                                    @error('user_note')
+                                        <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                    @enderror
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -420,16 +422,16 @@ new #[Title('Checkout')] class extends Component {
                                     <div
                                         class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/20">
                                         <span class="material-symbols-outlined">
-                                            {{ $this->isYearlyBooking() ? 'contract' : 'receipt_long' }}
+                                            contract
                                         </span>
                                     </div>
 
                                     <div>
                                         <h2 class="text-xl font-bold">
-                                            {{ $this->isYearlyBooking() ? 'Booking Summary' : 'Order Summary' }}
+                                            Booking Summary
                                         </h2>
                                         <p class="mt-1 text-sm text-blue-100/55">
-                                            {{ $this->isYearlyBooking() ? 'Review your booking request.' : 'Review your order before payment.' }}
+                                            Review your booking request before submission.
                                         </p>
                                     </div>
                                 </div>
@@ -456,87 +458,72 @@ new #[Title('Checkout')] class extends Component {
                                     </div>
 
                                     <div class="flex justify-between gap-4">
-                                        <span class="text-blue-100/60">
-                                            {{ $this->isYearlyBooking() ? 'Listed Yearly Price' : 'Subtotal' }}
-                                        </span>
+                                        <span class="text-blue-100/60">Listed {{ $this->billingLabel() }} Price</span>
 
                                         <span class="font-semibold text-white">
                                             ৳{{ number_format($this->getAmount(), 2) }}
                                         </span>
                                     </div>
 
-                                    @if ($this->isYearlyBooking())
+                                    <div class="flex justify-between gap-4">
+                                        <span class="text-blue-100/60">Pricing Status</span>
+                                        <span class="font-semibold text-amber-300">Negotiable</span>
+                                    </div>
+
+                                    @if ($requested_price)
                                         <div class="flex justify-between gap-4">
-                                            <span class="text-blue-100/60">Pricing Status</span>
-                                            <span class="font-semibold text-amber-300">Negotiable</span>
-                                        </div>
-
-                                        @if ($requested_price)
-                                            <div class="flex justify-between gap-4">
-                                                <span class="text-blue-100/60">Requested Price</span>
-                                                <span class="font-semibold text-cyan-300">
-                                                    ৳{{ number_format((float) $requested_price, 2) }}
-                                                </span>
-                                            </div>
-                                        @endif
-
-                                        <div
-                                            class="rounded-2xl border border-amber-300/15 bg-amber-300/10 p-4 text-xs leading-6 text-amber-100/90">
-                                            <div class="mb-2 flex items-center gap-2 font-bold text-amber-200">
-                                                <span class="material-symbols-outlined text-base">info</span>
-                                                No payment required now
-                                            </div>
-
-                                            Our team will review your request and send a final quoted price.
-                                        </div>
-                                    @else
-                                        <div class="flex justify-between gap-4">
-                                            <span class="text-blue-100/60">TAX (+15%)</span>
-                                            <span class="font-semibold text-emerald-300">
-                                                ৳{{ number_format($this->getTaxAmount(), 2) }}
+                                            <span class="text-blue-100/60">Requested Price</span>
+                                            <span class="font-semibold text-cyan-300">
+                                                ৳{{ number_format((float) $requested_price, 2) }}
                                             </span>
                                         </div>
-
-                                        <div
-                                            class="flex justify-between border-t border-white/10 pt-4 text-lg font-bold">
-                                            <span>Total</span>
-                                            <span>৳{{ number_format($this->getTotalAmount(), 2) }}</span>
-                                        </div>
                                     @endif
+
+                                    <div
+                                        class="rounded-2xl border border-amber-300/15 bg-amber-300/10 p-4 text-xs leading-6 text-amber-100/90">
+                                        <div class="mb-2 flex items-center gap-2 font-bold text-amber-200">
+                                            <span class="material-symbols-outlined text-base">info</span>
+                                            No payment required now
+                                        </div>
+
+                                        Our team will review your request and send a final quoted price before payment.
+                                    </div>
                                 </div>
 
                                 @auth
                                     <button type="submit"
                                         class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-blue-500 to-sky-400 px-6 py-4 font-bold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 hover:shadow-blue-500/40">
                                         <span class="material-symbols-outlined text-xl">
-                                            {{ $this->isYearlyBooking() ? 'send' : 'lock' }}
+                                            send
                                         </span>
 
-                                        {{ $this->isYearlyBooking() ? 'SUBMIT BOOKING REQUEST' : 'PLACE ORDER' }}
+                                        SUBMIT BOOKING REQUEST
                                     </button>
                                 @else
                                     <button type="button" x-data
                                         @click="$dispatch('toast', {
                                             type: 'error',
-                                            message: 'Please login first to purchase or book a plan.'
+                                            message: 'Please login first to book a plan.'
                                         })"
                                         class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-blue-500 to-sky-400 px-6 py-4 font-bold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 hover:shadow-blue-500/40">
                                         <span class="material-symbols-outlined text-xl">lock</span>
 
-                                        {{ $this->isYearlyBooking() ? 'SUBMIT BOOKING REQUEST' : 'PLACE ORDER' }}
+                                        SUBMIT BOOKING REQUEST
                                     </button>
                                 @endauth
 
                                 <div
                                     class="flex items-center justify-center gap-2 text-center text-xs text-blue-100/50">
-                                    @if ($this->isYearlyBooking())
-                                        <span class="material-symbols-outlined text-base">support_agent</span>
-                                        Our team will contact you after review.
-                                    @else
-                                        <span class="material-symbols-outlined text-base">verified_user</span>
-                                        Secure payment powered by SSLCommerz
-                                    @endif
+                                    <span class="material-symbols-outlined text-base">support_agent</span>
+                                    Our team will contact you after review.
                                 </div>
+
+                                @if ($directPaymentEnabled)
+                                    <div class="hidden">
+                                        Future SSLCommerz payment route:
+                                        {{ $this->paymentAction() }}
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     </div>

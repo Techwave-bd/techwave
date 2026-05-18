@@ -1,10 +1,9 @@
 <?php
 
+use App\Models\Booking;
 use App\Models\Service;
-use App\Models\ServiceBooking;
 use App\Models\SiteSetting;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 new class extends Component {
@@ -14,6 +13,9 @@ new class extends Component {
     public $otherServices;
 
     public ?int $quote_service_plan_id = null;
+    public string $quote_selected_package = '';
+    public ?string $quote_billing_cycle = null;
+    public ?float $quote_selected_plan_price = null;
 
     public string $quote_full_name = '';
     public string $quote_phone = '';
@@ -40,13 +42,140 @@ new class extends Component {
         $this->otherServices = Service::query()->where('is_active', true)->where('id', '!=', $this->service->id)->latest()->limit(3)->get();
     }
 
-    public function selectQuotePlan(int $planId): void
+    private function makeBookingNo(): string
+    {
+        do {
+            $bookingNo = 'BK-' . now()->format('ymd') . '-' . strtoupper(Str::random(6));
+        } while (Booking::query()->where('booking_no', $bookingNo)->exists());
+
+        return $bookingNo;
+    }
+
+    private function finalPlanPrice($regularPrice, $discountPrice): ?float
+    {
+        if (empty($regularPrice) || (float) $regularPrice <= 0) {
+            return null;
+        }
+
+        if (!empty($discountPrice) && (float) $discountPrice > 0 && (float) $discountPrice < (float) $regularPrice) {
+            return (float) $discountPrice;
+        }
+
+        return (float) $regularPrice;
+    }
+
+    public function parseSelectedPackage(): array
+    {
+        if (blank($this->quote_selected_package)) {
+            return [
+                'plan' => null,
+                'plan_id' => null,
+                'plan_name' => null,
+                'billing_cycle' => 'custom',
+                'price' => null,
+            ];
+        }
+
+        [$planId, $billingCycle] = array_pad(explode('|', $this->quote_selected_package), 2, null);
+
+        $planId = $planId ? (int) $planId : null;
+
+        if (!$planId) {
+            return [
+                'plan' => null,
+                'plan_id' => null,
+                'plan_name' => null,
+                'billing_cycle' => 'custom',
+                'price' => null,
+            ];
+        }
+
+        $plan = $this->service->activePlans->firstWhere('id', $planId);
+
+        if (!$plan) {
+            return [
+                'plan' => null,
+                'plan_id' => null,
+                'plan_name' => null,
+                'billing_cycle' => 'custom',
+                'price' => null,
+            ];
+        }
+
+        $hasMonthlyPrice = !empty($plan->has_monthly_price) && !empty($plan->monthly_price) && (float) $plan->monthly_price > 0;
+
+        $hasYearlyPrice = !empty($plan->has_yearly_price) && !empty($plan->yearly_price) && (float) $plan->yearly_price > 0;
+
+        $hasOneTimePrice = !empty($plan->price) && (float) $plan->price > 0;
+
+        if (!in_array($billingCycle, ['monthly', 'yearly', 'one_time', 'custom'], true)) {
+            $billingCycle = match (true) {
+                $hasMonthlyPrice => 'monthly',
+                $hasYearlyPrice => 'yearly',
+                $hasOneTimePrice => 'one_time',
+                default => 'custom',
+            };
+        }
+
+        if ($billingCycle === 'monthly' && !$hasMonthlyPrice) {
+            $billingCycle = match (true) {
+                $hasYearlyPrice => 'yearly',
+                $hasOneTimePrice => 'one_time',
+                default => 'custom',
+            };
+        }
+
+        if ($billingCycle === 'yearly' && !$hasYearlyPrice) {
+            $billingCycle = match (true) {
+                $hasMonthlyPrice => 'monthly',
+                $hasOneTimePrice => 'one_time',
+                default => 'custom',
+            };
+        }
+
+        $price = match ($billingCycle) {
+            'monthly' => $this->finalPlanPrice($plan->monthly_price, $plan->monthly_discount_price),
+
+            'yearly' => $this->finalPlanPrice($plan->yearly_price, $plan->yearly_discount_price),
+
+            'one_time' => $this->finalPlanPrice($plan->price, $plan->discount_price),
+
+            default => null,
+        };
+
+        return [
+            'plan' => $plan,
+            'plan_id' => $plan->id,
+            'plan_name' => $plan->name,
+            'billing_cycle' => $billingCycle,
+            'price' => $price,
+        ];
+    }
+
+    public function updatedQuoteSelectedPackage(): void
+    {
+        $selectedPackage = $this->parseSelectedPackage();
+
+        $this->quote_service_plan_id = $selectedPackage['plan_id'];
+        $this->quote_billing_cycle = $selectedPackage['billing_cycle'];
+        $this->quote_selected_plan_price = $selectedPackage['price'];
+    }
+
+    public function selectQuotePlan(int $planId, string $billingCycle = 'custom'): void
     {
         if (!$this->service->activePlans->contains('id', $planId)) {
             return;
         }
 
-        $this->quote_service_plan_id = $planId;
+        $this->quote_selected_package = $planId . '|' . $billingCycle;
+
+        $selectedPackage = $this->parseSelectedPackage();
+
+        $this->quote_service_plan_id = $selectedPackage['plan_id'];
+        $this->quote_selected_package = $selectedPackage['plan_id'] ? $selectedPackage['plan_id'] . '|' . $selectedPackage['billing_cycle'] : '';
+
+        $this->quote_billing_cycle = $selectedPackage['billing_cycle'];
+        $this->quote_selected_plan_price = $selectedPackage['price'];
     }
 
     public function submitQuoteRequest(): void
@@ -57,7 +186,7 @@ new class extends Component {
 
         $validated = $this->validate(
             [
-                'quote_service_plan_id' => ['nullable', 'integer', Rule::exists('service_plans', 'id')->where('service_id', $this->service->id)],
+                'quote_selected_package' => ['nullable', 'string', 'max:100'],
                 'quote_full_name' => ['required', 'string', 'max:255'],
                 'quote_phone' => ['required', 'string', 'regex:/^(?:\+8801|8801|01)[3-9]\d{8}$/'],
                 'quote_email' => ['nullable', 'email', 'max:255'],
@@ -66,22 +195,50 @@ new class extends Component {
             ],
             [
                 'quote_phone.regex' => 'Please enter a valid Bangladeshi phone number. Example: 017XXXXXXXX, +88017XXXXXXXX, or 88017XXXXXXXX.',
-                'quote_service_plan_id.exists' => 'Please select a valid service plan.',
             ],
         );
 
-        ServiceBooking::create([
+        $selectedPackage = $this->parseSelectedPackage();
+
+        Booking::create([
+            'user_id' => auth()->id(),
+
+            'booking_no' => $this->makeBookingNo(),
+            'booking_type' => 'service',
+
             'service_id' => $this->service->id,
-            'service_plan_id' => $validated['quote_service_plan_id'] ?? null,
+            'service_plan_id' => $selectedPackage['plan_id'],
+            'pricing_plan_id' => null,
+
+            'billing_cycle' => $selectedPackage['billing_cycle'],
+
             'full_name' => $validated['quote_full_name'],
             'phone' => $validated['quote_phone'],
             'email' => $validated['quote_email'] ?? null,
+
             'company_name' => $validated['quote_company_name'] ?? null,
+            'company_phone' => null,
+            'company_email' => null,
+
+            'plan_name' => $selectedPackage['plan_name'],
+            'plan_price' => $selectedPackage['price'],
+            'requested_price' => null,
+            'quoted_price' => null,
+            'final_price' => $selectedPackage['price'],
+
+            'currency' => 'BDT',
+
             'message' => $validated['quote_message'] ?? null,
+            'user_note' => $validated['quote_message'] ?? null,
+            'admin_note' => null,
+
             'status' => 'pending',
+
+            'pricing_order_id' => null,
+            'admin_read_at' => null,
         ]);
 
-        $this->reset(['quote_service_plan_id', 'quote_full_name', 'quote_phone', 'quote_company_name', 'quote_message']);
+        $this->reset(['quote_service_plan_id', 'quote_selected_package', 'quote_billing_cycle', 'quote_selected_plan_price', 'quote_full_name', 'quote_phone', 'quote_company_name', 'quote_message']);
 
         if (auth()->check()) {
             $this->quote_email = auth()->user()->email;
@@ -91,7 +248,7 @@ new class extends Component {
             $this->quote_email = '';
         }
 
-        $this->dispatch('toast', message: 'Your quote request has been submitted successfully.', type: 'success');
+        $this->dispatch('toast', message: 'Your booking request has been submitted successfully.', type: 'success');
     }
 
     public function serviceImage(): string
@@ -412,12 +569,13 @@ new class extends Component {
                                                             <span class="text-4xl font-bold text-white">
                                                                 ৳ {{ number_format((float) $plan->monthly_price, 0) }}
                                                             </span>
+                                                            <span class="pb-1 text-sm text-blue-100/60">/ month</span>
                                                         </div>
                                                     @endif
 
-                                                    <p class="mt-2 text-sm font-medium text-blue-100/55">
+                                                    {{-- <p class="mt-2 text-sm font-medium text-blue-100/55">
                                                         Per month
-                                                    </p>
+                                                    </p> --}}
                                                 </div>
                                             @endif
 
@@ -446,12 +604,13 @@ new class extends Component {
                                                             <span class="text-4xl font-bold text-white">
                                                                 ৳ {{ number_format((float) $plan->yearly_price, 0) }}
                                                             </span>
+                                                            <span class="pb-1 text-sm text-blue-100/60">/ year</span>
                                                         </div>
                                                     @endif
 
-                                                    <p class="mt-2 text-sm font-medium text-blue-100/55">
+                                                    {{-- <p class="mt-2 text-sm font-medium text-blue-100/55">
                                                         Per year
-                                                    </p>
+                                                    </p> --}}
                                                 </div>
                                             @endif
 
@@ -508,9 +667,9 @@ new class extends Component {
                                                     </div>
                                                 @endif
 
-                                                <p class="mt-2 text-sm font-medium text-blue-100/55">
+                                                {{-- <p class="mt-2 text-sm font-medium text-blue-100/55">
                                                     One-time
-                                                </p>
+                                                </p> --}}
                                             @endif
 
                                             {{-- Custom price --}}
@@ -525,7 +684,8 @@ new class extends Component {
                                                 Choose Plan
                                             </a>
                                         @else
-                                            <a href="#quote-form" wire:click="selectQuotePlan({{ $plan->id }})"
+                                            <a href="#quote-form"
+                                                @click="$wire.selectQuotePlan({{ $plan->id }}, billing)"
                                                 class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
                                                 Choose Plan
                                             </a>
@@ -718,7 +878,7 @@ new class extends Component {
                                     </label>
 
                                     <div class="relative">
-                                        <select wire:model="quote_service_plan_id"
+                                        <select wire:model.live="quote_selected_package"
                                             class="contact-input appearance-none pr-10 bg-slate-950/80 text-white [color-scheme:dark]">
                                             <option class="bg-slate-950 text-white" value="">
                                                 Select a plan or request custom quote
@@ -727,10 +887,12 @@ new class extends Component {
                                             @foreach ($service->activePlans as $plan)
                                                 @php
                                                     $hasOneTimePrice = !empty($plan->price) && (float) $plan->price > 0;
+
                                                     $hasMonthlyPrice =
                                                         !empty($plan->has_monthly_price) &&
                                                         !empty($plan->monthly_price) &&
                                                         (float) $plan->monthly_price > 0;
+
                                                     $hasYearlyPrice =
                                                         !empty($plan->has_yearly_price) &&
                                                         !empty($plan->yearly_price) &&
@@ -756,57 +918,45 @@ new class extends Component {
                                                         (float) $plan->yearly_discount_price <
                                                             (float) $plan->yearly_price;
 
-                                                    if ($hasMonthlyPrice && $hasYearlyPrice) {
-                                                        $displayPrice =
-                                                            ' - Monthly ৳' .
-                                                            number_format(
-                                                                (float) ($hasMonthlyDiscount
-                                                                    ? $plan->monthly_discount_price
-                                                                    : $plan->monthly_price),
-                                                                0,
-                                                            ) .
-                                                            ' / Yearly ৳' .
-                                                            number_format(
-                                                                (float) ($hasYearlyDiscount
-                                                                    ? $plan->yearly_discount_price
-                                                                    : $plan->yearly_price),
-                                                                0,
-                                                            );
-                                                    } elseif ($hasMonthlyPrice) {
-                                                        $displayPrice =
-                                                            ' - Monthly ৳' .
-                                                            number_format(
-                                                                (float) ($hasMonthlyDiscount
-                                                                    ? $plan->monthly_discount_price
-                                                                    : $plan->monthly_price),
-                                                                0,
-                                                            );
-                                                    } elseif ($hasYearlyPrice) {
-                                                        $displayPrice =
-                                                            ' - Yearly ৳' .
-                                                            number_format(
-                                                                (float) ($hasYearlyDiscount
-                                                                    ? $plan->yearly_discount_price
-                                                                    : $plan->yearly_price),
-                                                                0,
-                                                            );
-                                                    } elseif ($hasOneTimePrice) {
-                                                        $displayPrice =
-                                                            ' - ৳' .
-                                                            number_format(
-                                                                (float) ($hasDiscount
-                                                                    ? $plan->discount_price
-                                                                    : $plan->price),
-                                                                0,
-                                                            );
-                                                    } else {
-                                                        $displayPrice = ' - Custom';
-                                                    }
+                                                    $oneTimePrice = $hasDiscount ? $plan->discount_price : $plan->price;
+                                                    $monthlyPrice = $hasMonthlyDiscount
+                                                        ? $plan->monthly_discount_price
+                                                        : $plan->monthly_price;
+                                                    $yearlyPrice = $hasYearlyDiscount
+                                                        ? $plan->yearly_discount_price
+                                                        : $plan->yearly_price;
                                                 @endphp
 
-                                                <option class="bg-slate-950 text-white" value="{{ $plan->id }}">
-                                                    {{ $plan->name }}{{ $displayPrice }}
-                                                </option>
+                                                @if ($hasMonthlyPrice)
+                                                    <option class="bg-slate-950 text-white"
+                                                        value="{{ $plan->id }}|monthly">
+                                                        {{ $plan->name }} - Monthly -
+                                                        ৳{{ number_format((float) $monthlyPrice, 0) }}
+                                                    </option>
+                                                @endif
+
+                                                @if ($hasYearlyPrice)
+                                                    <option class="bg-slate-950 text-white"
+                                                        value="{{ $plan->id }}|yearly">
+                                                        {{ $plan->name }} - Yearly -
+                                                        ৳{{ number_format((float) $yearlyPrice, 0) }}
+                                                    </option>
+                                                @endif
+
+                                                @if (!$hasMonthlyPrice && !$hasYearlyPrice && $hasOneTimePrice)
+                                                    <option class="bg-slate-950 text-white"
+                                                        value="{{ $plan->id }}|one_time">
+                                                        {{ $plan->name }} - One-time -
+                                                        ৳{{ number_format((float) $oneTimePrice, 0) }}
+                                                    </option>
+                                                @endif
+
+                                                @if (!$hasMonthlyPrice && !$hasYearlyPrice && !$hasOneTimePrice)
+                                                    <option class="bg-slate-950 text-white"
+                                                        value="{{ $plan->id }}|custom">
+                                                        {{ $plan->name }} - Custom Price
+                                                    </option>
+                                                @endif
                                             @endforeach
                                         </select>
 
@@ -816,9 +966,43 @@ new class extends Component {
                                         </span>
                                     </div>
 
-                                    @error('quote_service_plan_id')
+                                    @error('quote_selected_package')
                                         <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
                                     @enderror
+
+                                    @if ($quote_selected_package)
+                                        @php
+                                            $selectedPackage = $this->parseSelectedPackage();
+
+                                            $selectedBillingLabel = match ($selectedPackage['billing_cycle']) {
+                                                'monthly' => 'Monthly',
+                                                'yearly' => 'Yearly',
+                                                'one_time' => 'One-time',
+                                                'custom' => 'Custom',
+                                                default => 'Custom',
+                                            };
+                                        @endphp
+
+                                        {{-- <div class="mt-3 rounded-2xl border border-cyan-300/15 bg-cyan-400/10 p-4">
+                                            <p class="text-xs uppercase tracking-[0.18em] text-cyan-200/70">
+                                                Selected Package
+                                            </p>
+
+                                            <p class="mt-2 text-sm font-semibold text-white">
+                                                {{ $selectedPackage['plan_name'] ?? 'Custom Package' }}
+                                            </p>
+
+                                            <p class="mt-1 text-sm text-blue-100/70">
+                                                {{ $selectedBillingLabel }}
+
+                                                @if ($selectedPackage['price'])
+                                                    - ৳{{ number_format((float) $selectedPackage['price'], 0) }}
+                                                @else
+                                                    - Custom Price
+                                                @endif
+                                            </p>
+                                        </div> --}}
+                                    @endif
                                 </div>
                             @endif
 
