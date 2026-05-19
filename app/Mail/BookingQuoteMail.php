@@ -2,8 +2,8 @@
 
 namespace App\Mail;
 
+use App\Models\Booking;
 use App\Models\InvoiceTemplate;
-use App\Models\PricingPlanBooking;
 use App\Models\SiteSetting;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,11 +13,11 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class PricingBookingQuoteMail extends Mailable implements ShouldQueue
+class BookingQuoteMail extends Mailable implements ShouldQueue
 {
     use Queueable, SerializesModels;
 
-    public PricingPlanBooking $booking;
+    public Booking $booking;
     public InvoiceTemplate $template;
     public ?SiteSetting $setting;
     public ?string $logoPath = null;
@@ -25,12 +25,14 @@ class PricingBookingQuoteMail extends Mailable implements ShouldQueue
     /**
      * Create a new message instance.
      */
-    public function __construct(PricingPlanBooking $booking)
+    public function __construct(Booking $booking)
     {
         $this->booking = $booking->loadMissing([
             'user',
+            'service',
+            'servicePlan',
             'pricingPlan',
-            'pricingOrder',
+            'order',
         ]);
 
         $this->template = InvoiceTemplate::activeTemplate();
@@ -67,7 +69,7 @@ class PricingBookingQuoteMail extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            view: 'emails.pricing-booking-quote',
+            view: 'emails.booking-quote',
             with: [
                 'booking' => $this->booking,
                 'template' => $this->template,

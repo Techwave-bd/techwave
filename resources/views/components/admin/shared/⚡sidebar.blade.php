@@ -126,32 +126,32 @@ new class extends Component {
                 </span>
             </a>
 
-            <a href="{{ route('admin.pricing-plan-bookings.index') }}" wire:navigate
+            {{-- <a href="{{ route('admin.pricing-plan-bookings.index') }}" wire:navigate
                 wire:current.exact="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
                 class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
                 <span class="material-symbols-outlined shrink-0">event_note</span>
                 <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
                     IT Plan Bookings
                 </span>
-            </a>
+            </a> --}}
 
-            <a href="{{ route('admin.booking.index') }}" wire:navigate
+            <a href="{{ route('admin.bookings.index') }}" wire:navigate
                 wire:current.exact="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
                 class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
                 <span class="material-symbols-outlined shrink-0">developer_board</span>
                 <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
-                    Service Bookings
+                    Bookings
                 </span>
             </a>
 
-            <a href="{{ route('admin.assigned-services.index') }}" wire:navigate
+            {{-- <a href="{{ route('admin.assigned-services.index') }}" wire:navigate
                 wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
                 class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
                 <span class="material-symbols-outlined shrink-0">assignment_ind</span>
                 <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
                     Assigned Services
                 </span>
-            </a>
+            </a> --}}
         </div>
 
         <!-- Website Content -->

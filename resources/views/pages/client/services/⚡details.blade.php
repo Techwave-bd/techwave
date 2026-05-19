@@ -194,7 +194,7 @@ new class extends Component {
                 'quote_message' => ['nullable', 'string', 'max:3000'],
             ],
             [
-                'quote_phone.regex' => 'Please enter a valid Bangladeshi phone number. Example: 017XXXXXXXX, +88017XXXXXXXX, or 88017XXXXXXXX.',
+                'quote_phone.regex' => 'Please enter a valid Bangladeshi phone number.',
             ],
         );
 

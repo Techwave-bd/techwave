@@ -62,15 +62,20 @@ class Booking extends Model
         return $this->belongsTo(PricingPlan::class);
     }
 
+    public function order()
+    {
+        return $this->hasOne(Order::class);
+    }
+
     public function pricingOrder()
     {
         return $this->belongsTo(PricingOrder::class);
     }
 
-    public function assignedService()
-    {
-        return $this->hasOne(UserService::class);
-    }
+    // public function assignedService()
+    // {
+    //     return $this->hasOne(UserService::class);
+    // }
 
     public function isServiceBooking(): bool
     {

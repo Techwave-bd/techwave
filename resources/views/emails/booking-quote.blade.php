@@ -15,30 +15,51 @@
 
     $quotationNo = $booking->booking_no ?? 'QT-' . str_pad((string) $booking->id, 6, '0', STR_PAD_LEFT);
 
-    $customerName = $booking->customer_name ?? ($booking->user?->name ?? 'Valued Customer');
-    $customerEmail = $booking->customer_email ?? ($booking->user?->email ?? '');
-    $customerPhone = $booking->customer_phone ?? '';
-    $customerAddress = $booking->customer_address ?? '';
+    $customerName = $booking->full_name ?? ($booking->user?->name ?? 'Valued Customer');
+    $customerEmail = $booking->email ?? ($booking->user?->email ?? '');
+    $customerPhone = $booking->phone ?? ($booking->user?->phone ?? '');
 
     $companyCustomerName = $booking->company_name ?? '';
     $companyCustomerEmail = $booking->company_email ?? '';
     $companyCustomerPhone = $booking->company_phone ?? '';
 
-    $plan = $booking->pricingPlan;
-    $planName = $plan?->title ?? 'Pricing Plan';
-    $planDescription = $plan?->description ?? 'Yearly service plan';
-    $billingCycle = ucfirst($booking->billing_cycle ?? 'yearly');
+    $isPricingPlan = $booking->booking_type === 'pricing_plan';
+
+    $planName = $isPricingPlan
+        ? $booking->pricingPlan?->title ?? ($booking->plan_name ?? 'Pricing Plan')
+        : $booking->servicePlan?->name ?? ($booking->plan_name ?? ($booking->service?->card_title ?? 'Service Plan'));
+
+    $serviceName = $isPricingPlan
+        ? $booking->pricingPlan?->title ?? $booking->plan_name
+        : $booking->service?->card_title ?? $booking->plan_name;
+
+    $planDescription = $isPricingPlan
+        ? $booking->pricingPlan?->description ?? 'Business service plan quotation.'
+        : $booking->servicePlan?->description ?? ($booking->service?->short_description ?? 'Service quotation.');
+
+    $billingCycle = match ($booking->billing_cycle) {
+        'monthly' => 'Monthly',
+        'yearly' => 'Yearly',
+        'one_time' => 'One-time',
+        'custom' => 'Custom',
+        default => 'Negotiable',
+    };
 
     $planPrice = (float) ($booking->plan_price ?? 0);
     $requestedPrice = $booking->requested_price !== null ? (float) $booking->requested_price : null;
     $quotedPrice = $booking->quoted_price !== null ? (float) $booking->quoted_price : null;
+    $finalPrice = $booking->final_price !== null ? (float) $booking->final_price : null;
 
     $subtotal = $planPrice;
-    $discountAmount = $quotedPrice !== null && $quotedPrice < $planPrice ? $planPrice - $quotedPrice : 0;
-    $grandTotal = $quotedPrice ?? ($requestedPrice ?? $planPrice);
+    $grandTotal = $finalPrice ?? ($quotedPrice ?? ($requestedPrice ?? $planPrice));
+    $discountAmount =
+        $quotedPrice !== null && $planPrice > 0 && $quotedPrice < $planPrice ? $planPrice - $quotedPrice : 0;
 
-    $currency = '৳';
+    $currency = $booking->currency === 'BDT' || blank($booking->currency) ? '৳' : $booking->currency . ' ';
     $formatMoney = fn($amount) => $currency . number_format((float) $amount, 2);
+
+    $customerMessage = $booking->user_note ?: $booking->message;
+    $statusLabel = ucfirst(str_replace('_', ' ', $booking->status ?? 'quoted'));
 @endphp
 
 <!DOCTYPE html>
@@ -75,17 +96,7 @@
                                                                     <img src="{{ $logoCid }}"
                                                                         alt="{{ $companyName }}" width="52"
                                                                         height="52"
-                                                                        style="
-                            width:52px;
-                            height:52px;
-                            max-width:52px;
-                            max-height:52px;
-                            object-fit:contain;
-                            display:block;
-                            border:0;
-                            outline:none;
-                            text-decoration:none;
-                        ">
+                                                                        style="width:52px; height:52px; max-width:52px; max-height:52px; object-fit:contain; display:block; border:0; outline:none; text-decoration:none;">
                                                                 </td>
                                                             </tr>
                                                         </table>
@@ -95,12 +106,7 @@
                                                             style="width:52px; height:52px; border-collapse:collapse;">
                                                             <tr>
                                                                 <td align="center" valign="middle"
-                                                                    style="
-                        width:52px;
-                        height:52px;
-                        background:{{ $brandColor }};
-                        border-radius:10px;
-                    ">
+                                                                    style="width:52px; height:52px; background:{{ $brandColor }}; border-radius:10px;">
                                                                 </td>
                                                             </tr>
                                                         </table>
@@ -135,7 +141,10 @@
                                             @endif
 
                                             @if ($companyWebsite)
-                                                <a href="{{ $companyWebsite }}">www.techwave.asia</a>
+                                                <a href="{{ $companyWebsite }}"
+                                                    style="color:{{ $brandColor }}; text-decoration:none;">
+                                                    {{ parse_url($companyWebsite, PHP_URL_HOST) ?? $companyWebsite }}
+                                                </a>
                                             @endif
                                         </div>
                                     </td>
@@ -176,7 +185,7 @@
                                                 <td style="padding:2px 0;">
                                                     <span
                                                         style="display:inline-block; padding:5px 10px; border-radius:999px; background:#eef2ff; color:{{ $brandColor }}; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;">
-                                                        {{ ucfirst($booking->status ?? 'quoted') }}
+                                                        {{ $statusLabel }}
                                                     </span>
                                                 </td>
                                             </tr>
@@ -213,10 +222,6 @@
                                                     {{ $customerPhone }}<br>
                                                 @endif
 
-                                                @if ($customerAddress)
-                                                    {{ $customerAddress }}<br>
-                                                @endif
-
                                                 @if ($companyCustomerName)
                                                     <span
                                                         style="display:inline-block; margin-top:6px; font-weight:700; color:{{ $brandColor }};">
@@ -244,18 +249,20 @@
                                             </p>
 
                                             <div style="font-size:14px; line-height:1.8; color:#334155;">
-                                                <strong>Plan:</strong> {{ $planName }}<br>
-                                                <strong>Billing:</strong> {{ $billingCycle }}<br>
-                                                <strong>Status:</strong>
-                                                {{ ucfirst($booking->status ?? 'quoted') }}<br>
+                                                <strong>Booking Type:</strong>
+                                                {{ $isPricingPlan ? 'Pricing Plan' : 'Service' }}<br>
 
-                                                @if ($booking->user_note)
+                                                <strong>Service / Plan:</strong> {{ $planName }}<br>
+                                                <strong>Billing:</strong> {{ $billingCycle }}<br>
+                                                <strong>Status:</strong> {{ $statusLabel }}<br>
+
+                                                {{-- @if ($customerMessage)
                                                     <div
                                                         style="margin-top:10px; padding:10px 12px; background:#f8fafc; border-left:3px solid {{ $brandColor }}; border-radius:8px; font-size:12px; line-height:1.6; color:#475569;">
-                                                        <strong>Customer Note:</strong><br>
-                                                        {{ $booking->user_note }}
+                                                        <strong>Customer Message:</strong><br>
+                                                        {{ $customerMessage }}
                                                     </div>
-                                                @endif
+                                                @endif --}}
                                             </div>
                                         </div>
                                     </td>
@@ -264,23 +271,7 @@
                         </td>
                     </tr>
 
-                    {{-- Dynamic Intro --}}
-                    <tr>
-                        <td style="padding:24px 30px 0;">
-                            <div
-                                style="border:1px solid #e5e7eb; border-radius:14px; padding:16px; background:#f8fafc;">
-                                <p style="margin:0; font-size:14px; font-weight:700; color:#111827;">
-                                    {{ $template->greeting ?: 'Dear valued customer,' }}
-                                </p>
-
-                                <p style="margin:10px 0 0; font-size:13px; line-height:1.7; color:#64748b;">
-                                    {{ $template->intro_text ?: 'Thank you for your interest in our services. Please review the quotation details below.' }}
-                                </p>
-                            </div>
-                        </td>
-                    </tr>
-
-                    {{-- Table --}}
+                    {{-- Quotation Table --}}
                     <tr>
                         <td style="padding:20px 30px 0;">
                             <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
@@ -290,10 +281,12 @@
                                             style="padding:13px 14px; font-size:11px; text-transform:uppercase; letter-spacing:.08em; border-top-left-radius:8px;">
                                             Service / Plan
                                         </th>
+
                                         <th align="left"
                                             style="padding:13px 14px; font-size:11px; text-transform:uppercase; letter-spacing:.08em;">
                                             Billing
                                         </th>
+
                                         <th align="right"
                                             style="padding:13px 14px; font-size:11px; text-transform:uppercase; letter-spacing:.08em; border-top-right-radius:8px;">
                                             Amount
@@ -320,7 +313,7 @@
 
                                         <td align="right"
                                             style="padding:16px 14px; border-right:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; font-size:14px; color:#111827; font-weight:700;">
-                                            {{ $formatMoney($planPrice) }}
+                                            {{ $planPrice > 0 ? $formatMoney($planPrice) : 'Negotiable' }}
                                         </td>
                                     </tr>
 
@@ -344,8 +337,9 @@
                                                 style="padding:14px; border-left:1px solid #e5e7eb; border-right:1px solid #e5e7eb; border-bottom:1px solid #e5e7eb; background:#f8fafc;">
                                                 <p
                                                     style="margin:0 0 6px; font-size:11px; font-weight:700; text-transform:uppercase; color:#94a3b8; letter-spacing:.08em;">
-                                                    Admin Note
+                                                    Quote Note / Terms
                                                 </p>
+
                                                 <p style="margin:0; font-size:13px; line-height:1.7; color:#475569;">
                                                     {{ $booking->admin_note }}
                                                 </p>
@@ -371,8 +365,9 @@
                                             </p>
 
                                             <p style="margin:0; font-size:13px; line-height:1.7; color:#64748b;">
-                                                Please review this quotation. If everything looks good, contact us or
-                                                reply to this email to confirm the plan activation process.
+                                                Please review this quotation. If everything looks good, reply to this
+                                                email to confirm. After confirmation, our team will prepare your order
+                                                and payment process.
                                             </p>
                                         </div>
                                     </td>
@@ -381,11 +376,11 @@
                                         <table width="100%" cellpadding="0" cellspacing="0">
                                             <tr>
                                                 <td style="padding:6px 0; font-size:14px; color:#64748b;">
-                                                    Original Price
+                                                    Listed Price
                                                 </td>
                                                 <td align="right"
                                                     style="padding:6px 0; font-size:14px; color:#334155;">
-                                                    {{ $formatMoney($subtotal) }}
+                                                    {{ $planPrice > 0 ? $formatMoney($subtotal) : 'Negotiable' }}
                                                 </td>
                                             </tr>
 
@@ -424,9 +419,10 @@
                                                     style="padding:14px 0 0; font-size:18px; font-weight:600; color:{{ $brandColor }}; text-transform:uppercase;">
                                                     Final Quote
                                                 </td>
+
                                                 <td align="right"
                                                     style="padding:14px 0 0; font-size:22px; font-weight:600; color:{{ $brandColor }};">
-                                                    {{ $formatMoney($grandTotal) }}
+                                                    {{ $grandTotal > 0 ? $formatMoney($grandTotal) : 'Negotiable' }}
                                                 </td>
                                             </tr>
                                         </table>
