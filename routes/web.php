@@ -231,9 +231,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,manager,
 
     // Order management
     Route::livewire('/orders', 'pages::admin.orders.index')->name('orders.index');
-
-    // Service Booking
-    // Route::livewire('/booking', 'pages::admin.service-booking.index')->name('booking.index');
+    Route::livewire('/orders/{order}/edit', 'pages::admin.orders.edit')->name('orders.edit');
 
     //Invoice management
     Route::get('/orders/{order}/invoice/download', [PlanOrderInvoiceController::class, 'download'])->name('orders.invoice.download');
@@ -249,11 +247,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,manager,
     Route::livewire('/assigned-services', 'pages::admin.assigned-services.index')->name('assigned-services.index');
     Route::livewire('/assigned-services/create', 'pages::admin.assigned-services.create')->name('assigned-services.create');
     Route::livewire('/assigned-services/{userService}/edit', 'pages::admin.assigned-services.edit')->name('assigned-services.edit');
-
-    // Pricing Plan Booking Management
-    Route::livewire('/pricing-plan-bookings', 'pages::admin.pricing-plan-bookings.index')->name('pricing-plan-bookings.index');
-    Route::livewire('/pricing-plan-bookings/{booking}/show', 'pages::admin.pricing-plan-bookings.show')->name('pricing-plan-bookings.show');
-
 
     // Bookings
     Route::livewire('/bookings', 'pages::admin.bookings.index')->name('bookings.index');

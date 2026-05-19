@@ -408,6 +408,12 @@ new #[Layout('layouts.admin-app')] #[Title('Orders')] class extends Component {
                                         <div x-cloak x-show="open" @click.outside="open = false" x-transition
                                             class="absolute right-0 z-20 mt-2 w-60 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
 
+                                            <a href="{{ route('admin.orders.edit', $order) }}" wire:navigate
+                                                class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50">
+                                                <span class="material-symbols-outlined text-[18px]">edit</span>
+                                                Edit Order
+                                            </a>
+
                                             @if ($order->status !== 'awaiting_payment')
                                                 <button type="button"
                                                     wire:click="markAsAwaitingPayment({{ $order->id }})"

@@ -1,8 +1,10 @@
 <?php
 
+use App\Mail\OrderInvoiceMail;
 use App\Models\Booking;
 use App\Models\Order;
 use App\Models\User;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -78,7 +80,9 @@ new #[Layout('layouts.admin-app')] #[Title('Bookings')] class extends Component 
 
     public function confirmToOrder(int $bookingId): void
     {
-        $booking = Booking::query()->with('order')->findOrFail($bookingId);
+        $booking = Booking::query()
+            ->with(['order', 'user'])
+            ->findOrFail($bookingId);
 
         if ($booking->order) {
             $this->dispatch('toast', message: 'Order already created for this booking.', type: 'warning');
@@ -102,7 +106,9 @@ new #[Layout('layouts.admin-app')] #[Title('Bookings')] class extends Component 
 
         $orderUserId = $this->resolveOrderUserId($booking);
 
-        Order::query()->create([
+        [$startDate, $endDate] = $this->orderDates($booking->billing_cycle);
+
+        $order = Order::query()->create([
             'booking_id' => $booking->id,
             'user_id' => $orderUserId,
 
@@ -136,15 +142,25 @@ new #[Layout('layouts.admin-app')] #[Title('Bookings')] class extends Component 
             'admin_note' => $booking->admin_note,
 
             'status' => 'awaiting_payment',
+
+            'start_date' => $startDate,
+            'end_date' => $endDate,
         ]);
 
         $booking->update([
             'user_id' => $orderUserId,
             'status' => 'converted',
             'final_price' => $amount,
+            'admin_read_at' => now(),
         ]);
 
-        $this->dispatch('toast', message: 'Booking confirmed and order created successfully.', type: 'success');
+        $email = $order->email ?: $order->user?->email;
+
+        if ($email) {
+            Mail::to($email)->send(new OrderInvoiceMail($order));
+        }
+
+        $this->dispatch('toast', message: 'Booking confirmed, order created, and invoice sent successfully.', type: 'success');
     }
 
     public function markAsQuoted(int $bookingId): void
@@ -193,6 +209,19 @@ new #[Layout('layouts.admin-app')] #[Title('Bookings')] class extends Component 
         $booking->delete();
 
         $this->dispatch('toast', message: 'Booking deleted successfully.', type: 'success');
+    }
+
+    private function orderDates(?string $billingCycle): array
+    {
+        $startDate = now()->toDateString();
+
+        $endDate = match ($billingCycle) {
+            'monthly' => now()->addMonth()->toDateString(),
+            'yearly' => now()->addYear()->toDateString(),
+            default => null,
+        };
+
+        return [$startDate, $endDate];
     }
 
     private function resolveOrderUserId($booking): ?int
@@ -525,7 +554,7 @@ new #[Layout('layouts.admin-app')] #[Title('Bookings')] class extends Component 
                                             <a href="{{ route('admin.bookings.quote', $booking) }}" wire:navigate
                                                 class="flex items-center gap-2 px-4 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50">
                                                 <span class="material-symbols-outlined text-[18px]">request_quote</span>
-                                                Send Quote
+                                                Edit / Send Quote
                                             </a>
 
                                             @if (!$booking->order && !in_array($booking->status, ['rejected', 'cancelled']))

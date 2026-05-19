@@ -1,11 +1,9 @@
 <?php
 
 use App\Events\SupportTicketUpdated;
-use App\Models\PricingOrder;
+use App\Models\Order;
 use App\Models\SupportTicket;
-use App\Models\UserService;
 use Illuminate\Support\Facades\Auth;
-use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -40,30 +38,110 @@ new class extends Component {
         $this->refreshKey++;
     }
 
-    public function activeOrder(): ?PricingOrder
+    public function activeOrder(): ?Order
     {
-        return PricingOrder::query()->with('pricingPlan')->where('user_id', Auth::id())->where('payment_status', 'paid')->whereNotNull('starts_at')->whereNotNull('expires_at')->where('starts_at', '<=', now())->where('expires_at', '>=', now())->latest('expires_at')->first();
+        return Order::query()
+            ->with(['pricingPlan', 'service', 'servicePlan'])
+            ->where('user_id', Auth::id())
+            ->whereIn('status', ['paid', 'active'])
+            ->where(function ($query) {
+                $query->whereNull('start_date')->orWhere('start_date', '<=', now()->toDateString());
+            })
+            ->where(function ($query) {
+                $query->whereNull('end_date')->orWhere('end_date', '>=', now()->toDateString());
+            })
+            ->latest('end_date')
+            ->latest()
+            ->first();
     }
 
-    public function activeService(): ?UserService
+    public function latestOrder(): ?Order
     {
-        return UserService::query()
-            ->with('service')
+        return Order::query()
+            ->with(['pricingPlan', 'service', 'servicePlan'])
             ->where('user_id', Auth::id())
-            ->where('status', 'active')
-            ->where(function ($query) {
-                $query->whereNull('start_date')->orWhere('start_date', '<=', now());
-            })
-            ->where(function ($query) {
-                $query->whereNull('end_date')->orWhere('end_date', '>=', now());
-            })
             ->latest()
             ->first();
     }
 
     public function canOpenTicket(): bool
     {
-        return (bool) ($this->activeOrder() || $this->activeService());
+        return (bool) $this->activeOrder();
+    }
+
+    public function activeSupportTitle(): string
+    {
+        $order = $this->activeOrder();
+
+        if (!$order) {
+            return 'No active order';
+        }
+
+        if ($order->order_type === 'pricing_plan') {
+            return $order->pricingPlan?->title ?? ($order->plan_name ?? 'Active IT Plan');
+        }
+
+        return $order->service?->card_title ?? ($order->servicePlan?->name ?? ($order->plan_name ?? 'Active Service'));
+    }
+
+    public function activeSupportSubtitle(): string
+    {
+        $order = $this->activeOrder();
+
+        if (!$order) {
+            $latestOrder = $this->latestOrder();
+
+            if (!$latestOrder) {
+                return 'You need a paid or active order to open a support ticket.';
+            }
+
+            if ($latestOrder->status === 'awaiting_payment') {
+                return 'Your latest order is waiting for payment. Support will unlock after payment confirmation.';
+            }
+
+            if ($latestOrder->status === 'cancelled') {
+                return 'Your latest order was cancelled. Please purchase or renew a service to open support tickets.';
+            }
+
+            if ($latestOrder->end_date && $latestOrder->end_date->lt(now())) {
+                return 'Your support period expired on ' . $latestOrder->end_date->format('M d, Y') . '. Please renew your plan or service.';
+            }
+
+            return 'You need an active order within a valid service period to open support tickets.';
+        }
+
+        $periodText = '';
+
+        if ($order->start_date || $order->end_date) {
+            $periodText = ' Valid from ' . ($order->start_date?->format('M d, Y') ?? 'N/A') . ' to ' . ($order->end_date?->format('M d, Y') ?? 'N/A') . '.';
+        }
+
+        return match ($order->status) {
+            'paid' => 'Your order is paid and eligible for support.' . $periodText,
+            'active' => 'Your order is active and eligible for support.' . $periodText,
+            default => 'Your support access is active.' . $periodText,
+        };
+    }
+
+    public function supportStatusLabel(): string
+    {
+        $order = $this->activeOrder();
+
+        if ($order) {
+            return 'Eligible for Support';
+        }
+
+        $latestOrder = $this->latestOrder();
+
+        if ($latestOrder?->end_date && $latestOrder->end_date->lt(now())) {
+            return 'Support Expired';
+        }
+
+        if ($latestOrder?->status === 'awaiting_payment') {
+            return 'Payment Pending';
+        }
+
+        return 'Support Locked';
     }
 
     public function tickets()
@@ -91,7 +169,8 @@ new class extends Component {
     public function openCreateModal(): void
     {
         if (!$this->canOpenTicket()) {
-            $this->dispatch('toast', message: 'You need an active plan or active service to open a support ticket.', type: 'error');
+            $this->dispatch('toast', message: $this->activeSupportSubtitle(), type: 'error');
+
             return;
         }
 
@@ -134,10 +213,10 @@ new class extends Component {
     public function createTicket()
     {
         $activeOrder = $this->activeOrder();
-        $activeService = $this->activeService();
 
-        if (!$activeOrder && !$activeService) {
-            $this->dispatch('toast', message: 'Your support access is expired or you have no active service/plan.', type: 'error');
+        if (!$activeOrder) {
+            $this->dispatch('toast', message: $this->activeSupportSubtitle(), type: 'error');
+
             return;
         }
 
@@ -189,54 +268,20 @@ new class extends Component {
         <div
             class="rounded-[34px] border border-white/10 bg-white/6 shadow-[0_20px_80px_rgba(0,0,0,0.22)] backdrop-blur-2xl">
             <div class="flex min-h-[calc(100vh-3rem)]">
-                <!-- mobile overlay -->
                 <div x-show="sidebarOpen" x-transition.opacity
                     class="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm lg:hidden" @click="sidebarOpen = false"
                     style="display:none;"></div>
 
-                {{-- Sidebar --}}
                 <livewire:shared.user-sidebar />
 
-                <!-- main -->
                 <div class="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">
-                    <!-- top header -->
-                    {{-- <div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div class="flex items-center gap-3">
-                            <button @click="sidebarOpen = true"
-                                class="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/8 text-white shadow-[0_10px_30px_rgba(0,0,0,0.18)] backdrop-blur-xl transition hover:bg-white/12 lg:hidden">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
-                                    viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                                </svg>
-                            </button>
-
-                            <div>
-                                <p class="text-xs uppercase tracking-[0.18em] text-blue-100/45">Client Dashboard</p>
-                                <h1 class="mt-1 text-2xl font-bold text-white sm:text-3xl">Overview</h1>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center gap-3">
-                            <div class="relative w-full max-w-md">
-                                <input type="text" placeholder="Search..."
-                                    class="h-12 w-full rounded-2xl border border-white/10 bg-white/8 pl-12 pr-4 text-sm text-white placeholder:text-blue-100/35 outline-none backdrop-blur-xl">
-                                <svg xmlns="http://www.w3.org/2000/svg"
-                                    class="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-blue-100/45"
-                                    fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="m21 21-4.35-4.35m1.85-5.15a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div> --}}
 
                     <div class="space-y-6" wire:key="client-ticket-index-{{ $refreshKey }}">
                         @php
                             $activeOrder = $this->activeOrder();
-                            $activeService = $this->activeService();
+                            $latestOrder = $this->latestOrder();
                         @endphp
 
-                        {{-- Header --}}
                         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                             <div>
                                 <p class="text-xs uppercase tracking-[0.18em] text-blue-100/45">
@@ -262,9 +307,7 @@ new class extends Component {
                             </button>
                         </div>
 
-                        {{-- Active Plan Notice --}}
-                        {{-- Active Support Notice --}}
-                        @if ($activeOrder || $activeService)
+                        @if ($activeOrder)
                             <div class="client-card p-5">
                                 <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                                     <div>
@@ -273,27 +316,17 @@ new class extends Component {
                                         </p>
 
                                         <h2 class="mt-1 text-xl font-bold text-white">
-                                            @if ($activeOrder)
-                                                {{ $activeOrder->pricingPlan?->title ?? 'Active Plan' }}
-                                            @else
-                                                {{ $activeService->service?->name ?? ($activeService->service?->title ?? 'Active Service') }}
-                                            @endif
+                                            {{ $this->activeSupportTitle() }}
                                         </h2>
 
                                         <p class="mt-1 text-sm text-blue-100/60">
-                                            @if ($activeOrder)
-                                                Valid until {{ $activeOrder->expires_at?->format('M d, Y') }}
-                                            @elseif ($activeService?->end_date)
-                                                Service valid until {{ $activeService->end_date?->format('M d, Y') }}
-                                            @else
-                                                Service is currently active
-                                            @endif
+                                            {{ $this->activeSupportSubtitle() }}
                                         </p>
                                     </div>
 
                                     <span
                                         class="inline-flex w-fit rounded-full bg-emerald-500/15 px-4 py-2 text-xs font-bold uppercase tracking-wider text-emerald-300">
-                                        Eligible for Support
+                                        {{ $this->supportStatusLabel() }}
                                     </span>
                                 </div>
                             </div>
@@ -302,17 +335,41 @@ new class extends Component {
                                 <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                                     <div>
                                         <p class="text-xs uppercase tracking-[0.18em] text-red-200/80">
-                                            Support Access Locked
+                                            {{ $this->supportStatusLabel() }}
                                         </p>
 
                                         <h2 class="mt-1 text-xl font-bold text-white">
-                                            No active plan or service found
+                                            No active support access found
                                         </h2>
 
                                         <p class="mt-1 text-sm text-red-100/70">
-                                            You can view previous tickets, but you need an active plan or active service
-                                            to open a new ticket.
+                                            {{ $this->activeSupportSubtitle() }}
                                         </p>
+
+                                        @if ($latestOrder)
+                                            <div class="mt-4 grid gap-3 sm:grid-cols-3">
+                                                <div class="rounded-2xl border border-white/10 bg-white/6 p-4">
+                                                    <p class="text-xs text-red-100/50">Latest Order</p>
+                                                    <p class="mt-1 text-sm font-bold text-white">
+                                                        {{ $latestOrder->order_no }}
+                                                    </p>
+                                                </div>
+
+                                                <div class="rounded-2xl border border-white/10 bg-white/6 p-4">
+                                                    <p class="text-xs text-red-100/50">Status</p>
+                                                    <p class="mt-1 text-sm font-bold text-white">
+                                                        {{ ucfirst(str_replace('_', ' ', $latestOrder->status)) }}
+                                                    </p>
+                                                </div>
+
+                                                <div class="rounded-2xl border border-white/10 bg-white/6 p-4">
+                                                    <p class="text-xs text-red-100/50">End Date</p>
+                                                    <p class="mt-1 text-sm font-bold text-white">
+                                                        {{ $latestOrder->end_date?->format('M d, Y') ?? 'N/A' }}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        @endif
                                     </div>
 
                                     <a href="{{ route('home') }}" wire:navigate
@@ -323,7 +380,6 @@ new class extends Component {
                             </div>
                         @endif
 
-                        {{-- Filters --}}
                         <div class="client-card p-5">
                             <div class="grid gap-3 md:grid-cols-2">
                                 <div class="relative">
@@ -355,7 +411,6 @@ new class extends Component {
                             </div>
                         </div>
 
-                        {{-- Tickets --}}
                         <div class="client-card overflow-hidden">
                             <div class="overflow-x-auto">
                                 <table class="min-w-full text-left">
@@ -466,7 +521,6 @@ new class extends Component {
                         </div>
                     </div>
 
-                    {{-- Create Ticket Modal --}}
                     @if ($showCreateModal)
                         <div
                             class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm">

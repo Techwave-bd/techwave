@@ -3,7 +3,7 @@
 namespace App\Mail;
 
 use App\Models\InvoiceTemplate;
-use App\Models\PricingOrder;
+use App\Models\Order;
 use App\Models\SiteSetting;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -12,19 +12,22 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class OrderInvoiceMail extends Mailable implements ShouldQueue
+class OrderInvoiceMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public PricingOrder $order;
+    public Order $order;
     public InvoiceTemplate $template;
     public ?SiteSetting $setting;
     public ?string $logoPath = null;
 
-    public function __construct(PricingOrder $order)
+    public function __construct(Order $order)
     {
         $this->order = $order->loadMissing([
+            'booking',
             'user',
+            'service',
+            'servicePlan',
             'pricingPlan',
         ]);
 
@@ -49,7 +52,7 @@ class OrderInvoiceMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: $this->template->subject_prefix . ' #' . $this->order->order_no,
+            subject: ($this->template->subject_prefix ?: 'Invoice') . ' #' . $this->order->order_no,
         );
     }
 

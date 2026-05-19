@@ -1,31 +1,50 @@
 @php
     $brandColor = $template->brand_color ?: '#0F52BA';
 
-    $customerName = $order->user?->name ?? 'Customer';
-    $customerEmail = $order->user?->email ?? '';
-    $customerPhone = $order->user?->phone ?? '';
-    $customerCompany = $order->user?->company_name ?? '';
+    $customerName = $order->full_name ?: $order->user?->name ?? 'Customer';
+    $customerEmail = $order->email ?: $order->user?->email ?? '';
+    $customerPhone = $order->phone ?: $order->user?->phone ?? '';
+    $customerCompany = $order->company_name ?: '';
 
     $invoiceNo = $order->order_no ?? 'INV-' . str_pad((string) $order->id, 6, '0', STR_PAD_LEFT);
 
-    $plan = $order->pricingPlan;
-    $planName = $plan?->title ?? 'Pricing Plan';
-    $description = $plan?->description ?? 'Service subscription plan';
-    $billingCycle = ucfirst($order->billing_cycle ?? 'monthly');
+    $isPricingPlan = $order->order_type === 'pricing_plan';
 
-    $subtotal = (float) ($order->amount ?? 0);
+    $itemName = $isPricingPlan
+        ? $order->pricingPlan?->title ?? ($order->plan_name ?? 'Pricing Plan')
+        : $order->service?->card_title ?? ($order->servicePlan?->name ?? ($order->plan_name ?? 'Service'));
+
+    $description = $isPricingPlan
+        ? $order->pricingPlan?->description ?? 'Business IT plan subscription.'
+        : $order->servicePlan?->description ?? ($order->service?->short_description ?? 'Service order.');
+
+    $billingCycle = match ($order->billing_cycle) {
+        'monthly' => 'Monthly',
+        'yearly' => 'Yearly',
+        'one_time' => 'One-time',
+        'custom' => 'Custom',
+        default => 'Negotiable',
+    };
+
+    $statusLabel = ucfirst(str_replace('_', ' ', $order->status ?? 'awaiting_payment'));
+
+    $subtotal =
+        (float) ($order->amount ?? ($order->final_price ?? ($order->quoted_price ?? ($order->plan_price ?? 0))));
     $discount = 0;
-    $total = $subtotal - $discount;
+    $total = max($subtotal - $discount, 0);
 
-    $companyName = $setting?->site_name ?? 'TechWave';
-    $companyEmail = $setting?->email ?? 'contact@techwave.io';
-    $companyPhone = $setting?->phone ?? '+880 1XXX XXXXXX';
-    $companyAddress = $setting?->location ?? 'Tech District, Dhaka';
-    $companyWebsite = $setting?->website ?? ($setting?->url ?? config('app.url'));
+    $currency = $order->currency === 'BDT' || blank($order->currency) ? '৳' : $order->currency . ' ';
+    $formatMoney = fn($amount) => $currency . number_format((float) $amount, 2);
+
+    $companyName = $setting?->site_name ?? config('app.name');
+    $companyEmail = $setting?->email ?? config('mail.from.address');
+    $companyPhone = $setting?->phone ?? '';
+    $companyAddress = $setting?->location ?? '';
+    $companyWebsite = config('app.url');
 
     $logoCid = null;
 
-    if (! empty($logoPath) && file_exists($logoPath)) {
+    if (!empty($logoPath) && file_exists($logoPath)) {
         $logoCid = $message->embed($logoPath);
     }
 @endphp
@@ -35,7 +54,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>{{ $template->title }}</title>
+    <title>{{ $template->title ?: 'Service Invoice' }}</title>
 </head>
 
 <body style="margin:0; padding:0; background:#f1f5f9; font-family:Arial, Helvetica, sans-serif; color:#0f172a;">
@@ -45,7 +64,6 @@
                 <table width="720" cellpadding="0" cellspacing="0"
                     style="width:720px; max-width:100%; background:#ffffff; border-radius:18px; overflow:hidden; border:1px solid #e2e8f0;">
 
-                    {{-- Header --}}
                     <tr>
                         <td style="padding:26px 32px 22px;">
                             <table width="100%" cellpadding="0" cellspacing="0">
@@ -61,11 +79,11 @@
                                                                 style="width:88px; height:56px; text-align:center; vertical-align:middle;">
                                                                 @if ($logoCid)
                                                                     <img src="{{ $logoCid }}"
-                                                                        alt="{{ $companyName }}"
-                                                                        width="80"
+                                                                        alt="{{ $companyName }}" width="80"
                                                                         style="width:80px; max-width:80px; max-height:48px; display:inline-block; vertical-align:middle;">
                                                                 @else
-                                                                    <span style="font-size:10px; font-weight:700; color:#94a3b8;">
+                                                                    <span
+                                                                        style="font-size:10px; font-weight:700; color:#94a3b8;">
                                                                         Logo
                                                                     </span>
                                                                 @endif
@@ -89,10 +107,21 @@
                                         </table>
 
                                         <div style="margin-top:16px; font-size:11px; line-height:18px; color:#64748b;">
-                                            <div>{{ $companyAddress }}</div>
-                                            <div>{{ $companyEmail }}</div>
-                                            <div>{{ $companyPhone }}</div>
-                                            <div>{{ $companyWebsite }}</div>
+                                            @if ($companyAddress)
+                                                <div>{{ $companyAddress }}</div>
+                                            @endif
+
+                                            @if ($companyEmail)
+                                                <div>{{ $companyEmail }}</div>
+                                            @endif
+
+                                            @if ($companyPhone)
+                                                <div>{{ $companyPhone }}</div>
+                                            @endif
+
+                                            @if ($companyWebsite)
+                                                <div>{{ $companyWebsite }}</div>
+                                            @endif
                                         </div>
                                     </td>
 
@@ -120,7 +149,7 @@
                                                     Date Issued
                                                 </td>
                                                 <td style="padding:3px 0; color:#475569;">
-                                                    {{ optional($order->created_at)->format('M d, Y') }}
+                                                    {{ $order->created_at?->format('M d, Y') ?? now()->format('M d, Y') }}
                                                 </td>
                                             </tr>
 
@@ -132,7 +161,7 @@
                                                 <td style="padding:3px 0;">
                                                     <span
                                                         style="display:inline-block; padding:4px 9px; border-radius:999px; background:#dcfce7; color:#15803d; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px;">
-                                                        {{ ucfirst($order->payment_status) }}
+                                                        {{ $statusLabel }}
                                                     </span>
                                                 </td>
                                             </tr>
@@ -143,7 +172,6 @@
                         </td>
                     </tr>
 
-                    {{-- Bill To --}}
                     <tr>
                         <td style="padding:0 32px 12px;">
                             <table width="100%" cellpadding="0" cellspacing="0"
@@ -188,7 +216,6 @@
                         </td>
                     </tr>
 
-                    {{-- Items --}}
                     <tr>
                         <td style="padding:12px 32px 0;">
                             <table width="100%" cellpadding="0" cellspacing="0"
@@ -197,7 +224,7 @@
                                     <tr style="background:{{ $brandColor }};">
                                         <th align="left"
                                             style="padding:11px 12px; font-size:10px; color:#ffffff; text-transform:uppercase; letter-spacing:0.8px;">
-                                            Plan
+                                            Item
                                         </th>
 
                                         <th align="left"
@@ -207,7 +234,7 @@
 
                                         <th align="center"
                                             style="padding:11px 12px; font-size:10px; color:#ffffff; text-transform:uppercase; letter-spacing:0.8px;">
-                                            Plan Type
+                                            Billing
                                         </th>
 
                                         <th align="right"
@@ -226,7 +253,7 @@
                                     <tr style="background:#ffffff;">
                                         <td
                                             style="padding:13px 12px; border-top:1px solid #e2e8f0; font-size:11px; font-weight:800; color:#0f172a;">
-                                            {{ $planName }}
+                                            {{ $itemName }}
                                         </td>
 
                                         <td
@@ -241,12 +268,12 @@
 
                                         <td align="right"
                                             style="padding:13px 12px; border-top:1px solid #e2e8f0; font-size:11px; color:#475569;">
-                                            ৳{{ number_format($subtotal, 2) }}
+                                            {{ $formatMoney($subtotal) }}
                                         </td>
 
                                         <td align="right"
                                             style="padding:13px 12px; border-top:1px solid #e2e8f0; font-size:11px; font-weight:800; color:#0f172a;">
-                                            ৳{{ number_format($total, 2) }}
+                                            {{ $formatMoney($total) }}
                                         </td>
                                     </tr>
                                 </tbody>
@@ -254,7 +281,24 @@
                         </td>
                     </tr>
 
-                    {{-- Summary --}}
+                    @if ($order->start_date || $order->end_date)
+                        <tr>
+                            <td style="padding:16px 32px 0;">
+                                <table width="100%" cellpadding="0" cellspacing="0"
+                                    style="border:1px solid #e2e8f0; border-radius:14px;">
+                                    <tr>
+                                        <td style="padding:14px 16px; font-size:12px; color:#475569;">
+                                            <strong style="color:#0f172a;">Service Period:</strong>
+                                            {{ $order->start_date?->format('M d, Y') ?? 'N/A' }}
+                                            -
+                                            {{ $order->end_date?->format('M d, Y') ?? 'N/A' }}
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    @endif
+
                     <tr>
                         <td style="padding:22px 32px 0;" align="right">
                             <table width="290" cellpadding="0" cellspacing="0" style="max-width:100%;">
@@ -264,7 +308,7 @@
                                     </td>
 
                                     <td align="right" style="padding:5px 0; font-size:12px; color:#334155;">
-                                        ৳{{ number_format($subtotal, 2) }}
+                                        {{ $formatMoney($subtotal) }}
                                     </td>
                                 </tr>
 
@@ -275,7 +319,7 @@
                                         </td>
 
                                         <td align="right" style="padding:5px 0; font-size:12px; color:#dc2626;">
-                                            -৳{{ number_format($discount, 2) }}
+                                            -{{ $formatMoney($discount) }}
                                         </td>
                                     </tr>
                                 @endif
@@ -293,17 +337,17 @@
 
                                     <td align="right"
                                         style="padding-top:7px; font-size:17px; font-weight:900; color:{{ $brandColor }};">
-                                        ৳{{ number_format($total, 2) }}
+                                        {{ $formatMoney($total) }}
                                     </td>
                                 </tr>
                             </table>
                         </td>
                     </tr>
 
-                    {{-- Footer --}}
                     <tr>
                         <td style="padding:32px 32px;">
-                            <table width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #e2e8f0;">
+                            <table width="100%" cellpadding="0" cellspacing="0"
+                                style="border-top:1px solid #e2e8f0;">
                                 <tr>
                                     <td width="50%" valign="top" style="padding-top:22px;">
                                         <h4
@@ -312,7 +356,7 @@
                                         </h4>
 
                                         <p style="margin:0; font-size:11px; line-height:18px; color:#64748b;">
-                                            {{ $template->terms_text ?: 'Net terms apply. Please contact support for invoice related queries.' }}
+                                            {{ $template->terms_text ?: 'Please contact support for invoice related queries.' }}
                                         </p>
                                     </td>
 

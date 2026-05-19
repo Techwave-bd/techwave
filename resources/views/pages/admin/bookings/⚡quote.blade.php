@@ -1,6 +1,7 @@
 <?php
 
 use App\Mail\BookingQuoteMail;
+use App\Mail\OrderInvoiceMail;
 use App\Models\Booking;
 use App\Models\Order;
 use App\Models\User;
@@ -157,7 +158,9 @@ new #[Layout('layouts.admin-app')] #[Title('Booking Quote')] class extends Compo
 
         $orderUserId = $this->resolveOrderUserId($this->booking);
 
-        Order::query()->create([
+        [$startDate, $endDate] = $this->orderDates($this->booking->billing_cycle);
+
+        $order = Order::query()->create([
             'booking_id' => $this->booking->id,
             'user_id' => $orderUserId,
 
@@ -191,6 +194,8 @@ new #[Layout('layouts.admin-app')] #[Title('Booking Quote')] class extends Compo
             'admin_note' => $this->booking->admin_note,
 
             'status' => 'awaiting_payment',
+            'start_date' => $startDate,
+            'end_date' => $endDate,
         ]);
 
         $this->booking->update([
@@ -200,11 +205,30 @@ new #[Layout('layouts.admin-app')] #[Title('Booking Quote')] class extends Compo
             'admin_read_at' => now(),
         ]);
 
+        $email = $order->email ?: $order->user?->email;
+
+        if ($email) {
+            Mail::to($email)->send(new OrderInvoiceMail($order));
+        }
+
         $this->status = 'converted';
 
         $this->booking = $this->booking->fresh(['user', 'service.category', 'servicePlan', 'pricingPlan', 'order']);
 
         $this->dispatch('toast', message: 'Booking confirmed and order created successfully.', type: 'success');
+    }
+
+    private function orderDates(?string $billingCycle): array
+    {
+        $startDate = now()->toDateString();
+
+        $endDate = match ($billingCycle) {
+            'monthly' => now()->addMonth()->toDateString(),
+            'yearly' => now()->addYear()->toDateString(),
+            default => null,
+        };
+
+        return [$startDate, $endDate];
     }
 
     private function resolveOrderUserId($booking): ?int
@@ -735,11 +759,11 @@ Techwave Team
                         </div>
                     @endif
 
-                    <button type="button" onclick="window.print()"
+                    {{-- <button type="button" onclick="window.print()"
                         class="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
                         <span class="material-symbols-outlined text-[18px]">print</span>
                         Print Quote
-                    </button>
+                    </button> --}}
                 </div>
             </div>
 

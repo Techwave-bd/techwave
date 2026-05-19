@@ -38,6 +38,8 @@ use Illuminate\Database\Eloquent\Model;
     'admin_note',
 
     'status',
+    'start_date',
+    'end_date',
 ])]
 class Order extends Model
 {
@@ -47,6 +49,8 @@ class Order extends Model
         'quoted_price' => 'decimal:2',
         'final_price' => 'decimal:2',
         'amount' => 'decimal:2',
+        'start_date' => 'date',
+        'end_date' => 'date',
     ];
 
     public function booking()
@@ -72,5 +76,17 @@ class Order extends Model
     public function pricingPlan()
     {
         return $this->belongsTo(PricingPlan::class);
+    }
+
+    public function isActive(): bool
+    {
+        return in_array($this->status, ['paid', 'active'], true)
+            && (! $this->start_date || $this->start_date->lte(now()))
+            && (! $this->end_date || $this->end_date->gte(now()));
+    }
+
+    public function isExpired(): bool
+    {
+        return $this->end_date && $this->end_date->lt(now());
     }
 }
