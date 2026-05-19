@@ -254,6 +254,16 @@ new class extends Component {
         $this->dispatch('toast', message: 'Your booking request has been submitted successfully.', type: 'success');
     }
 
+    public function planBuyUrl($plan, string $billingCycle): ?string
+    {
+        return match ($billingCycle) {
+            'monthly' => $plan->monthly_buy_url ?: $plan->buy_url,
+            'yearly' => $plan->yearly_buy_url ?: $plan->buy_url,
+            'one_time' => $plan->buy_url,
+            default => $plan->buy_url,
+        };
+    }
+
     public function serviceImage(): string
     {
         if ($this->service->image) {
@@ -681,17 +691,81 @@ new class extends Component {
                                             @endif
                                         </div>
 
-                                        @if ($plan->buy_url)
-                                            <a href="{{ $plan->buy_url }}" target="_blank"
-                                                class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
-                                                Choose Plan
-                                            </a>
-                                        @else
-                                            <a href="#quote-form"
-                                                @click="$wire.selectQuotePlan({{ $plan->id }}, billing)"
-                                                class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
-                                                Choose Plan
-                                            </a>
+                                        @php
+                                            $monthlyBuyUrl = $hasMonthlyPrice
+                                                ? $this->planBuyUrl($plan, 'monthly')
+                                                : null;
+                                            $yearlyBuyUrl = $hasYearlyPrice ? $this->planBuyUrl($plan, 'yearly') : null;
+                                            $oneTimeBuyUrl = $hasOneTimePrice
+                                                ? $this->planBuyUrl($plan, 'one_time')
+                                                : null;
+                                        @endphp
+
+                                        @if ($hasMonthlyPrice)
+                                            <div x-show="billing === 'monthly'" x-cloak>
+                                                @if ($monthlyBuyUrl)
+                                                    <a href="{{ $monthlyBuyUrl }}" target="_blank"
+                                                        class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
+                                                        Choose Plan
+                                                    </a>
+                                                @else
+                                                    <a href="#quote-form"
+                                                        @click="$wire.selectQuotePlan({{ $plan->id }}, 'monthly')"
+                                                        class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
+                                                        Choose Plan
+                                                    </a>
+                                                @endif
+                                            </div>
+                                        @endif
+
+                                        @if ($hasYearlyPrice)
+                                            <div x-show="billing === 'yearly'" x-cloak>
+                                                @if ($yearlyBuyUrl)
+                                                    <a href="{{ $yearlyBuyUrl }}" target="_blank"
+                                                        class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
+                                                        Choose Plan
+                                                    </a>
+                                                @else
+                                                    <a href="#quote-form"
+                                                        @click="$wire.selectQuotePlan({{ $plan->id }}, 'yearly')"
+                                                        class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
+                                                        Choose Plan
+                                                    </a>
+                                                @endif
+                                            </div>
+                                        @endif
+
+                                        @if ($hasMonthlyPrice && !$hasYearlyPrice)
+                                            <div x-show="billing === 'yearly'" x-cloak>
+                                                <button type="button" disabled
+                                                    class="mt-6 inline-flex w-full cursor-not-allowed items-center justify-center rounded-full border border-white/10 bg-white/8 px-6 py-3.5 font-semibold text-blue-100/45 backdrop-blur-xl">
+                                                    Choose Plan
+                                                </button>
+                                            </div>
+                                        @endif
+
+                                        @if ($hasYearlyPrice && !$hasMonthlyPrice)
+                                            <div x-show="billing === 'monthly'" x-cloak>
+                                                <button type="button" disabled
+                                                    class="mt-6 inline-flex w-full cursor-not-allowed items-center justify-center rounded-full border border-white/10 bg-white/8 px-6 py-3.5 font-semibold text-blue-100/45 backdrop-blur-xl">
+                                                    Choose Plan
+                                                </button>
+                                            </div>
+                                        @endif
+
+                                        @if (!$hasMonthlyPrice && !$hasYearlyPrice)
+                                            @if ($oneTimeBuyUrl)
+                                                <a href="{{ $oneTimeBuyUrl }}" target="_blank"
+                                                    class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
+                                                    Choose Plan
+                                                </a>
+                                            @else
+                                                <a href="#quote-form"
+                                                    @click="$wire.selectQuotePlan({{ $plan->id }}, '{{ $hasOneTimePrice ? 'one_time' : 'custom' }}')"
+                                                    class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
+                                                    Choose Plan
+                                                </a>
+                                            @endif
                                         @endif
 
                                         <ul class="mt-7 space-y-3 text-sm text-blue-50/85">

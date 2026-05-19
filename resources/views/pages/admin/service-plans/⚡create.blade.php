@@ -405,7 +405,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                         </div>
 
                         <div class="space-y-2">
-                            <label class="block font-label-md text-on-surface">One-time / Default Price</label>
+                            <label class="block font-label-md text-on-surface">One-time Price</label>
 
                             <input type="number" step="0.01" min="0" wire:model.live="price"
                                 placeholder="e.g., 20000"
@@ -437,7 +437,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                         </div>
 
                         <div class="space-y-2 md:col-span-2">
-                            <label class="block font-label-md text-on-surface">Default / One-time Buy URL</label>
+                            <label class="block font-label-md text-on-surface">One-time Buy URL</label>
 
                             <input type="url" wire:model.live="buy_url"
                                 placeholder="https://gipsyhost.com/index.php?rp=/store/shared-hosting/student"
@@ -448,7 +448,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                             @enderror
 
                             <p class="text-xs text-secondary">
-                                Used for one-time/default purchase. Monthly and yearly plans can use separate URLs.
+                                Used for one-time purchase. Monthly and yearly plans can use separate URLs.
                             </p>
                         </div>
 
