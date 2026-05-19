@@ -46,10 +46,6 @@ Broadcast::channel('admin.contact-messages', function ($user) use ($adminRoles) 
     return $user && in_array($user->role ?? null, $adminRoles, true);
 });
 
-Broadcast::channel('admin.pricing-bookings', function ($user) use ($adminRoles) {
-    return $user && in_array($user->role ?? null, $adminRoles, true);
-});
-
-Broadcast::channel('admin.pricing-orders', function ($user) use ($adminRoles) {
+Broadcast::channel('admin.bookings', function ($user) use ($adminRoles) {
     return $user && in_array($user->role ?? null, $adminRoles, true);
 });

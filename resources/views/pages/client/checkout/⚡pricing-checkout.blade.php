@@ -1,5 +1,6 @@
 <?php
 
+use App\Events\BookingCreated;
 use App\Models\Booking;
 use App\Models\PricingPlan;
 use Illuminate\Support\Facades\Auth;
@@ -156,7 +157,7 @@ new #[Title('Checkout')] class extends Component {
 
         abort_if($planPrice <= 0, 404);
 
-        Booking::query()->create([
+        $booking = Booking::query()->create([
             'user_id' => Auth::id(),
 
             'booking_no' => $this->makeBookingNo(),
@@ -192,6 +193,8 @@ new #[Title('Checkout')] class extends Component {
             'pricing_order_id' => null,
             'admin_read_at' => null,
         ]);
+
+        BookingCreated::dispatch($booking);
 
         $this->dispatch('toast', message: 'Your plan booking request has been submitted successfully. Our team will review it and contact you soon.', type: 'success');
 

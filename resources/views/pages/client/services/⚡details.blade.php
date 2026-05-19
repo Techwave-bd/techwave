@@ -1,5 +1,6 @@
 <?php
 
+use App\Events\BookingCreated;
 use App\Models\Booking;
 use App\Models\Service;
 use App\Models\SiteSetting;
@@ -200,7 +201,7 @@ new class extends Component {
 
         $selectedPackage = $this->parseSelectedPackage();
 
-        Booking::create([
+        $booking = Booking::create([
             'user_id' => auth()->id(),
 
             'booking_no' => $this->makeBookingNo(),
@@ -247,6 +248,8 @@ new class extends Component {
         } else {
             $this->quote_email = '';
         }
+
+        BookingCreated::dispatch($booking);
 
         $this->dispatch('toast', message: 'Your booking request has been submitted successfully.', type: 'success');
     }

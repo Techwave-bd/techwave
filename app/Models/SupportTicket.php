@@ -35,11 +35,6 @@ class SupportTicket extends Model
         return $this->belongsTo(User::class);
     }
 
-    // public function pricingOrder()
-    // {
-    //     return $this->belongsTo(PricingOrder::class, 'pricing_order_id');
-    // }
-
     public function replies()
     {
         return $this->hasMany(SupportTicketReply::class);

@@ -21,10 +21,12 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
     public bool $has_monthly_price = false;
     public string $monthly_price = '';
     public string $monthly_discount_price = '';
+    public string $monthly_buy_url = '';
 
     public bool $has_yearly_price = false;
     public string $yearly_price = '';
     public string $yearly_discount_price = '';
+    public string $yearly_buy_url = '';
 
     public string $buy_url = '';
     public int $sort_order = 0;
@@ -41,17 +43,24 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
             'slug' => ['nullable', 'string', 'max:190', 'unique:service_plans,slug'],
             'badge' => ['nullable', 'string', 'max:80'],
             'description' => ['nullable', 'string', 'max:800'],
+
             'price' => ['nullable', 'numeric', 'min:0'],
             'discount_price' => ['nullable', 'numeric', 'min:0', 'lt:price'],
+
             'has_monthly_price' => ['boolean'],
             'monthly_price' => [$this->has_monthly_price ? 'required' : 'nullable', 'numeric', 'min:0'],
             'monthly_discount_price' => ['nullable', 'numeric', 'min:0', 'lt:monthly_price'],
+            'monthly_buy_url' => [$this->has_monthly_price ? 'required' : 'nullable', 'url', 'max:255'],
+
             'has_yearly_price' => ['boolean'],
             'yearly_price' => [$this->has_yearly_price ? 'required' : 'nullable', 'numeric', 'min:0'],
             'yearly_discount_price' => ['nullable', 'numeric', 'min:0', 'lt:yearly_price'],
+            'yearly_buy_url' => [$this->has_yearly_price ? 'required' : 'nullable', 'url', 'max:255'],
+
             'buy_url' => ['nullable', 'url', 'max:255'],
             'sort_order' => ['required', 'integer', 'min:0'],
             'is_active' => ['boolean'],
+
             'features' => ['required', 'array'],
             'features.*' => ['required', 'string', 'max:180'],
         ];
@@ -61,12 +70,19 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
     {
         return [
             'service_id.required' => 'Please select a service.',
-            'buy_url.url' => 'Please enter a valid cart or buy URL.',
+            'buy_url.url' => 'Please enter a valid default or one-time buy URL.',
+
             'discount_price.lt' => 'Discount price must be less than regular price.',
+
             'monthly_price.required' => 'Monthly price is required when monthly pricing is enabled.',
             'monthly_discount_price.lt' => 'Monthly discount price must be less than monthly price.',
+            'monthly_buy_url.required' => 'Monthly buy URL is required when monthly pricing is enabled.',
+            'monthly_buy_url.url' => 'Please enter a valid monthly buy URL.',
+
             'yearly_price.required' => 'Yearly price is required when yearly pricing is enabled.',
             'yearly_discount_price.lt' => 'Yearly discount price must be less than yearly price.',
+            'yearly_buy_url.required' => 'Yearly buy URL is required when yearly pricing is enabled.',
+            'yearly_buy_url.url' => 'Please enter a valid yearly buy URL.',
         ];
     }
 
@@ -100,7 +116,9 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
         if (!$this->has_monthly_price) {
             $this->monthly_price = '';
             $this->monthly_discount_price = '';
-            $this->resetValidation(['monthly_price', 'monthly_discount_price']);
+            $this->monthly_buy_url = '';
+
+            $this->resetValidation(['monthly_price', 'monthly_discount_price', 'monthly_buy_url']);
         }
     }
 
@@ -109,7 +127,9 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
         if (!$this->has_yearly_price) {
             $this->yearly_price = '';
             $this->yearly_discount_price = '';
-            $this->resetValidation(['yearly_price', 'yearly_discount_price']);
+            $this->yearly_buy_url = '';
+
+            $this->resetValidation(['yearly_price', 'yearly_discount_price', 'yearly_buy_url']);
         }
     }
 
@@ -177,10 +197,12 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
             'has_monthly_price' => $validated['has_monthly_price'] ?? false,
             'monthly_price' => $validated['has_monthly_price'] ?? false ? $validated['monthly_price'] : null,
             'monthly_discount_price' => ($validated['has_monthly_price'] ?? false) && filled($validated['monthly_discount_price'] ?? null) ? $validated['monthly_discount_price'] : null,
+            'monthly_buy_url' => $validated['has_monthly_price'] ?? false ? ($validated['monthly_buy_url'] ?: null) : null,
 
             'has_yearly_price' => $validated['has_yearly_price'] ?? false,
             'yearly_price' => $validated['has_yearly_price'] ?? false ? $validated['yearly_price'] : null,
             'yearly_discount_price' => ($validated['has_yearly_price'] ?? false) && filled($validated['yearly_discount_price'] ?? null) ? $validated['yearly_discount_price'] : null,
+            'yearly_buy_url' => $validated['has_yearly_price'] ?? false ? ($validated['yearly_buy_url'] ?: null) : null,
 
             'features' => array_values(array_filter($validated['features'] ?? [])),
 
@@ -200,7 +222,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
 
     public function discard(): void
     {
-        $this->reset(['service_id', 'name', 'slug', 'badge', 'description', 'price', 'discount_price', 'has_monthly_price', 'monthly_price', 'monthly_discount_price', 'has_yearly_price', 'yearly_price', 'yearly_discount_price', 'buy_url', 'sort_order', 'features', 'feature']);
+        $this->reset(['service_id', 'name', 'slug', 'badge', 'description', 'price', 'discount_price', 'has_monthly_price', 'monthly_price', 'monthly_discount_price', 'monthly_buy_url', 'has_yearly_price', 'yearly_price', 'yearly_discount_price', 'yearly_buy_url', 'buy_url', 'sort_order', 'features', 'feature']);
 
         $this->is_active = true;
 
@@ -414,17 +436,34 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                             </p>
                         </div>
 
+                        <div class="space-y-2 md:col-span-2">
+                            <label class="block font-label-md text-on-surface">Default / One-time Buy URL</label>
+
+                            <input type="url" wire:model.live="buy_url"
+                                placeholder="https://gipsyhost.com/index.php?rp=/store/shared-hosting/student"
+                                class="w-full rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
+
+                            @error('buy_url')
+                                <p class="text-sm text-red-500">{{ $message }}</p>
+                            @enderror
+
+                            <p class="text-xs text-secondary">
+                                Used for one-time/default purchase. Monthly and yearly plans can use separate URLs.
+                            </p>
+                        </div>
+
                         <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 md:col-span-2">
                             <div class="flex items-center justify-between gap-4">
                                 <div>
                                     <h4 class="font-semibold text-on-surface">Monthly Pricing</h4>
                                     <p class="mt-1 text-xs text-secondary">
-                                        Enable this if this plan has a monthly price.
+                                        Enable this if this plan has a monthly price and monthly cart URL.
                                     </p>
                                 </div>
 
                                 <label class="relative inline-flex cursor-pointer items-center">
-                                    <input type="checkbox" wire:model.live="has_monthly_price" class="peer sr-only" />
+                                    <input type="checkbox" wire:model.live="has_monthly_price"
+                                        class="peer sr-only" />
                                     <div
                                         class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white">
                                     </div>
@@ -446,8 +485,9 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                                     </div>
 
                                     <div class="space-y-2">
-                                        <label class="block font-label-md text-on-surface">Monthly Discount
-                                            Price</label>
+                                        <label class="block font-label-md text-on-surface">
+                                            Monthly Discount Price
+                                        </label>
 
                                         <input type="number" step="0.01" min="0"
                                             wire:model.live="monthly_discount_price" placeholder="e.g., 2000"
@@ -456,6 +496,24 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                                         @error('monthly_discount_price')
                                             <p class="text-sm text-red-500">{{ $message }}</p>
                                         @enderror
+                                    </div>
+
+                                    <div class="space-y-2 md:col-span-2">
+                                        <label class="block font-label-md text-on-surface">
+                                            Monthly Buy / Cart URL
+                                        </label>
+
+                                        <input type="url" wire:model.live="monthly_buy_url"
+                                            placeholder="https://gipsyhost.com/index.php?rp=/store/service/monthly"
+                                            class="w-full rounded border border-outline-variant bg-white px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
+
+                                        @error('monthly_buy_url')
+                                            <p class="text-sm text-red-500">{{ $message }}</p>
+                                        @enderror
+
+                                        <p class="text-xs text-secondary">
+                                            User will go to this URL when monthly billing is selected.
+                                        </p>
                                     </div>
                                 </div>
                             @endif
@@ -466,7 +524,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                                 <div>
                                     <h4 class="font-semibold text-on-surface">Yearly Pricing</h4>
                                     <p class="mt-1 text-xs text-secondary">
-                                        Enable this if this plan has a yearly price.
+                                        Enable this if this plan has a yearly price and yearly cart URL.
                                     </p>
                                 </div>
 
@@ -493,8 +551,9 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                                     </div>
 
                                     <div class="space-y-2">
-                                        <label class="block font-label-md text-on-surface">Yearly Discount
-                                            Price</label>
+                                        <label class="block font-label-md text-on-surface">
+                                            Yearly Discount Price
+                                        </label>
 
                                         <input type="number" step="0.01" min="0"
                                             wire:model.live="yearly_discount_price" placeholder="e.g., 20000"
@@ -503,6 +562,24 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                                         @error('yearly_discount_price')
                                             <p class="text-sm text-red-500">{{ $message }}</p>
                                         @enderror
+                                    </div>
+
+                                    <div class="space-y-2 md:col-span-2">
+                                        <label class="block font-label-md text-on-surface">
+                                            Yearly Buy / Cart URL
+                                        </label>
+
+                                        <input type="url" wire:model.live="yearly_buy_url"
+                                            placeholder="https://gipsyhost.com/index.php?rp=/store/service/yearly"
+                                            class="w-full rounded border border-outline-variant bg-white px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
+
+                                        @error('yearly_buy_url')
+                                            <p class="text-sm text-red-500">{{ $message }}</p>
+                                        @enderror
+
+                                        <p class="text-xs text-secondary">
+                                            User will go to this URL when yearly billing is selected.
+                                        </p>
                                     </div>
                                 </div>
                             @endif
@@ -517,22 +594,6 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                             @error('sort_order')
                                 <p class="text-sm text-red-500">{{ $message }}</p>
                             @enderror
-                        </div>
-
-                        <div class="space-y-2 md:col-span-2">
-                            <label class="block font-label-md text-on-surface">Buy / Cart URL</label>
-
-                            <input type="url" wire:model.live="buy_url"
-                                placeholder="https://gipsyhost.com/index.php?rp=/store/shared-hosting/student"
-                                class="w-full rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
-
-                            @error('buy_url')
-                                <p class="text-sm text-red-500">{{ $message }}</p>
-                            @enderror
-
-                            <p class="text-xs text-secondary">
-                                Visitor will be redirected to this URL when they click Buy Now.
-                            </p>
                         </div>
 
                         <div class="space-y-2 md:col-span-2">
@@ -694,6 +755,12 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                                             ৳{{ number_format((float) $price, 0) }}
                                         </p>
                                     @endif
+
+                                    @if ($buy_url)
+                                        <p class="mt-2 truncate text-xs text-slate-400">
+                                            URL: {{ $buy_url }}
+                                        </p>
+                                    @endif
                                 </div>
                             @endif
 
@@ -720,6 +787,12 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                                     @endif
 
                                     <p class="mt-1 text-xs text-blue-500">per month</p>
+
+                                    @if ($monthly_buy_url)
+                                        <p class="mt-2 truncate text-xs text-blue-500">
+                                            URL: {{ $monthly_buy_url }}
+                                        </p>
+                                    @endif
                                 </div>
                             @endif
 
@@ -746,6 +819,12 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                                     @endif
 
                                     <p class="mt-1 text-xs text-emerald-500">per year</p>
+
+                                    @if ($yearly_buy_url)
+                                        <p class="mt-2 truncate text-xs text-emerald-500">
+                                            URL: {{ $yearly_buy_url }}
+                                        </p>
+                                    @endif
                                 </div>
                             @endif
 
