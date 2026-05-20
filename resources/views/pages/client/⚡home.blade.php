@@ -283,109 +283,64 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
             </div>
 
             @php
-                $featuredServices = $this->services();
-                $mainService = $featuredServices->first();
-                $otherServices = $featuredServices->skip(1);
+                $featuredServices = $this->services()->take(4)->values();
             @endphp
 
-            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 auto-rows-[260px] gap-5">
+            <div
+                class="grid grid-cols-1 md:grid-cols-3 auto-rows-[320px] sm:auto-rows-[340px] lg:auto-rows-[380px] gap-5">
 
-                {{-- Large Featured Card --}}
-                @if ($mainService)
-                    <a href="{{ route('client.services.details', $mainService->slug) }}" wire:navigate
-                        class="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white md:col-span-2 xl:col-span-2 xl:row-span-2 shadow-sm hover:shadow-xl transition-all duration-300">
+                @foreach ($featuredServices as $service)
+                    @php
+                        $isWide = in_array($loop->index, [1, 2]);
+                    @endphp
 
-                        <img src="{{ $mainService->image ? asset('storage/' . $mainService->image) : 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80' }}"
-                            alt="{{ $mainService->title }}"
+                    <a href="{{ route('client.services.details', $service->slug) }}" wire:navigate
+                        class="group relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/40 shadow-[0_20px_60px_rgba(2,8,23,0.35)] ring-1 ring-cyan-300/10 transition-all duration-300 hover:border-cyan-300/25 hover:ring-cyan-300/20 hover:shadow-[0_24px_80px_rgba(8,47,73,0.45)]
+            {{ $isWide ? 'md:col-span-2' : 'md:col-span-1' }}">
+
+                        <img src="{{ $service->image ? asset('storage/' . $service->image) : 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1000&q=80' }}"
+                            alt="{{ $service->card_title }}"
                             class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105">
 
-                        <div class="absolute inset-0 bg-linear-to-br from-slate-950/75 via-slate-900/45 to-blue-900/40">
+                        <div
+                            class="absolute inset-0 {{ $isWide ? 'bg-linear-to-r from-slate-950/90 via-slate-900/55 to-slate-900/20' : 'bg-linear-to-t from-slate-950/90 via-slate-900/45 to-slate-900/10' }}">
                         </div>
 
+                        <div class="absolute inset-0 rounded-3xl ring-1 ring-inset ring-white/5"></div>
+
                         <div class="relative z-10 flex h-full flex-col justify-between p-6 sm:p-7">
-                            <div class="flex items-start justify-between gap-4">
+                            <div class="flex items-center justify-between">
                                 <span
-                                    class="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md">
-                                    {{ $mainService->category->name ?? 'Service' }}
+                                    class="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-3 py-1 text-[11px] font-medium text-cyan-50 backdrop-blur-md">
+                                    {{ $service->category->name ?? 'Service' }}
                                 </span>
 
                                 <span
-                                    class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 text-white">
-                                    <span class="material-symbols-outlined">
-                                        {{ $mainService->icon ?? 'language' }}
+                                    class="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white backdrop-blur-md">
+                                    <span class="material-symbols-outlined text-[21px]">
+                                        {{ $service->icon ?? 'settings' }}
                                     </span>
                                 </span>
                             </div>
 
                             <div>
-                                <h3 class="text-2xl sm:text-3xl font-bold text-white font-manrope">
-                                    {{ $mainService->card_title }}
+                                <h3
+                                    class="{{ $isWide ? 'text-xl sm:text-2xl lg:text-3xl' : 'text-xl lg:text-2xl' }} font-bold text-white font-manrope">
+                                    {{ $service->card_title }}
                                 </h3>
 
-                                <p class="mt-3 max-w-xl text-sm sm:text-base leading-6 text-white/80">
-                                    {{ Str::limit($mainService->short_description ?? $mainService->description, 140) }}
+                                <p
+                                    class="mt-3 text-sm leading-6 text-white/75 {{ $isWide ? 'max-w-lg sm:text-base' : '' }}">
+                                    {{ Str::limit($service->short_description ?? $service->description, $isWide ? 135 : 95) }}
                                 </p>
 
-                                @if (!empty($mainService->tags))
-                                    <div class="mt-5 flex flex-wrap gap-2">
-                                        @foreach (array_slice((array) $mainService->tags, 0, 3) as $tag)
-                                            <span
-                                                class="rounded-full bg-white/10 px-3 py-1 text-xs text-white/90 border border-white/10">
-                                                {{ $tag }}
-                                            </span>
-                                        @endforeach
-                                    </div>
-                                @endif
-
-                                <div class="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-white">
+                                <div class="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-white">
                                     Learn More
                                     <span
                                         class="material-symbols-outlined text-[18px] transition-transform duration-300 group-hover:translate-x-1">
                                         arrow_forward
                                     </span>
                                 </div>
-                            </div>
-                        </div>
-                    </a>
-                @endif
-
-
-                {{-- Small Cards --}}
-                @foreach ($otherServices as $service)
-                    <a href="{{ route('client.services.details', $service->slug) }}" wire:navigate
-                        class="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm hover:shadow-xl transition-all duration-300
-           {{ $loop->last ? 'md:col-span-2 xl:col-span-2' : '' }}">
-
-                        <img src="{{ $service->image ? asset('storage/' . $service->image) : 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80' }}"
-                            alt="{{ $service->title }}"
-                            class="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105">
-
-                        <div
-                            class="absolute inset-0 {{ $loop->last ? 'bg-linear-to-r from-slate-950/85 via-slate-900/45 to-slate-900/20' : 'bg-linear-to-t from-slate-950/85 via-slate-900/35 to-slate-900/10' }}">
-                        </div>
-
-                        <div class="relative z-10 flex h-full flex-col justify-between p-6">
-                            <div class="flex items-center justify-between">
-                                <span
-                                    class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-medium text-white backdrop-blur-md">
-                                    {{ $service->category->name ?? 'Service' }}
-                                </span>
-
-                                <span class="material-symbols-outlined text-white">
-                                    {{ $service->icon ?? 'settings' }}
-                                </span>
-                            </div>
-
-                            <div>
-                                <h3
-                                    class="{{ $loop->last ? 'text-xl sm:text-2xl' : 'text-lg' }} font-bold text-white font-manrope">
-                                    {{ $service->card_title }}
-                                </h3>
-
-                                <p
-                                    class="mt-2 text-sm text-white/75 leading-6 {{ $loop->last ? 'max-w-lg sm:text-base' : '' }}">
-                                    {{ Str::limit($service->short_description ?? $service->description, 100) }}
-                                </p>
                             </div>
                         </div>
                     </a>
