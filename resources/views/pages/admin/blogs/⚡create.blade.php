@@ -307,6 +307,80 @@ new #[Layout('layouts.admin-app')] #[Title('Create Blog')] class extends Compone
                                         console.error('QuillTableBetter is not loaded');
                                         return;
                                     }
+
+                                    const colorPalette = [
+                                        false,
+                                        '#000000',
+                                        '#ffffff',
+                                        '#44546a',
+                                        '#5b9bd5',
+                                        '#ed7d31',
+                                        '#a5a5a5',
+                                        '#ffc000',
+                                        '#4472c4',
+                                        '#70ad47',
+                            
+                                        // Dark shades
+                                        '#7f7f7f',
+                                        '#1f4e79',
+                                        '#833c0c',
+                                        '#525252',
+                                        '#7f6000',
+                                        '#2f5597',
+                                        '#375623',
+                            
+                                        // Light shades
+                                        '#d9eaf7',
+                                        '#fce4d6',
+                                        '#ededed',
+                                        '#fff2cc',
+                                        '#d9e2f3',
+                                        '#e2f0d9',
+                            
+                                        // Accent colors
+                                        '#c00000',
+                                        '#ff0000',
+                                        '#ffc000',
+                                        '#ffff00',
+                                        '#92d050',
+                                        '#00b050',
+                                        '#00b0f0',
+                                        '#0070c0',
+                                        '#002060',
+                                        '#7030a0'
+                                    ];
+                            
+                                    const backgroundColorPalette = [
+                                        false,
+                                        // Basic
+                                        '#ffffff',
+                                        '#000000',
+                            
+                                        // Word-like highlight colors
+                                        '#ffff00',
+                                        '#00ff00',
+                                        '#00ffff',
+                                        '#ff00ff',
+                                        '#0000ff',
+                                        '#ff0000',
+                                        '#000080',
+                                        '#008080',
+                                        '#008000',
+                                        '#800080',
+                                        '#800000',
+                                        '#808000',
+                                        '#808080',
+                                        '#c0c0c0',
+                            
+                                        // Soft background shades
+                                        '#f2f2f2',
+                                        '#d9eaf7',
+                                        '#fce4d6',
+                                        '#fff2cc',
+                                        '#e2f0d9',
+                                        '#d9e2f3',
+                                        '#eadcf8'
+                                    ];
                             
                                     Quill.register({
                                         'modules/table-better': QuillTableBetter
@@ -320,7 +394,10 @@ new #[Layout('layouts.admin-app')] #[Title('Create Blog')] class extends Compone
                                                 [{ header: [2, 3, false] }],
                                                 [{ font: [] }],
                                                 ['bold', 'italic', 'underline', 'strike'],
-                                                [{ color: [] }, { background: [] }],
+                                                [
+                                                    { color: colorPalette },
+                                                    { background: backgroundColorPalette }
+                                                ],
                                                 [{ list: 'ordered' }, { list: 'bullet' }],
                                                 [{ align: [] }],
                                                 ['blockquote', 'code-block'],
