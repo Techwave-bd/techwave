@@ -1,7 +1,6 @@
 <?php
 
 use App\Models\SiteSetting;
-use App\Models\VatSetting;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -16,7 +15,6 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
     public string $activeTab = 'basic';
 
     public array $originalState = [];
-    public array $vatOriginalState = [];
 
     public string $site_name = '';
     public string $email = '';
@@ -35,12 +33,6 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
     public string $terms_conditions = '';
     public string $privacy_policy = '';
 
-    public string $editingVatType = 'service';
-    public string $vat_title = '';
-    public bool $vat_is_enabled = false;
-    public ?float $vat_percentage = null;
-    public string $vat_note = '';
-
     public $logo = null;
     public $favicon = null;
 
@@ -48,10 +40,6 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
         'basic' => [
             'label' => 'Basic Settings',
             'icon' => 'settings',
-        ],
-        'vat' => [
-            'label' => 'VAT Settings',
-            'icon' => 'receipt_long',
         ],
         'legal' => [
             'label' => 'Legal Pages',
@@ -65,12 +53,6 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
             'label' => 'Branding',
             'icon' => 'imagesmode',
         ],
-    ];
-
-    public array $vatApplyOptions = [
-        'service' => 'Services',
-        'pricing_plan' => 'IT Plans',
-        'both' => 'Both',
     ];
 
     public function mount(): void
@@ -93,9 +75,6 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
 
         $this->terms_conditions = $this->setting->terms_conditions ?? '';
         $this->privacy_policy = $this->setting->privacy_policy ?? '';
-
-        VatSetting::ensureDefaultRecords();
-        $this->editVat('service');
 
         $this->captureOriginalState();
     }
@@ -125,25 +104,6 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
         ];
     }
 
-    protected function vatRules(): array
-    {
-        return [
-            'vat_title' => ['required', 'string', 'max:80'],
-            'vat_is_enabled' => ['boolean'],
-            'vat_percentage' => [$this->vat_is_enabled ? 'required' : 'nullable', 'numeric', 'min:0', 'max:100'],
-            'vat_note' => ['nullable', 'string', 'max:500'],
-        ];
-    }
-
-    protected function messages(): array
-    {
-        return [
-            'vat_percentage.required' => 'VAT percentage is required when VAT is enabled.',
-            'vat_percentage.max' => 'VAT percentage cannot be more than 100.',
-            'vat_title.required' => 'VAT title is required.',
-        ];
-    }
-
     public function setTab(string $tab): void
     {
         if (!array_key_exists($tab, $this->tabs)) {
@@ -152,94 +112,6 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
 
         $this->activeTab = $tab;
         $this->resetValidation();
-    }
-
-    public function vatRecords()
-    {
-        return VatSetting::records();
-    }
-
-    public function editVat(string $type): void
-    {
-        if (!array_key_exists($type, $this->vatApplyOptions)) {
-            return;
-        }
-
-        $vat = VatSetting::query()->where('apply_to', $type)->firstOrFail();
-
-        $this->editingVatType = $vat->apply_to;
-        $this->vat_title = $vat->title ?: 'VAT';
-        $this->vat_is_enabled = (bool) $vat->is_enabled;
-        $this->vat_percentage = $vat->percentage !== null ? (float) $vat->percentage : null;
-        $this->vat_note = $vat->note ?? '';
-
-        $this->captureVatOriginalState();
-
-        $this->resetValidation(['vat_title', 'vat_is_enabled', 'vat_percentage', 'vat_note']);
-    }
-
-    private function captureVatOriginalState(): void
-    {
-        $this->vatOriginalState = [
-            'editingVatType' => $this->editingVatType,
-            'vat_title' => $this->vat_title,
-            'vat_is_enabled' => $this->vat_is_enabled,
-            'vat_percentage' => $this->vat_percentage,
-            'vat_note' => $this->vat_note,
-        ];
-    }
-
-    private function hasVatChanges(): bool
-    {
-        return [
-            'editingVatType' => $this->editingVatType,
-            'vat_title' => $this->vat_title,
-            'vat_is_enabled' => $this->vat_is_enabled,
-            'vat_percentage' => $this->vat_percentage,
-            'vat_note' => $this->vat_note,
-        ] !== $this->vatOriginalState;
-    }
-
-    public function updateVat(): void
-    {
-        if (!$this->hasVatChanges()) {
-            $this->dispatch('toast', message: 'Nothing to update.', type: 'warning');
-
-            return;
-        }
-
-        $validated = $this->validate($this->vatRules());
-
-        $vat = VatSetting::query()->where('apply_to', $this->editingVatType)->firstOrFail();
-
-        $isEnabled = (bool) $validated['vat_is_enabled'];
-
-        if ($isEnabled && $this->editingVatType === VatSetting::TYPE_BOTH) {
-            VatSetting::query()
-                ->whereIn('apply_to', [VatSetting::TYPE_SERVICE, VatSetting::TYPE_PRICING_PLAN])
-                ->update([
-                    'is_enabled' => false,
-                ]);
-        }
-
-        if ($isEnabled && in_array($this->editingVatType, [VatSetting::TYPE_SERVICE, VatSetting::TYPE_PRICING_PLAN], true)) {
-            VatSetting::query()
-                ->where('apply_to', VatSetting::TYPE_BOTH)
-                ->update([
-                    'is_enabled' => false,
-                ]);
-        }
-
-        $vat->update([
-            'title' => $validated['vat_title'],
-            'is_enabled' => $isEnabled,
-            'percentage' => $isEnabled ? $validated['vat_percentage'] : null,
-            'note' => $validated['vat_note'] ?: null,
-        ]);
-
-        $this->editVat($this->editingVatType);
-
-        $this->dispatch('toast', message: 'VAT setting updated successfully.', type: 'success');
     }
 
     private function captureOriginalState(): void
@@ -362,7 +234,7 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
         <div>
             <h1 class="text-h1 font-h1 text-on-surface">Site Settings</h1>
             <p class="mt-1 text-body-md text-secondary">
-                Manage website information, VAT, legal pages, social media and branding.
+                Manage website information, legal pages, social media and branding.
             </p>
         </div>
 
@@ -445,188 +317,6 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
                                 @error('map_embed_link')
                                     <p class="text-sm text-red-500">{{ $message }}</p>
                                 @enderror
-                            </div>
-                        </div>
-                    </div>
-                @endif
-
-                <!-- VAT Settings -->
-                @if ($activeTab === 'vat')
-                    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
-                        <!-- VAT Records -->
-                        <div class="lg:col-span-5">
-                            <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                                <h3 class="mb-6 flex items-center gap-2 text-h3 font-h2">
-                                    <span class="material-symbols-outlined text-primary">receipt_long</span>
-                                    VAT Records
-                                </h3>
-
-                                <div class="space-y-3">
-                                    @foreach ($this->vatRecords() as $vat)
-                                        <button type="button" wire:click="editVat('{{ $vat->apply_to }}')"
-                                            @class([
-                                                'w-full rounded-xl border p-4 text-left transition',
-                                                'border-primary bg-primary/5' => $editingVatType === $vat->apply_to,
-                                                'border-slate-200 bg-slate-50 hover:border-primary/40 hover:bg-white' =>
-                                                    $editingVatType !== $vat->apply_to,
-                                            ])>
-                                            <div class="flex items-start justify-between gap-4">
-                                                <div>
-                                                    <div class="flex items-center gap-2">
-                                                        <h4 class="font-semibold text-on-surface">
-                                                            {{ $vat->title }}
-                                                        </h4>
-
-                                                        <span @class([
-                                                            'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase',
-                                                            'bg-green-50 text-green-700' => $vat->is_enabled,
-                                                            'bg-slate-200 text-slate-500' => !$vat->is_enabled,
-                                                        ])>
-                                                            {{ $vat->is_enabled ? 'Enabled' : 'Disabled' }}
-                                                        </span>
-                                                    </div>
-
-                                                    <p class="mt-1 text-sm text-secondary">
-                                                        {{ $vatApplyOptions[$vat->apply_to] ?? ucfirst($vat->apply_to) }}
-                                                    </p>
-                                                </div>
-
-                                                <div class="text-right">
-                                                    <p class="font-mono text-lg font-bold text-primary">
-                                                        {{ $vat->percentage !== null ? number_format((float) $vat->percentage, 2) . '%' : '0.00%' }}
-                                                    </p>
-
-                                                    <p class="text-[11px] uppercase tracking-wide text-slate-400">
-                                                        VAT Rate
-                                                    </p>
-                                                </div>
-                                            </div>
-
-                                            @if ($vat->note)
-                                                <p class="mt-3 line-clamp-2 text-sm text-slate-500">
-                                                    {{ $vat->note }}
-                                                </p>
-                                            @endif
-
-                                            <div
-                                                class="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 text-xs text-slate-400">
-                                                <span>
-                                                    Type: {{ $vat->apply_to }}
-                                                </span>
-
-                                                <span>
-                                                    Updated: {{ $vat->updated_at?->format('d M Y') ?? 'N/A' }}
-                                                </span>
-                                            </div>
-                                        </button>
-                                    @endforeach
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Edit VAT -->
-                        <div class="lg:col-span-7">
-                            <div class="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-                                <div class="mb-8 flex items-start justify-between gap-4">
-                                    <div>
-                                        <h3 class="flex items-center gap-2 text-h3 font-h2">
-                                            <span class="material-symbols-outlined text-primary">edit_note</span>
-                                            Edit VAT Setting
-                                        </h3>
-
-                                        <p class="mt-1 text-sm text-secondary">
-                                            Editing VAT for:
-                                            <span class="font-semibold text-primary">
-                                                {{ $vatApplyOptions[$editingVatType] ?? ucfirst($editingVatType) }}
-                                            </span>
-                                        </p>
-                                    </div>
-
-                                    <span
-                                        class="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold uppercase text-slate-500">
-                                        {{ $editingVatType }}
-                                    </span>
-                                </div>
-
-                                <div class="space-y-6">
-                                    <div
-                                        class="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-5 py-4">
-                                        <div>
-                                            <h4 class="font-semibold text-on-surface">Enable VAT</h4>
-                                            <p class="mt-1 text-sm text-secondary">
-                                                Turn this VAT rule on or off.
-                                            </p>
-                                        </div>
-
-                                        <label class="relative inline-flex cursor-pointer items-center">
-                                            <input type="checkbox" wire:model.live="vat_is_enabled"
-                                                class="peer sr-only">
-                                            <div
-                                                class="peer h-6 w-11 rounded-full bg-slate-300 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:bg-primary peer-checked:after:translate-x-full">
-                                            </div>
-                                        </label>
-                                    </div>
-
-                                    <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                                        <div class="space-y-2">
-                                            <label class="block font-label-md text-on-surface">VAT Title</label>
-                                            <input type="text" wire:model.live="vat_title"
-                                                class="w-full rounded border border-outline-variant px-4 py-2.5"
-                                                placeholder="VAT" />
-                                            @error('vat_title')
-                                                <p class="text-sm text-red-500">{{ $message }}</p>
-                                            @enderror
-                                        </div>
-
-                                        <div class="space-y-2">
-                                            <label class="block font-label-md text-on-surface">VAT Percentage</label>
-                                            <div class="relative">
-                                                <input type="number" wire:model.live="vat_percentage" step="0.01"
-                                                    min="0" max="100"
-                                                    class="w-full rounded border border-outline-variant px-4 py-2.5 pr-10"
-                                                    placeholder="15" />
-                                                <span
-                                                    class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400">%</span>
-                                            </div>
-                                            @error('vat_percentage')
-                                                <p class="text-sm text-red-500">{{ $message }}</p>
-                                            @enderror
-                                        </div>
-
-                                        <div class="space-y-2 md:col-span-2">
-                                            <label class="block font-label-md text-on-surface">VAT Note</label>
-                                            <textarea wire:model.live="vat_note" rows="4" class="w-full rounded border border-outline-variant px-4 py-2.5"
-                                                placeholder="Optional VAT note for invoice or checkout..."></textarea>
-                                            @error('vat_note')
-                                                <p class="text-sm text-red-500">{{ $message }}</p>
-                                            @enderror
-                                        </div>
-                                    </div>
-
-                                    <div
-                                        class="rounded-xl border border-blue-100 bg-blue-50 px-5 py-4 text-sm text-blue-700">
-                                        Example: If VAT is {{ $vat_percentage ?: 0 }}% and subtotal is ৳10,000,
-                                        VAT amount will be
-                                        ৳{{ number_format((10000 * (float) ($vat_percentage ?: 0)) / 100, 2) }}.
-                                    </div>
-
-                                    <div class="flex justify-end">
-                                        <button type="button" wire:click="updateVat" wire:loading.attr="disabled"
-                                            wire:target="updateVat"
-                                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-label-md font-label-md text-white shadow-sm transition-opacity hover:opacity-90">
-                                            <span wire:loading.remove wire:target="updateVat">
-                                                Update VAT
-                                            </span>
-
-                                            <span wire:loading wire:target="updateVat"
-                                                class="inline-flex items-center gap-2">
-                                                <span
-                                                    class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
-                                                Updating...
-                                            </span>
-                                        </button>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -913,23 +603,20 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
                 @endif
 
                 <!-- Main Save Button -->
-                @if ($activeTab !== 'vat')
-                    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div class="flex justify-end">
-                            <button type="submit" wire:loading.attr="disabled"
-                                class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-label-md font-label-md text-white shadow-sm transition-opacity hover:opacity-90">
-                                <span wire:loading.remove wire:target="save">Save Settings</span>
-                                <span wire:loading wire:target="save" class="inline-flex items-center gap-2">
-                                    <span
-                                        class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
-                                    Saving...
-                                </span>
-                            </button>
-                        </div>
+                <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div class="flex justify-end">
+                        <button type="submit" wire:loading.attr="disabled"
+                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-label-md font-label-md text-white shadow-sm transition-opacity hover:opacity-90">
+                            <span wire:loading.remove wire:target="save">Save Settings</span>
+                            <span wire:loading wire:target="save" class="inline-flex items-center gap-2">
+                                <span
+                                    class="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
+                                Saving...
+                            </span>
+                        </button>
                     </div>
-                @endif
+                </div>
             </div>
         </form>
     </div>
-
 </div>
