@@ -17,6 +17,7 @@ new #[Title('My Profile')] class extends Component {
     public string $name = '';
     public string $email = '';
     public ?string $phone = '';
+    public ?string $designation = '';
     public ?string $type = '';
     public ?int $company_id = null;
     public bool $is_active = true;
@@ -35,6 +36,7 @@ new #[Title('My Profile')] class extends Component {
         $this->name = $user->name ?? '';
         $this->email = $user->email ?? '';
         $this->phone = $user->phone ?? '';
+        $this->designation = $user->designation ?? '';
         $this->type = $user->type ?? 'personal';
         $this->company_id = $user->company_id;
         $this->is_active = (bool) ($user->is_active ?? true);
@@ -58,8 +60,8 @@ new #[Title('My Profile')] class extends Component {
         $this->validate(
             [
                 'name' => ['required', 'string', 'max:120'],
-                'email' => ['required', 'email', 'max:160', Rule::unique('users', 'email')->ignore($user->id)],
                 'phone' => ['required', 'string', 'regex:/^(?:\+8801|8801|01)[3-9]\d{8}$/'],
+                'designation' => ['nullable', 'string', 'max:120'],
                 'avatarFile' => ['nullable', 'image', 'max:2048'],
             ],
             [
@@ -76,8 +78,8 @@ new #[Title('My Profile')] class extends Component {
         }
 
         $user->name = $this->name;
-        $user->email = $this->email;
         $user->phone = $this->phone;
+        $user->designation = $this->designation ?: null;
         $user->avatar = $this->avatar;
         $user->save();
 
@@ -100,11 +102,12 @@ new #[Title('My Profile')] class extends Component {
                 'company_name' => ['required', 'string', 'max:160'],
                 'company_phone' => ['required', 'string', 'regex:/^(?:\+8801|8801|01)[3-9]\d{8}$/'],
                 'company_address' => ['required', 'string', 'max:255'],
-                'company_website' => ['nullable', 'string', 'max:160'],
+                'company_website' => ['nullable', 'url', 'max:160'],
                 'logoFile' => ['nullable', 'image', 'max:2048'],
             ],
             [
                 'company_phone.regex' => 'Please enter a valid Bangladeshi phone number.',
+                'company_website.url' => 'Please enter a valid website URL. Example: https://example.com',
             ],
         );
 
@@ -121,7 +124,7 @@ new #[Title('My Profile')] class extends Component {
         $company->company_name = $this->company_name;
         $company->phone = $this->company_phone;
         $company->address = $this->company_address;
-        $company->website = $this->company_website;
+        $company->website = $this->company_website ?: null;
         $company->logo = $this->company_logo;
         $company->save();
 
@@ -191,14 +194,14 @@ new #[Title('My Profile')] class extends Component {
                                 class="rounded-[28px] border border-white/10 bg-white/8 p-6 shadow-[0_16px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
                                 <div class="mb-6 flex items-center justify-between gap-4">
                                     <div>
-                                        <p class="text-xs uppercase tracking-[0.18em] text-blue-100/45">Personal Profile
+                                        <p class="text-xs uppercase tracking-[0.18em] text-blue-100/45">
+                                            Personal Profile
                                         </p>
                                         <h2 class="mt-2 text-2xl font-bold text-white">Basic information</h2>
                                         <p class="mt-2 text-sm text-blue-100/55">
-                                            Update your name, email, phone number, and profile photo.
+                                            Update your name, phone number, designation, and profile photo.
                                         </p>
                                     </div>
-
                                 </div>
 
                                 @if (session('personal_success'))
@@ -220,20 +223,22 @@ new #[Title('My Profile')] class extends Component {
                                     </div>
 
                                     <div>
-                                        <label class="mb-2 block text-sm font-medium text-blue-100/70">Email
-                                            Address</label>
+                                        <label class="mb-2 block text-sm font-medium text-blue-100/70">
+                                            Email Address
+                                        </label>
                                         <div
                                             class="flex h-12 w-full items-center rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-blue-100/60">
                                             <span class="truncate">{{ $email }}</span>
                                         </div>
                                         {{-- <p class="mt-2 text-xs text-blue-100/35">
-                                            Email address cannot be changed from profile page.
+                                            This email is used for login and company communication.
                                         </p> --}}
                                     </div>
 
                                     <div>
-                                        <label class="mb-2 block text-sm font-medium text-blue-100/70">Phone
-                                            Number</label>
+                                        <label class="mb-2 block text-sm font-medium text-blue-100/70">
+                                            Phone Number
+                                        </label>
                                         <input type="text" wire:model="phone"
                                             class="h-12 w-full rounded-2xl border border-white/10 bg-white/8 px-4 text-sm text-white placeholder:text-blue-100/35 outline-none backdrop-blur-xl focus:border-cyan-300/40"
                                             placeholder="Enter phone number">
@@ -243,11 +248,24 @@ new #[Title('My Profile')] class extends Component {
                                     </div>
 
                                     <div>
-                                        <label class="mb-2 block text-sm font-medium text-blue-100/70">Account
-                                            Type</label>
+                                        <label class="mb-2 block text-sm font-medium text-blue-100/70">
+                                            Designation
+                                        </label>
+                                        <input type="text" wire:model="designation"
+                                            class="h-12 w-full rounded-2xl border border-white/10 bg-white/8 px-4 text-sm text-white placeholder:text-blue-100/35 outline-none backdrop-blur-xl focus:border-cyan-300/40"
+                                            placeholder="Example: CEO, Manager, IT Officer">
+                                        @error('designation')
+                                            <p class="mt-2 text-xs text-rose-300">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+
+                                    {{-- <div>
+                                        <label class="mb-2 block text-sm font-medium text-blue-100/70">
+                                            Account Type
+                                        </label>
                                         <input type="text" value="{{ ucfirst($type) }}" disabled
                                             class="h-12 w-full cursor-not-allowed rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-blue-100/55 outline-none">
-                                    </div>
+                                    </div> --}}
                                 </div>
 
                                 <div class="mt-6 flex justify-end">
@@ -276,7 +294,8 @@ new #[Title('My Profile')] class extends Component {
                                 <form wire:submit.prevent="updateBusinessProfile"
                                     class="rounded-[28px] border border-white/10 bg-white/8 p-6 shadow-[0_16px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
                                     <div class="mb-6">
-                                        <p class="text-xs uppercase tracking-[0.18em] text-blue-100/45">Business Profile
+                                        <p class="text-xs uppercase tracking-[0.18em] text-blue-100/45">
+                                            Business Profile
                                         </p>
                                         <h2 class="mt-2 text-2xl font-bold text-white">Company information</h2>
                                         <p class="mt-2 text-sm text-blue-100/55">
@@ -292,10 +311,18 @@ new #[Title('My Profile')] class extends Component {
                                         </div>
                                     @endif
 
+                                    @if (session('business_error'))
+                                        <div
+                                            class="mb-6 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-5 py-4 text-sm font-medium text-rose-200">
+                                            {{ session('business_error') }}
+                                        </div>
+                                    @endif
+
                                     <div class="grid gap-5 md:grid-cols-2">
                                         <div>
-                                            <label class="mb-2 block text-sm font-medium text-blue-100/70">Company
-                                                Name</label>
+                                            <label class="mb-2 block text-sm font-medium text-blue-100/70">
+                                                Company Name
+                                            </label>
                                             <input type="text" wire:model="company_name"
                                                 class="h-12 w-full rounded-2xl border border-white/10 bg-white/8 px-4 text-sm text-white placeholder:text-blue-100/35 outline-none backdrop-blur-xl focus:border-cyan-300/40"
                                                 placeholder="Enter company name">
@@ -305,8 +332,9 @@ new #[Title('My Profile')] class extends Component {
                                         </div>
 
                                         <div>
-                                            <label class="mb-2 block text-sm font-medium text-blue-100/70">Company
-                                                Phone</label>
+                                            <label class="mb-2 block text-sm font-medium text-blue-100/70">
+                                                Company Phone
+                                            </label>
                                             <input type="text" wire:model="company_phone"
                                                 class="h-12 w-full rounded-2xl border border-white/10 bg-white/8 px-4 text-sm text-white placeholder:text-blue-100/35 outline-none backdrop-blur-xl focus:border-cyan-300/40"
                                                 placeholder="Enter company phone">
@@ -316,9 +344,10 @@ new #[Title('My Profile')] class extends Component {
                                         </div>
 
                                         <div class="md:col-span-2">
-                                            <label
-                                                class="mb-2 block text-sm font-medium text-blue-100/70">Website</label>
-                                            <input type="text" wire:model="company_website"
+                                            <label class="mb-2 block text-sm font-medium text-blue-100/70">
+                                                Website
+                                            </label>
+                                            <input type="url" wire:model="company_website"
                                                 class="h-12 w-full rounded-2xl border border-white/10 bg-white/8 px-4 text-sm text-white placeholder:text-blue-100/35 outline-none backdrop-blur-xl focus:border-cyan-300/40"
                                                 placeholder="https://example.com">
                                             @error('company_website')
@@ -327,8 +356,9 @@ new #[Title('My Profile')] class extends Component {
                                         </div>
 
                                         <div class="md:col-span-2">
-                                            <label class="mb-2 block text-sm font-medium text-blue-100/70">Company
-                                                Address</label>
+                                            <label class="mb-2 block text-sm font-medium text-blue-100/70">
+                                                Company Address
+                                            </label>
                                             <textarea wire:model="company_address" rows="4"
                                                 class="w-full rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm text-white placeholder:text-blue-100/35 outline-none backdrop-blur-xl focus:border-cyan-300/40"
                                                 placeholder="Enter company address"></textarea>
@@ -368,10 +398,12 @@ new #[Title('My Profile')] class extends Component {
                                         </div>
 
                                         <div>
-                                            <p class="text-xs uppercase tracking-[0.18em] text-blue-100/45">Business
-                                                Profile</p>
-                                            <h2 class="mt-2 text-2xl font-bold text-white">Not available for personal
-                                                account</h2>
+                                            <p class="text-xs uppercase tracking-[0.18em] text-blue-100/45">
+                                                Business Profile
+                                            </p>
+                                            <h2 class="mt-2 text-2xl font-bold text-white">
+                                                Not available for personal account
+                                            </h2>
                                             <p class="mt-3 text-sm leading-7 text-blue-100/60">
                                                 Your current account type is personal. Business profile information is
                                                 only available for company or business accounts.
@@ -481,7 +513,6 @@ new #[Title('My Profile')] class extends Component {
                                 </div>
                             @endif
 
-
                             {{-- Account Summary --}}
                             <div
                                 class="rounded-[28px] border border-white/10 bg-white/8 p-6 shadow-[0_16px_50px_rgba(0,0,0,0.18)] backdrop-blur-2xl">
@@ -493,6 +524,13 @@ new #[Title('My Profile')] class extends Component {
                                         <span class="text-blue-100/55">Account Type</span>
                                         <span
                                             class="font-semibold text-white">{{ ucfirst($type ?: 'Personal') }}</span>
+                                    </div>
+
+                                    <div class="flex items-center justify-between gap-4 border-b border-white/10 pb-3">
+                                        <span class="text-blue-100/55">Designation</span>
+                                        <span class="max-w-[170px] truncate font-semibold text-white">
+                                            {{ $designation ?: 'Not added' }}
+                                        </span>
                                     </div>
 
                                     @if ($type !== 'personal')

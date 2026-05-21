@@ -23,7 +23,6 @@ new #[Title('Checkout')] class extends Component {
 
     public string $company_name = '';
     public string $company_phone = '';
-    public string $company_email = '';
 
     public string $user_note = '';
     public ?float $requested_price = null;
@@ -66,7 +65,6 @@ new #[Title('Checkout')] class extends Component {
             'customer_phone' => ['required', 'string', 'max:20', 'regex:/^(?:\+88|88)?01[3-9][0-9]{8}$/'],
 
             'company_name' => ['required', 'string', 'max:255'],
-            'company_email' => ['required', 'email', 'max:255'],
             'company_phone' => ['required', 'string', 'max:20', 'regex:/^(?:\+88|88)?01[3-9][0-9]{8}$/'],
 
             'customer_address' => ['required', 'string', 'max:500'],
@@ -85,8 +83,6 @@ new #[Title('Checkout')] class extends Component {
             'customer_phone.regex' => 'Please enter a valid Bangladeshi phone number.',
 
             'company_name.required' => 'Please enter your company name.',
-            'company_email.required' => 'Please enter your company email.',
-            'company_email.email' => 'Please enter a valid company email address.',
             'company_phone.required' => 'Please enter your company phone number.',
             'company_phone.regex' => 'Please enter a valid Bangladeshi company phone number.',
 
@@ -123,7 +119,6 @@ new #[Title('Checkout')] class extends Component {
         if (method_exists($user, 'isCompanyAccount') && $user->isCompanyAccount() && $user->company) {
             $this->company_name = (string) old('company_name', $user->company->company_name ?? '');
             $this->company_phone = (string) old('company_phone', $user->company->phone ?? '');
-            $this->company_email = (string) old('company_email', $user->company->email ?? '');
             $this->customer_address = (string) old('customer_address', $user->company->address ?? '');
 
             return;
@@ -131,7 +126,6 @@ new #[Title('Checkout')] class extends Component {
 
         $this->company_name = (string) old('company_name', '');
         $this->company_phone = (string) old('company_phone', '');
-        $this->company_email = (string) old('company_email', '');
         $this->customer_address = (string) old('customer_address', '');
     }
 
@@ -175,7 +169,6 @@ new #[Title('Checkout')] class extends Component {
 
             'company_name' => $validated['company_name'],
             'company_phone' => $this->normalizeBdPhone($validated['company_phone']),
-            'company_email' => $validated['company_email'],
 
             'plan_name' => $this->pricingPlan->title,
             'plan_price' => $planPrice,
@@ -220,16 +213,6 @@ new #[Title('Checkout')] class extends Component {
     public function paymentAction(): string
     {
         return route('client.checkout.pricing.pay', $this->pricingPlan->id);
-    }
-
-    public function getTaxAmount(): float
-    {
-        return $this->getAmount() * 0.15;
-    }
-
-    public function getTotalAmount(): float
-    {
-        return $this->getAmount() + $this->getTaxAmount();
     }
 
     private function makeBookingNo(): string
@@ -510,22 +493,7 @@ new #[Title('Checkout')] class extends Component {
                                     @enderror
                                 </div>
 
-                                <div>
-                                    <label for="company_email"
-                                        class="mb-2 block text-sm font-semibold text-blue-100/80">
-                                        Company Email <span class="text-red-300">*</span>
-                                    </label>
-
-                                    <input id="company_email" type="email" wire:model.live="company_email"
-                                        placeholder="company@example.com"
-                                        class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-blue-100/35 focus:border-cyan-300/70 focus:bg-white/15">
-
-                                    @error('company_email')
-                                        <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                                    @enderror
-                                </div>
-
-                                <div class="sm:col-span-2">
+                                <div class="">
                                     <label for="company_phone"
                                         class="mb-2 block text-sm font-semibold text-blue-100/80">
                                         Company Phone <span class="text-red-300">*</span>
@@ -562,7 +530,7 @@ new #[Title('Checkout')] class extends Component {
                                         </label>
 
                                         <input id="requested_price" type="number" step="0.01" min="0"
-                                            wire:model.live="requested_price"
+                                            wire:model.live.debounce.500ms="requested_price"
                                             placeholder="Your expected {{ $billing }} price"
                                             class="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-blue-100/35 focus:border-cyan-300/70 focus:bg-white/15">
 
@@ -643,45 +611,30 @@ new #[Title('Checkout')] class extends Component {
                                         </span>
                                     </div>
 
-                                    @if ($directPaymentEnabled)
+                                    <div class="flex justify-between gap-4">
+                                        <span class="text-blue-100/60">Pricing Status</span>
+                                        <span class="font-semibold text-amber-300">Negotiable</span>
+                                    </div>
+
+                                    @if ($requested_price)
                                         <div class="flex justify-between gap-4">
-                                            <span class="text-blue-100/60">TAX (+15%)</span>
-                                            <span class="font-semibold text-emerald-300">
-                                                ৳{{ number_format($this->getTaxAmount(), 2) }}
+                                            <span class="text-blue-100/60">Requested Price</span>
+
+                                            <span class="font-semibold text-cyan-300">
+                                                ৳{{ number_format((float) $requested_price, 2) }}
                                             </span>
                                         </div>
-
-                                        <div
-                                            class="flex justify-between border-t border-white/10 pt-4 text-lg font-bold">
-                                            <span>Total</span>
-                                            <span>৳{{ number_format($this->getTotalAmount(), 2) }}</span>
-                                        </div>
-                                    @else
-                                        <div class="flex justify-between gap-4">
-                                            <span class="text-blue-100/60">Pricing Status</span>
-                                            <span class="font-semibold text-amber-300">Negotiable</span>
-                                        </div>
-
-                                        @if ($requested_price)
-                                            <div class="flex justify-between gap-4">
-                                                <span class="text-blue-100/60">Requested Price</span>
-                                                <span class="font-semibold text-cyan-300">
-                                                    ৳{{ number_format((float) $requested_price, 2) }}
-                                                </span>
-                                            </div>
-                                        @endif
-
-                                        <div
-                                            class="rounded-2xl border border-amber-300/15 bg-amber-300/10 p-4 text-xs leading-6 text-amber-100/90">
-                                            <div class="mb-2 flex items-center gap-2 font-bold text-amber-200">
-                                                <span class="material-symbols-outlined text-base">info</span>
-                                                No payment required now
-                                            </div>
-
-                                            Our team will review your request and send a final quoted price before
-                                            payment.
-                                        </div>
                                     @endif
+
+                                    <div
+                                        class="rounded-2xl border border-amber-300/15 bg-amber-300/10 p-4 text-xs leading-6 text-amber-100/90">
+                                        <div class="mb-2 flex items-center gap-2 font-bold text-amber-200">
+                                            <span class="material-symbols-outlined text-base">info</span>
+                                            No payment required now
+                                        </div>
+
+                                        Our team will review your request and send a final quoted price before payment.
+                                    </div>
                                 </div>
 
                                 @auth
