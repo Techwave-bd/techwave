@@ -29,7 +29,6 @@ use Illuminate\Database\Eloquent\Model;
     'user_note',
     'admin_note',
     'status',
-    'pricing_order_id',
     'admin_read_at',
 ])]
 class Booking extends Model
@@ -67,10 +66,10 @@ class Booking extends Model
         return $this->hasOne(Order::class);
     }
 
-    public function pricingOrder()
-    {
-        return $this->belongsTo(PricingOrder::class);
-    }
+    // public function pricingOrder()
+    // {
+    //     return $this->belongsTo(PricingOrder::class);
+    // }
 
     // public function assignedService()
     // {

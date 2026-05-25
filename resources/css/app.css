@@ -158,7 +158,7 @@
     }
 
     .logo-img {
-        @apply w-auto object-contain transition duration-300 max-h-5.5 max-w-22.5 sm:max-h-6.5 md:max-h-13 md:max-w-31.25;
+        @apply w-auto object-contain transition duration-300 max-h-8.5 max-w-22.5 sm:max-h-6.5 md:max-h-13 md:max-w-31.25;
     }
 
     .logo-card:hover .logo-img {

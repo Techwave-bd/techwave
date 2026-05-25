@@ -75,10 +75,10 @@ return new class extends Migration
                 'cancelled',
             ])->default('pending');
 
-            $table->foreignId('pricing_order_id')
-                ->nullable()
-                ->constrained('pricing_orders')
-                ->nullOnDelete();
+            // $table->foreignId('pricing_order_id')
+            //     ->nullable()
+            //     ->constrained('pricing_orders')
+            //     ->nullOnDelete();
 
             $table->timestamp('admin_read_at')->nullable();
 

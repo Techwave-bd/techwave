@@ -523,7 +523,7 @@ new #[Title('Checkout')] class extends Component {
                                 </div>
 
                                 @unless ($directPaymentEnabled)
-                                    <div>
+                                    <div class="sm:col-span-2">
                                         <label for="requested_price"
                                             class="mb-2 block text-sm font-semibold text-blue-100/80">
                                             Requested Price

@@ -33,14 +33,14 @@ new class extends Component {
     <!-- Logo -->
     <div class="h-16 shrink-0 border-b border-slate-200 px-4 flex items-center justify-between">
         <div class="flex items-center gap-3 overflow-hidden">
-            <div class="h-12 w-12 rounded-xl bg-primary text-white flex items-center justify-center shrink-0">
+            <div class="h-12 w-12 rounded-xl text-white flex items-center justify-center shrink-0">
 
                 @php
                     $logo = $this->siteSetting->logo
                         ? asset('storage/' . $this->siteSetting->logo)
                         : asset('assets/images/logo/logo.png');
                 @endphp
-                <img src="{{ $logo }}" alt="Logo" class="p-1">
+                <img src="{{ $logo }}" alt="Logo" class="">
             </div>
 
             <div x-show="!sidebarCollapsed" class="min-w-0">

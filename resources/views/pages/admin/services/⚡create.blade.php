@@ -2,6 +2,7 @@
 
 use App\Models\Category;
 use App\Models\Service;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -215,7 +216,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service')] class extends Comp
         $imagePath = null;
 
         if ($this->image) {
-            $imagePath = $this->image->store('services/images', 'public');
+           $imagePath = $this->storeServiceImage($this->image, $validated['card_title']);
         }
 
         $benefits = collect($validated['benefits'])
