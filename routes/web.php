@@ -26,6 +26,7 @@ Route::livewire('/projects/{slug}', 'pages::client.projects.details')->name('cli
 
 // Tools
 Route::livewire('/tools', 'pages::client.tools.index')->name('client.tools.index');
+Route::livewire('/tools/image-compressor', 'pages::client.tools.image-compressor')->name('client.tools.image-compressor');
 
 // Blogs
 Route::livewire('/blogs', 'pages::client.blogs.index')->name('client.blogs');
@@ -138,6 +139,15 @@ Route::middleware(['auth', 'verified', 'role:client,admin'])->group(function () 
     // Proposal
     Route::livewire('/account/proposals', 'pages::client.proposals.index')->name('client.proposals.index');
     Route::livewire('/account/proposals/{proposal}', 'pages::client.proposals.show')->name('client.proposals.show');
+
+    // Tool Subscriptions
+    Route::livewire('/tools/subscriptions/checkout/{plan}', 'pages::client.tool-subscriptions.checkout')->name('client.tool-subscriptions.checkout');
+
+    // Account subscriptions
+    Route::livewire('/account/tool-subscriptions', 'pages::client.account.tool-subscriptions')->name('account.tool-subscriptions');
+
+    // Compressed images backup
+    Route::livewire('/account/compressed-images', 'pages::client.account.compressed-images')->name('account.compressed-images');
 });
 
 Route::match(['get', 'post'], '/sslcommerz/success', [SslCommerzController::class, 'success'])
@@ -252,7 +262,27 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,manager,
     Route::livewire('/bookings', 'pages::admin.bookings.index')->name('bookings.index');
     Route::livewire('/bookings/{booking}/quote', 'pages::admin.bookings.quote')->name('bookings.quote');
 
-
     // Icons
     Route::livewire('/icons', 'pages::admin.icons.material-icons')->name('icons.material-icons');
+
+    // Tool Category management
+    Route::livewire('/tool-categories', 'pages::admin.tool-categories.index')->name('tool-categories.index');
+    Route::livewire('/tool-categories/create', 'pages::admin.tool-categories.create')->name('tool-categories.create');
+    Route::livewire('/tool-categories/{toolCategory}/edit', 'pages::admin.tool-categories.edit')->name('tool-categories.edit');
+
+    // Tool management
+    Route::livewire('/tools', 'pages::admin.tools.index')->name('tools.index');
+    Route::livewire('/tools/create', 'pages::admin.tools.create')->name('tools.create');
+    Route::livewire('/tools/{tool}/edit', 'pages::admin.tools.edit')->name('tools.edit');
+
+    // Tool Plans
+    Route::livewire('/tool-plans', 'pages::admin.tool-plans.index')->name('tool-plans.index');
+
+    // Tool Subscriptions
+    Route::livewire('/tool-subscriptions', 'pages::admin.tool-subscriptions.index')->name('tool-subscriptions.index');
+    Route::livewire('/tool-subscriptions/create', 'pages::admin.tool-subscriptions.create')->name('tool-subscriptions.create');
+    Route::livewire('/tool-subscriptions/{toolSubscription}/edit', 'pages::admin.tool-subscriptions.edit')->name('tool-subscriptions.edit');
+
+    // Compressed Images Gallery
+    Route::livewire('/compressed-images', 'pages::admin.compressed-images.index')->name('compressed-images.index');
 });

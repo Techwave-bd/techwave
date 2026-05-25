@@ -77,13 +77,44 @@ class User extends Authenticatable implements MustVerifyEmail
         $this->notify(new ResetPasswordNotification($token));
     }
 
-    public function assignedServices()
+        public function toolSubscriptions()
     {
-        return $this->hasMany(UserService::class);
+        return $this->hasMany(ToolSubscription::class);
     }
 
-    public function pricingOrders()
+    public function activeToolSubscription(ToolCategory $category): ?ToolSubscription
     {
-        return $this->hasMany(PricingOrder::class);
+        return $this->toolSubscriptions()
+            ->where('tool_category_id', $category->id)
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->latest()
+            ->first();
+    }
+
+    public function hasActiveToolSubscription(?ToolCategory $category): bool
+    {
+        if (! $category) {
+            return false;
+        }
+
+        return $this->activeToolSubscription($category) !== null;
+    }
+
+    public function maxFileUploadFor(?ToolCategory $category): int
+    {
+        if (! $category) {
+            return 30;
+        }
+
+        $subscription = $this->activeToolSubscription($category);
+
+        if ($subscription && $subscription->plan) {
+            return $subscription->plan->max_file_upload;
+        }
+
+        return $category->free_max_file_upload ?? 30;
     }
 }

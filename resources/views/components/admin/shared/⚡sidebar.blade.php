@@ -216,6 +216,117 @@ new class extends Component {
             </a>
         </div>
 
+         <!-- Tools -->
+        <div class="mt-4 space-y-1">
+            <p x-show="!sidebarCollapsed"
+                class="px-4 pb-2 pt-2 font-manrope text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Tools
+            </p>
+            <p x-show="sidebarCollapsed"
+                class="px-4 pb-2 pt-4 font-manrope text-xl font-semibold uppercase tracking-wider text-slate-500 text-center">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path fill-rule="evenodd" clip-rule="evenodd"
+                        d="M5.99915 10.2451C6.96564 10.2451 7.74915 11.0286 7.74915 11.9951V12.0051C7.74915 12.9716 6.96564 13.7551 5.99915 13.7551C5.03265 13.7551 4.24915 12.9716 4.24915 12.0051V11.9951C4.24915 11.0286 5.03265 10.2451 5.99915 10.2451ZM17.9991 10.2451C18.9656 10.2451 19.7491 11.0286 19.7491 11.9951V12.0051C19.7491 12.9716 18.9656 13.7551 17.9991 13.7551C17.0326 13.7551 16.2491 12.9716 16.2491 12.0051V11.9951C16.2491 11.0286 17.0326 10.2451 17.9991 10.2451ZM13.7491 11.9951C13.7491 11.0286 12.9656 10.2451 11.9991 10.2451C11.0326 10.2451 10.2491 11.0286 10.2491 11.9951V12.0051C10.2491 12.9716 11.0326 13.7551 11.9991 13.7551C12.9656 13.7551 13.7491 12.9716 13.7491 12.0051V11.9951Z"
+                        fill="currentColor" />
+                </svg>
+            </p>
+
+            <a href="{{ route('admin.tool-categories.index') }}" wire:navigate
+                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                <span class="material-symbols-outlined shrink-0">build</span>
+                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                    Tool Categories
+                </span>
+            </a>
+
+            <a href="{{ route('admin.tools.index') }}" wire:navigate
+                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                <span class="material-symbols-outlined shrink-0">handyman</span>
+                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                    Tools
+                </span>
+            </a>
+
+            {{-- Image Tools Dropdown --}}
+            <div x-data="{ open: false }" class="space-y-1">
+                <button type="button" @click="open = !open"
+                    class="flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined shrink-0">image</span>
+                        <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                            Image
+                        </span>
+                    </div>
+                    <span x-show="!sidebarCollapsed"
+                        class="material-symbols-outlined text-lg transition-transform duration-200"
+                        :class="open ? 'rotate-180' : ''">
+                        expand_more
+                    </span>
+                </button>
+
+                <div x-show="open && !sidebarCollapsed" x-collapse
+                    class="ml-4 space-y-1 border-l border-slate-200 pl-3">
+                    <a href="{{ route('client.tools.image-compressor') }}" wire:navigate
+                        wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                        class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                        <span class="material-symbols-outlined shrink-0 text-[20px]">compress</span>
+                        <span class="font-manrope text-sm font-medium">Image Compressor</span>
+                    </a>
+
+                    <a href="{{ route('admin.compressed-images.index') }}" wire:navigate
+                        wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                        class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                        <span class="material-symbols-outlined shrink-0 text-[20px]">photo_library</span>
+                        <span class="font-manrope text-sm font-medium">Compressed Images</span>
+                    </a>
+
+                    {{-- <a href="{{ route('admin.tools.image-resize') }}" wire:navigate
+                        wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                        class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                        <span class="material-symbols-outlined shrink-0 text-[20px]">aspect_ratio</span>
+                        <span class="font-manrope text-sm font-medium">Image Resize</span>
+                    </a> --}}
+                    {{-- <a href="{{ route('admin.tools.bg-remove') }}" wire:navigate
+                        wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                        class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                        <span class="material-symbols-outlined shrink-0 text-[20px]">magic_exchange</span>
+                        <span class="font-manrope text-sm font-medium">BG Remove</span>
+                    </a> --}}
+                </div>
+            </div>
+
+            {{-- PDF Tools --}}
+            {{-- <a href="{{ route('admin.tools.pdf-tools') }}" wire:navigate
+                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                <span class="material-symbols-outlined shrink-0">picture_as_pdf</span>
+                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                    PDF Tools
+                </span>
+            </a> --}}
+
+            <a href="{{ route('admin.tool-plans.index') }}" wire:navigate
+                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                <span class="material-symbols-outlined shrink-0">workspace_premium</span>
+                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                    Tool Plans
+                </span>
+            </a>
+
+            <a href="{{ route('admin.tool-subscriptions.index') }}" wire:navigate
+                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                <span class="material-symbols-outlined shrink-0">subscriptions</span>
+                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                    Tool Subscriptions
+                </span>
+            </a>
+        </div>
+
         <!-- Portfolio & Blog -->
         <div class="mt-4 space-y-1">
             <p x-show="!sidebarCollapsed"

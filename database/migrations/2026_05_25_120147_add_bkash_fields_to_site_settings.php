@@ -11,8 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('companies', function (Blueprint $table) {
-             $table->string('email')->nullable()->after('phone');
+        Schema::table('site_settings', function (Blueprint $table) {
+            $table->string('bkash_number')->nullable()->after('whatsapp_url');
+            $table->text('bkash_instructions')->nullable()->after('bkash_number');
         });
     }
 
@@ -21,8 +22,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('companies', function (Blueprint $table) {
-            $table->dropColumn('email');
+        Schema::table('site_settings', function (Blueprint $table) {
+            $table->dropColumn(['bkash_number', 'bkash_instructions']);
         });
     }
 };

@@ -33,6 +33,9 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
     public string $terms_conditions = '';
     public string $privacy_policy = '';
 
+    public string $bkash_number = '';
+    public string $bkash_instructions = '';
+
     public $logo = null;
     public $favicon = null;
 
@@ -40,6 +43,10 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
         'basic' => [
             'label' => 'Basic Settings',
             'icon' => 'settings',
+        ],
+        'payment' => [
+            'label' => 'Payment',
+            'icon' => 'payments',
         ],
         'legal' => [
             'label' => 'Legal Pages',
@@ -76,6 +83,9 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
         $this->terms_conditions = $this->setting->terms_conditions ?? '';
         $this->privacy_policy = $this->setting->privacy_policy ?? '';
 
+        $this->bkash_number = $this->setting->bkash_number ?? '';
+        $this->bkash_instructions = $this->setting->bkash_instructions ?? '';
+
         $this->captureOriginalState();
     }
 
@@ -98,6 +108,9 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
 
             'terms_conditions' => ['nullable', 'string'],
             'privacy_policy' => ['nullable', 'string'],
+
+            'bkash_number' => ['nullable', 'string', 'max:30'],
+            'bkash_instructions' => ['nullable', 'string'],
 
             'logo' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,svg', 'max:5120'],
             'favicon' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,svg,ico', 'max:2048'],
@@ -134,6 +147,9 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
             'terms_conditions' => $this->terms_conditions,
             'privacy_policy' => $this->privacy_policy,
 
+            'bkash_number' => $this->bkash_number,
+            'bkash_instructions' => $this->bkash_instructions,
+
             'has_logo_upload' => false,
             'has_favicon_upload' => false,
         ];
@@ -158,6 +174,9 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
 
             'terms_conditions' => $this->terms_conditions,
             'privacy_policy' => $this->privacy_policy,
+
+            'bkash_number' => $this->bkash_number,
+            'bkash_instructions' => $this->bkash_instructions,
 
             'has_logo_upload' => $this->logo !== null,
             'has_favicon_upload' => $this->favicon !== null,
@@ -184,7 +203,7 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
                 Storage::disk('public')->delete($this->setting->logo);
             }
 
-            $logoPath = $this->logo->store('settings/logo', 'public');
+            $logoPath = app(\App\Services\ImageService::class)->optimizeAndStore($this->logo, 'settings/logo', maxWidth: 600, quality: 90);
         }
 
         if ($this->favicon) {
@@ -192,7 +211,7 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
                 Storage::disk('public')->delete($this->setting->favicon);
             }
 
-            $faviconPath = $this->favicon->store('settings/favicon', 'public');
+            $faviconPath = app(\App\Services\ImageService::class)->optimizeAndStore($this->favicon, 'settings/favicon', maxWidth: 256, maxHeight: 256, quality: 90);
         }
 
         $this->setting->update([
@@ -212,6 +231,9 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
 
             'terms_conditions' => $validated['terms_conditions'] ?: null,
             'privacy_policy' => $validated['privacy_policy'] ?: null,
+
+            'bkash_number' => $validated['bkash_number'] ?: null,
+            'bkash_instructions' => $validated['bkash_instructions'] ?: null,
 
             'logo' => $logoPath,
             'favicon' => $faviconPath,
@@ -317,6 +339,40 @@ new #[Layout('layouts.admin-app')] #[Title('Site Settings')] class extends Compo
                                 @error('map_embed_link')
                                     <p class="text-sm text-red-500">{{ $message }}</p>
                                 @enderror
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                <!-- Payment Settings -->
+                @if ($activeTab === 'payment')
+                    <div class="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+                        <h3 class="mb-8 flex items-center gap-2 text-h3 font-h2">
+                            <span class="material-symbols-outlined text-primary">payments</span>
+                            bKash Payment Settings
+                        </h3>
+
+                        <div class="grid grid-cols-1 gap-6">
+                            <div class="space-y-2">
+                                <label class="block font-label-md text-on-surface">bKash Number</label>
+                                <input type="text" wire:model.live="bkash_number"
+                                    class="w-full rounded border border-outline-variant px-4 py-2.5"
+                                    placeholder="01XXXXXXXXX" />
+                                @error('bkash_number')
+                                    <p class="text-sm text-red-500">{{ $message }}</p>
+                                @enderror
+                                <p class="text-xs text-secondary">The bKash number where users will send payments.</p>
+                            </div>
+
+                            <div class="space-y-2">
+                                <label class="block font-label-md text-on-surface">bKash Payment Instructions</label>
+                                <textarea wire:model.live="bkash_instructions" rows="8"
+                                    class="w-full rounded border border-outline-variant px-4 py-2.5 font-mono text-sm"
+                                    placeholder="1. Open your bKash app..."></textarea>
+                                @error('bkash_instructions')
+                                    <p class="text-sm text-red-500">{{ $message }}</p>
+                                @enderror
+                                <p class="text-xs text-secondary">Step-by-step instructions shown to users before they submit payment.</p>
                             </div>
                         </div>
                     </div>

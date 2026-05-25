@@ -22,6 +22,8 @@ use Illuminate\Database\Eloquent\Model;
     'whatsapp_url',
     'terms_conditions',
     'privacy_policy',
+    'bkash_number',
+    'bkash_instructions',
 ])]
 class SiteSetting extends Model
 {
