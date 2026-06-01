@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('support_ticket_attachments', function (Blueprint $table) {
             $table->id();
-             $table->foreignId('support_ticket_id')->constrained('support_tickets')->cascadeOnDelete();
+            $table->foreignId('support_ticket_id')->constrained('support_tickets')->cascadeOnDelete();
             $table->foreignId('support_ticket_reply_id')->nullable()->constrained('support_ticket_replies')->cascadeOnDelete();
             $table->string('file_name');
             $table->string('file_path');

@@ -14,7 +14,9 @@ class SupportTicketUpdated implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public int $ticketId;
+
     public ?int $userId;
+
     public string $action;
 
     public function __construct(SupportTicket $ticket, string $action = 'updated')
@@ -28,11 +30,11 @@ class SupportTicketUpdated implements ShouldBroadcast
     {
         $channels = [
             new PrivateChannel('admin.tickets'),
-            new PrivateChannel('ticket.' . $this->ticketId),
+            new PrivateChannel('ticket.'.$this->ticketId),
         ];
 
         if ($this->userId) {
-            $channels[] = new PrivateChannel('user.' . $this->userId . '.tickets');
+            $channels[] = new PrivateChannel('user.'.$this->userId.'.tickets');
         }
 
         return $channels;

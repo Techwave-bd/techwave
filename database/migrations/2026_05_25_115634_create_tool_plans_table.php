@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('tool_plans', function (Blueprint $table) {
             $table->id();
-                        $table->foreignId('tool_category_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('tool_category_id')->constrained()->cascadeOnDelete();
             $table->string('name');
             $table->string('badge')->nullable();
             $table->text('description')->nullable();

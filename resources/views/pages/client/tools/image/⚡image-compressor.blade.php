@@ -34,7 +34,7 @@ new #[Title('Image Compressor')] class extends Component {
 
     public function boot(): void
     {
-        $this->category = ToolCategory::query()->where('slug', 'image')->first();
+        $this->category = ToolCategory::query()->where('slug', 'image-tools')->first();
 
         if (auth()->check()) {
             $this->dailyUsage = ToolUsage::query()
@@ -229,7 +229,7 @@ new #[Title('Image Compressor')] class extends Component {
     {
         $progress = max(0, min(100, $progress));
 
-        $bar = '<div class="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-300" style="width: ' . $progress . '%"></div>';
+        $bar = '<div class="h-full rounded-full bg-linear-to-r from-cyan-400 to-blue-500 transition-all duration-300" style="width: ' . $progress . '%"></div>';
 
         $this->stream(to: 'compression-progress', content: (string) $progress, replace: true);
         $this->stream(to: 'compression-status', content: e($status), replace: true);
@@ -315,7 +315,7 @@ new #[Title('Image Compressor')] class extends Component {
             }
 
             if ($this->is_premium_user) {
-                $persistentPath = 'compressed/users/' . auth()->id() . '/' . $uniqueId . '.' . $outputExt;
+               $persistentPath = 'compressed/users/' . auth()->id() . '/' . $uniqueId . '.' . $outputExt;
 
                 Storage::disk('public')->writeStream($persistentPath, Storage::disk('public')->readStream($storagePath));
 
@@ -827,17 +827,17 @@ new #[Title('Image Compressor')] class extends Component {
                             </label>
                         @else
                             <div
-                                class="relative grid h-[430px] min-h-0 gap-3 overflow-y-auto overscroll-contain pr-2 sm:h-110 sm:grid-cols-2 xl:h-[460px] xl:grid-cols-3">
+                                class="relative grid h-[430px] min-h-0 gap-3 overflow-y-auto overscroll-contain pr-2 sm:h-[440px] sm:grid-cols-2 xl:h-[460px] xl:grid-cols-3">
                                 @foreach ($images as $index => $img)
                                     <div wire:key="selected-image-{{ $index }}-{{ md5($img->getClientOriginalName() . $img->getSize()) }}"
-                                        class="group relative flex h-[205px] min-h-[205px] flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/25 transition hover:border-cyan-400/30 hover:bg-white/4">
+                                        class="group relative flex h-[205px] min-h-[205px] flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/25 transition hover:border-cyan-400/30 hover:bg-white/[0.04]">
                                         <button type="button" wire:click="removeImage({{ $index }})"
                                             class="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white/70 opacity-0 backdrop-blur-sm transition hover:bg-red-500/70 hover:text-white group-hover:opacity-100"
                                             title="Remove">
                                             <span class="material-symbols-outlined text-sm">close</span>
                                         </button>
                                         <div
-                                            class="flex h-36 shrink-0 items-center justify-center overflow-hidden bg-white/3">
+                                            class="flex h-36 shrink-0 items-center justify-center overflow-hidden bg-white/[0.03]">
                                             <img src="{{ $img->temporaryUrl() }}" alt="Preview"
                                                 class="h-full w-full object-contain p-2" />
                                         </div>
@@ -868,7 +868,7 @@ new #[Title('Image Compressor')] class extends Component {
                     {{-- Settings Sidebar --}}
                     <aside class="flex flex-col gap-6 lg:col-span-4">
                         <div
-                            class="flex h-full flex-col rounded-2xl border border-white/10 bg-white/6 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25)] backdrop-blur-2xl sm:p-8 lg:sticky lg:top-24">
+                            class="flex h-full flex-col rounded-2xl border border-white/10 bg-white/[0.06] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25)] backdrop-blur-2xl sm:p-8 lg:sticky lg:top-24">
                             <div class="mb-8 flex items-center gap-4">
                                 <div class="rounded-xl border border-cyan-300/15 bg-cyan-400/10 p-3 text-cyan-300">
                                     <span class="material-symbols-outlined">tune</span>
@@ -939,7 +939,7 @@ new #[Title('Image Compressor')] class extends Component {
                                 </span>
                             </label>
 
-                            <div class="grow">
+                            <div class="flex-grow">
                                 <p
                                     class="rounded-xl border border-amber-400/15 bg-amber-400/8 px-4 py-3 text-xs leading-5 text-amber-100/70">
                                     Images will be compressed automatically. JPG, JPEG, and WebP use strong Spatie
@@ -949,7 +949,7 @@ new #[Title('Image Compressor')] class extends Component {
 
                             @if (!empty($images))
                                 <button type="button" wire:click="compress" wire:loading.attr="disabled"
-                                    class="group relative mt-8 flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-linear-to-r from-cyan-500 to-blue-500 px-6 py-4 font-extrabold text-white shadow-lg shadow-cyan-500/25 transition hover:-translate-y-0.5 hover:shadow-[0_0_25px_rgba(34,211,238,0.35)] active:translate-y-0 disabled:opacity-60">
+                                    class="group relative mt-8 flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-4 font-extrabold text-white shadow-lg shadow-cyan-500/25 transition hover:-translate-y-0.5 hover:shadow-[0_0_25px_rgba(34,211,238,0.35)] active:translate-y-0 disabled:opacity-60">
                                     <span
                                         class="absolute inset-y-0 -left-1/2 w-1/2 skew-x-[-20deg] bg-white/20 transition-all duration-700 group-hover:left-full"></span>
                                     <span wire:loading.remove wire:target="compress"
@@ -998,7 +998,7 @@ new #[Title('Image Compressor')] class extends Component {
                                 </label>
 
                                 <button type="button" wire:click="compress" wire:loading.attr="disabled"
-                                    class="group relative flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-linear-to-r from-cyan-500 to-blue-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition active:scale-95 disabled:opacity-60">
+                                    class="group relative flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition active:scale-95 disabled:opacity-60">
                                     <span
                                         class="absolute inset-y-0 -left-1/2 w-1/2 skew-x-[-20deg] bg-white/20 transition-all duration-700 group-hover:left-full"></span>
                                     <span wire:loading.remove wire:target="compress"
@@ -1016,7 +1016,7 @@ new #[Title('Image Compressor')] class extends Component {
                             </div>
                         @else
                             <label for="image-upload"
-                                class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-blue-500 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/25">
+                                class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/25">
                                 <span class="material-symbols-outlined text-base">add_photo_alternate</span>
                                 Choose Images to Compress
                             </label>
@@ -1031,7 +1031,7 @@ new #[Title('Image Compressor')] class extends Component {
         {{-- How It Works --}}
         <div class="mt-12 grid w-full gap-6 sm:grid-cols-3">
             <div
-                class="rounded-2xl border border-white/10 bg-white/6 p-6 text-center shadow-[0_20px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+                class="rounded-2xl border border-white/10 bg-white/[0.06] p-6 text-center shadow-[0_20px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
                 <div
                     class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-cyan-500/15 text-cyan-300">
                     <span class="material-symbols-outlined">upload</span>
@@ -1043,7 +1043,7 @@ new #[Title('Image Compressor')] class extends Component {
             </div>
 
             <div
-                class="rounded-2xl border border-white/10 bg-white/6 p-6 text-center shadow-[0_20px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+                class="rounded-2xl border border-white/10 bg-white/[0.06] p-6 text-center shadow-[0_20px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
                 <div
                     class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-500/15 text-blue-300">
                     <span class="material-symbols-outlined">tune</span>
@@ -1055,7 +1055,7 @@ new #[Title('Image Compressor')] class extends Component {
             </div>
 
             <div
-                class="rounded-2xl border border-white/10 bg-white/6 p-6 text-center shadow-[0_20px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
+                class="rounded-2xl border border-white/10 bg-white/[0.06] p-6 text-center shadow-[0_20px_60px_rgba(0,0,0,0.18)] backdrop-blur-xl">
                 <div
                     class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300">
                     <span class="material-symbols-outlined">download</span>

@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\BgRemovedImageController;
+use App\Http\Controllers\CompressedImageController;
 use App\Http\Controllers\PlanOrderInvoiceController;
 use App\Http\Controllers\PricingCheckoutController;
 use App\Http\Controllers\SslCommerzController;
@@ -7,46 +9,6 @@ use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-
-/*
-|--------------------------------------------------------------------------
-| Client guest routes
-|--------------------------------------------------------------------------
-*/
-
-Route::livewire('/', 'pages::client.home')->name('home');
-
-// Services
-Route::livewire('/services', 'pages::client.services.index')->name('client.services');
-Route::livewire('/services/{slug}', 'pages::client.services.details')->name('client.services.details');
-
-// projects
-Route::livewire('/projects', 'pages::client.projects.index')->name('client.projects');
-Route::livewire('/projects/{slug}', 'pages::client.projects.details')->name('client.projects.details');
-
-// Tools
-Route::livewire('/tools', 'pages::client.tools.index')->name('client.tools.index');
-Route::livewire('/tools/image-compressor', 'pages::client.tools.image-compressor')->name('client.tools.image-compressor');
-
-// Blogs
-Route::livewire('/blogs', 'pages::client.blogs.index')->name('client.blogs');
-Route::livewire('/blogs/{slug}', 'pages::client.blogs.details')->name('client.blogs.details');
-
-// About
-Route::livewire('/about', 'pages::client.about')->name('client.about');
-
-// Contact
-Route::livewire('/contact', 'pages::client.contact')->name('client.contact');
-
-
-// Pricing and orders
-Route::livewire('/checkout/pricing/{pricingPlan}', 'pages::client.checkout.pricing-checkout')->name('client.checkout.pricing');
-
-// Legal Pages
-Route::livewire('/terms-and-conditions', 'pages::client.legal-pages.terms-conditions')->name('client.terms-conditions');
-Route::livewire('/privacy-policy', 'pages::client.legal-pages.privacy-policy')->name('client.privacy-policy');
-
-
 
 /*
 |--------------------------------------------------------------------------
@@ -109,6 +71,46 @@ Route::middleware('guest')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
+| Client guest routes
+|--------------------------------------------------------------------------
+*/
+
+Route::livewire('/', 'pages::client.home')->name('home');
+
+// Services
+Route::livewire('/services', 'pages::client.services.index')->name('client.services');
+Route::livewire('/services/{slug}', 'pages::client.services.details')->name('client.services.details');
+
+// projects
+Route::livewire('/projects', 'pages::client.projects.index')->name('client.projects');
+Route::livewire('/projects/{slug}', 'pages::client.projects.details')->name('client.projects.details');
+
+// Tools
+Route::livewire('/tools', 'pages::client.tools.index')->name('client.tools.index');
+
+// Image tools
+Route::livewire('/tools/image-compressor', 'pages::client.tools.image.image-compressor')->name('client.tools.image-compressor');
+Route::livewire('/tools/bg-remover', 'pages::client.tools.image.bg-remover')->name('client.tools.bg-remover');
+
+// Blogs
+Route::livewire('/blogs', 'pages::client.blogs.index')->name('client.blogs');
+Route::livewire('/blogs/{slug}', 'pages::client.blogs.details')->name('client.blogs.details');
+
+// About
+Route::livewire('/about', 'pages::client.about')->name('client.about');
+
+// Contact
+Route::livewire('/contact', 'pages::client.contact')->name('client.contact');
+
+// Pricing and orders
+Route::livewire('/checkout/pricing/{pricingPlan}', 'pages::client.checkout.pricing-checkout')->name('client.checkout.pricing');
+
+// Legal Pages
+Route::livewire('/terms-and-conditions', 'pages::client.legal-pages.terms-conditions')->name('client.terms-conditions');
+Route::livewire('/privacy-policy', 'pages::client.legal-pages.privacy-policy')->name('client.privacy-policy');
+
+/*
+|--------------------------------------------------------------------------
 | Client protected routes
 |--------------------------------------------------------------------------
 */
@@ -146,8 +148,15 @@ Route::middleware(['auth', 'verified', 'role:client,admin'])->group(function () 
     // Account subscriptions
     Route::livewire('/account/tool-subscriptions', 'pages::client.account.tool-subscriptions')->name('account.tool-subscriptions');
 
+    // BG removed images backup
+    Route::livewire('/account/bg-removed-images', 'pages::client.account.backup.bg-removed-images')->name('account.bg-removed-images');
+
     // Compressed images backup
-    Route::livewire('/account/compressed-images', 'pages::client.account.compressed-images')->name('account.compressed-images');
+    Route::livewire('/account/compressed-images', 'pages::client.account.backup.compressed-images')->name('account.compressed-images');
+
+    Route::middleware('auth')->get('/compressed-images/{image}', [CompressedImageController::class, 'show'])->name('storage.compressed-images');
+
+    Route::post('/bg-removed-images', [BgRemovedImageController::class, 'store'])->name('bg-removed-images.store');
 });
 
 Route::match(['get', 'post'], '/sslcommerz/success', [SslCommerzController::class, 'success'])
@@ -243,7 +252,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,manager,
     Route::livewire('/orders', 'pages::admin.orders.index')->name('orders.index');
     Route::livewire('/orders/{order}/edit', 'pages::admin.orders.edit')->name('orders.edit');
 
-    //Invoice management
+    // Invoice management
     Route::get('/orders/{order}/invoice/download', [PlanOrderInvoiceController::class, 'download'])->name('orders.invoice.download');
 
     // Ticket management

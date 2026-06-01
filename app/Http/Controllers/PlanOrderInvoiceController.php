@@ -6,7 +6,6 @@ use App\Models\InvoiceTemplate;
 use App\Models\PricingOrder;
 use App\Models\SiteSetting;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Http\Request;
 
 class PlanOrderInvoiceController extends Controller
 {
@@ -28,6 +27,6 @@ class PlanOrderInvoiceController extends Controller
                 'isHtml5ParserEnabled' => true,
             ]);
 
-        return $pdf->download(($order->order_no ?? 'invoice') . '.pdf');
+        return $pdf->download(($order->order_no ?? 'invoice').'.pdf');
     }
 }

@@ -7,14 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 
-#[Fillable(['user_id', 'tool_category_id', 'original_name', 'compressed_path', 'compressed_ext', 'original_size', 'compressed_size', 'expires_at'])]
-class UserCompressedImage extends Model
+#[Fillable(['user_id', 'tool_category_id', 'original_name', 'result_path', 'result_ext', 'original_size', 'result_size', 'expires_at'])]
+class UserBgRemovedImage extends Model
 {
     protected function casts(): array
     {
         return [
             'original_size' => 'integer',
-            'compressed_size' => 'integer',
+            'result_size' => 'integer',
             'expires_at' => 'datetime',
         ];
     }
@@ -38,18 +38,18 @@ class UserCompressedImage extends Model
     {
         $name = pathinfo($this->original_name, PATHINFO_FILENAME);
 
-        return $name . '_compressed.' . $this->compressed_ext;
+        return $name.'_bg_removed.'.$this->result_ext;
     }
 
     public function fileExists(): bool
     {
-        return Storage::disk('public')->exists($this->compressed_path);
+        return Storage::disk('public')->exists($this->result_path);
     }
 
     public function deleteFile(): bool
     {
         if ($this->fileExists()) {
-            return Storage::disk('public')->delete($this->compressed_path);
+            return Storage::disk('public')->delete($this->result_path);
         }
 
         return true;
@@ -66,6 +66,6 @@ class UserCompressedImage extends Model
             return null;
         }
 
-        return route('storage.compressed-images', $this);
+        return Storage::url($this->result_path);
     }
 }

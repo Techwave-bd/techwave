@@ -63,7 +63,7 @@ class ServicePlan extends Model
 
     public function discountPercentage(): int
     {
-        if (!$this->hasDiscount()) {
+        if (! $this->hasDiscount()) {
             return 0;
         }
 

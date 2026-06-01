@@ -6,7 +6,6 @@ use App\Models\InvoiceTemplate;
 use App\Models\Order;
 use App\Models\SiteSetting;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -17,8 +16,11 @@ class OrderInvoiceMail extends Mailable
     use Queueable, SerializesModels;
 
     public Order $order;
+
     public InvoiceTemplate $template;
+
     public ?SiteSetting $setting;
+
     public ?string $logoPath = null;
 
     public function __construct(Order $order)
@@ -41,7 +43,7 @@ class OrderInvoiceMail extends Mailable
 
             $possibleLogoPath = str_starts_with($cleanLogo, 'storage/')
                 ? public_path($cleanLogo)
-                : public_path('storage/' . $cleanLogo);
+                : public_path('storage/'.$cleanLogo);
 
             if (file_exists($possibleLogoPath)) {
                 $this->logoPath = $possibleLogoPath;
@@ -52,7 +54,7 @@ class OrderInvoiceMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: ($this->template->subject_prefix ?: 'Invoice') . ' #' . $this->order->order_no,
+            subject: ($this->template->subject_prefix ?: 'Invoice').' #'.$this->order->order_no,
         );
     }
 

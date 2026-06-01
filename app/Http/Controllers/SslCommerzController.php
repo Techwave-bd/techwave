@@ -43,12 +43,12 @@ class SslCommerzController extends Controller
             // Personal info
             'customer_name' => ['required', 'string', 'max:255'],
             'customer_email' => ['required', 'email', 'max:255'],
-            'customer_phone' => ['required', 'string', 'max:20', 'regex:/^(?:\+88|88)?01[3-9][0-9]{8}$/',],
+            'customer_phone' => ['required', 'string', 'max:20', 'regex:/^(?:\+88|88)?01[3-9][0-9]{8}$/'],
 
             // Company info
             'company_name' => ['required', 'string', 'max:255'],
             'company_email' => ['required', 'email', 'max:255'],
-            'company_phone' => ['required', 'string', 'max:20', 'regex:/^(?:\+88|88)?01[3-9][0-9]{8}$/',],
+            'company_phone' => ['required', 'string', 'max:20', 'regex:/^(?:\+88|88)?01[3-9][0-9]{8}$/'],
             'customer_address' => ['required', 'string', 'max:500'],
         ], [
             'customer_phone.regex' => 'Please enter a valid Bangladeshi phone number. Example: 01712345678',
@@ -76,13 +76,13 @@ class SslCommerzController extends Controller
         $customerPhone = $this->normalizeBdPhone($validated['customer_phone']);
         $companyPhone = $this->normalizeBdPhone($validated['company_phone']);
 
-        $transactionId = 'TW-' . now()->format('Y') . '-' . strtoupper(Str::random(6));
+        $transactionId = 'TW-'.now()->format('Y').'-'.strtoupper(Str::random(6));
 
         $order = PricingOrder::query()->create([
             'user_id' => Auth::id(),
             'pricing_plan_id' => $pricingPlan->id,
 
-            'order_no' => 'ORD-' . now()->format('Y') . '-' . strtoupper(Str::random(5)),
+            'order_no' => 'ORD-'.now()->format('Y').'-'.strtoupper(Str::random(5)),
             'transaction_id' => $transactionId,
 
             'billing_cycle' => 'monthly',
@@ -108,7 +108,7 @@ class SslCommerzController extends Controller
         ]);
 
         $order->update([
-            'order_no' => 'ORD-' . now()->format('Y') . '-' . $order->id,
+            'order_no' => 'ORD-'.now()->format('Y').'-'.$order->id,
         ]);
 
         $postData = [
@@ -129,7 +129,7 @@ class SslCommerzController extends Controller
             'cus_state' => 'Dhaka',
             'cus_postcode' => '1200',
             'cus_country' => 'Bangladesh',
-            'cus_phone' => '+88' . $order->customer_phone,
+            'cus_phone' => '+88'.$order->customer_phone,
 
             'shipping_method' => 'NO',
             'num_of_item' => 1,
@@ -172,14 +172,14 @@ class SslCommerzController extends Controller
                 : $startsAt->copy()->addMonth();
 
             $order->update([
-                'payment_status'      => 'paid',
-                'ssl_status'          => $status,
+                'payment_status' => 'paid',
+                'ssl_status' => $status,
                 'bank_transaction_id' => $request->input('bank_tran_id'),
-                'val_id'              => $request->input('val_id'),
-                'payment_response'    => $request->all(),
-                'paid_at'             => now(),
-                'starts_at'           => $startsAt,
-                'expires_at'          => $expiresAt,
+                'val_id' => $request->input('val_id'),
+                'payment_response' => $request->all(),
+                'paid_at' => now(),
+                'starts_at' => $startsAt,
+                'expires_at' => $expiresAt,
             ]);
 
             $order->pricingPlan()->increment('purchase_count');
@@ -259,7 +259,7 @@ class SslCommerzController extends Controller
             return $isIpn
                 ? response('IPN received', 200)
                 : redirect()->route('client.checkout.success', $order->id)
-                ->with('success', 'Payment completed successfully.');
+                    ->with('success', 'Payment completed successfully.');
         }
 
         $order->update([
@@ -292,12 +292,12 @@ class SslCommerzController extends Controller
 
         return redirect()
             ->route('home')
-            ->with('error', 'Payment ' . $status . '.');
+            ->with('error', 'Payment '.$status.'.');
     }
 
     private function normalizeBdPhone(?string $phone): ?string
     {
-        if (!$phone) {
+        if (! $phone) {
             return null;
         }
 
@@ -331,7 +331,7 @@ class SslCommerzController extends Controller
 
         $hasActiveBooking = PricingPlanBooking::query()
             ->where('user_id', $userId)
-            ->whereIn('status', ['pending', 'reviewing', 'quoted', 'accepted',])
+            ->whereIn('status', ['pending', 'reviewing', 'quoted', 'accepted'])
             ->exists();
 
         return $hasActiveOrder || $hasActiveBooking;

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('support_ticket_id')->constrained('support_tickets')->cascadeOnDelete();
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->enum('sender_type', ['admin','customer','system',])->default('admin');
+            $table->enum('sender_type', ['admin', 'customer', 'system'])->default('admin');
             $table->longText('message')->nullable();
             $table->timestamps();
 

@@ -77,7 +77,7 @@ class User extends Authenticatable implements MustVerifyEmail
         $this->notify(new ResetPasswordNotification($token));
     }
 
-        public function toolSubscriptions()
+    public function toolSubscriptions()
     {
         return $this->hasMany(ToolSubscription::class);
     }
@@ -111,8 +111,8 @@ class User extends Authenticatable implements MustVerifyEmail
 
         $subscription = $this->activeToolSubscription($category);
 
-        if ($subscription && $subscription->plan) {
-            return $subscription->plan->max_file_upload;
+        if ($subscription && $subscription->toolPlan) {
+            return $subscription->toolPlan->max_file_upload;
         }
 
         return $category->free_max_file_upload ?? 30;

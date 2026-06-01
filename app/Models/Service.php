@@ -41,7 +41,6 @@ class Service extends Model
     {
         return $this->hasMany(ServicePlan::class);
     }
-    
 
     public function activePlans()
     {

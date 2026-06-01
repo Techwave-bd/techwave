@@ -40,12 +40,12 @@ class PricingCheckoutController extends Controller
             // Personal info
             'customer_name' => ['required', 'string', 'max:255'],
             'customer_email' => ['required', 'email', 'max:255'],
-            'customer_phone' => ['required', 'string', 'max:20', 'regex:/^(?:\+88|88)?01[3-9][0-9]{8}$/',],
+            'customer_phone' => ['required', 'string', 'max:20', 'regex:/^(?:\+88|88)?01[3-9][0-9]{8}$/'],
 
             // Company info
             'company_name' => ['required', 'string', 'max:255'],
             'company_email' => ['required', 'email', 'max:255'],
-            'company_phone' => ['required', 'string', 'max:20', 'regex:/^(?:\+88|88)?01[3-9][0-9]{8}$/',],
+            'company_phone' => ['required', 'string', 'max:20', 'regex:/^(?:\+88|88)?01[3-9][0-9]{8}$/'],
             'customer_address' => ['required', 'string', 'max:500'],
 
             // Negotiation info
@@ -67,7 +67,7 @@ class PricingCheckoutController extends Controller
             'user_id' => Auth::id(),
             'pricing_plan_id' => $pricingPlan->id,
 
-            'booking_no' => 'BK-' . now()->format('Y') . '-' . strtoupper(Str::random(6)),
+            'booking_no' => 'BK-'.now()->format('Y').'-'.strtoupper(Str::random(6)),
             'billing_cycle' => 'yearly',
 
             // Personal info snapshot
@@ -93,7 +93,7 @@ class PricingCheckoutController extends Controller
         ]);
 
         $booking->update([
-            'booking_no' => 'BK-' . now()->format('Y') . '-' . $booking->id,
+            'booking_no' => 'BK-'.now()->format('Y').'-'.$booking->id,
         ]);
 
         event(new PricingPlanBookingCreated($booking->fresh(['pricingPlan', 'user'])));
@@ -105,7 +105,7 @@ class PricingCheckoutController extends Controller
 
     private function normalizeBdPhone(?string $phone): ?string
     {
-        if (!$phone) {
+        if (! $phone) {
             return null;
         }
 
@@ -142,7 +142,7 @@ class PricingCheckoutController extends Controller
 
         $hasActiveBooking = PricingPlanBooking::query()
             ->where('user_id', $userId)
-            ->whereIn('status', ['pending', 'reviewing', 'quoted', 'accepted',])
+            ->whereIn('status', ['pending', 'reviewing', 'quoted', 'accepted'])
             ->exists();
 
         return $hasActiveOrder || $hasActiveBooking;

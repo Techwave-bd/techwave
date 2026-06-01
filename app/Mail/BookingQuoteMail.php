@@ -18,8 +18,11 @@ class BookingQuoteMail extends Mailable implements ShouldQueue
     use Queueable, SerializesModels;
 
     public Booking $booking;
+
     public InvoiceTemplate $template;
+
     public ?SiteSetting $setting;
+
     public ?string $logoPath = null;
 
     /**
@@ -45,7 +48,7 @@ class BookingQuoteMail extends Mailable implements ShouldQueue
 
             $possibleLogoPath = str_starts_with($cleanLogo, 'storage/')
                 ? public_path($cleanLogo)
-                : public_path('storage/' . $cleanLogo);
+                : public_path('storage/'.$cleanLogo);
 
             if (file_exists($possibleLogoPath)) {
                 $this->logoPath = $possibleLogoPath;
@@ -59,7 +62,7 @@ class BookingQuoteMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Quotation #' . $this->booking->booking_no,
+            subject: 'Quotation #'.$this->booking->booking_no,
         );
     }
 

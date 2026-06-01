@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('support_tickets', function (Blueprint $table) {
             $table->timestamp('admin_read_at')->nullable()->after('last_reply_at');
-             $table->timestamp('client_read_at')->nullable()->after('admin_read_at');
+            $table->timestamp('client_read_at')->nullable()->after('admin_read_at');
         });
     }
 

@@ -183,7 +183,7 @@ new #[Layout('layouts.admin-app')] #[Title('Tools')] class extends Component {
 
                                 <td class="px-6 py-4">
                                     <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                                        {{ $tool->category?->name ?? 'Uncategorized' }}
+                                        {{ $tool->toolCategory?->name ?? 'Uncategorized' }}
                                     </span>
                                 </td>
 

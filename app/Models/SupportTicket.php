@@ -49,7 +49,7 @@ class SupportTicket extends Model
     {
         $nextId = (static::query()->max('id') ?? 0) + 1;
 
-        return 'TKT-' . now()->format('Y') . '-' . str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
+        return 'TKT-'.now()->format('Y').'-'.str_pad((string) $nextId, 5, '0', STR_PAD_LEFT);
     }
 
     public function isClosed(): bool

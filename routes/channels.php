@@ -16,7 +16,7 @@ Broadcast::channel('admin.tickets', function ($user) use ($adminRoles) {
 });
 
 Broadcast::channel('ticket.{ticketId}', function ($user, $ticketId) use ($adminRoles) {
-    if (!$user) {
+    if (! $user) {
         return false;
     }
 
@@ -31,7 +31,7 @@ Broadcast::channel('ticket.{ticketId}', function ($user, $ticketId) use ($adminR
 });
 
 Broadcast::channel('user.{userId}.tickets', function ($user, $userId) use ($adminRoles) {
-    if (!$user) {
+    if (! $user) {
         return false;
     }
 

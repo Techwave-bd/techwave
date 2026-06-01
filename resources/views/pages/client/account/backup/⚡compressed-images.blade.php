@@ -37,8 +37,16 @@ new #[Title('My Compressed Images')] class extends Component {
 
     public function images()
     {
+        UserCompressedImage::query()
+            ->where('user_id', auth()->id())
+            ->where('expires_at', '<=', now())
+            ->each(function ($image) {
+                $image->deleteFile();
+                $image->delete();
+            });
+            
         return UserCompressedImage::query()
-            ->with('category')
+            ->with('toolCategory')
             ->where('user_id', auth()->id())
             ->latest()
             ->paginate(15);
@@ -87,8 +95,8 @@ new #[Title('My Compressed Images')] class extends Component {
                                     @if ($image->original_size > 0)
                                         <span class="text-emerald-400">-{{ (int) round((1 - $image->compressed_size / $image->original_size) * 100) }}%</span>
                                     @endif
-                                    @if ($image->category)
-                                        <span>· {{ $image->category->name }}</span>
+                                    @if ($image->toolCategory)
+                                        <span>· {{ $image->toolCategory->name }}</span>
                                     @endif
                                 </div>
                             </div>
