@@ -135,7 +135,7 @@ new #[Title('Background Remover')] class extends Component {
 @endpush
 
 <div class="min-h-screen text-white" x-data="bgRemover" data-premium="@json($this->is_premium_user)">
-    <main class="mx-auto flex w-full max-w-7xl flex-col items-center px-4 pb-24 pt-10 sm:px-6 lg:px-8">
+    <div class="mx-auto flex w-full max-w-7xl flex-col items-center px-4 pb-24 pt-10 sm:px-6 lg:px-8">
 
         {{-- Hero Header --}}
         <div class="mb-10 text-center">
@@ -206,7 +206,7 @@ new #[Title('Background Remover')] class extends Component {
                     </div>
 
                     <div class="h-3 overflow-hidden rounded-full bg-white/10">
-                        <div class="h-full rounded-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-300"
+                        <div class="h-full rounded-full bg-linear-to-r from-cyan-400 to-blue-500 transition-all duration-300"
                             :style="'width: ' + progress + '%'"></div>
                     </div>
                 </div>
@@ -220,9 +220,9 @@ new #[Title('Background Remover')] class extends Component {
         <div class="w-full">
             {{-- Results View --}}
             <section x-show="hasResult" x-cloak
-                class="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] p-6 shadow-[0_30px_100px_rgba(0,0,0,0.35)] backdrop-blur-2xl sm:p-8">
+                class="relative overflow-hidden rounded-2xl border border-white/10 bg-white/6 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.35)] backdrop-blur-2xl sm:p-8">
                 <div
-                    class="pointer-events-none absolute inset-0 bg-gradient-to-br from-cyan-400/5 via-transparent to-blue-500/5">
+                    class="pointer-events-none absolute inset-0 bg-linear-to-br from-cyan-400/5 via-transparent to-blue-500/5">
                 </div>
 
                 <div class="relative mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -244,7 +244,7 @@ new #[Title('Background Remover')] class extends Component {
                         </button>
 
                         <button type="button" x-show="result && result.status === 'success'" x-on:click="download"
-                            class="group relative inline-flex items-center gap-1.5 overflow-hidden rounded-xl bg-gradient-to-r cursor-pointer from-cyan-500 to-blue-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition hover:-translate-y-0.5 disabled:opacity-60">
+                            class="group relative inline-flex items-center gap-1.5 overflow-hidden rounded-xl bg-linear-to-r cursor-pointer from-cyan-500 to-blue-500 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition hover:-translate-y-0.5 disabled:opacity-60">
                             <span
                                 class="absolute inset-y-0 -left-1/2 w-1/2 skew-x-[-20deg] bg-white/20 transition-all duration-700 group-hover:left-full"></span>
                             <span class="material-symbols-outlined relative text-base">download</span>
@@ -264,7 +264,7 @@ new #[Title('Background Remover')] class extends Component {
                                 Before
                             </div>
 
-                            <div class="flex h-[320px] items-center justify-center overflow-hidden bg-white/[0.03]">
+                            <div class="flex h-80 items-center justify-center overflow-hidden bg-white/3">
                                 <img :src="result.originalUrl" alt="Original" class="h-full w-full object-contain p-3">
                             </div>
                         </div>
@@ -275,8 +275,8 @@ new #[Title('Background Remover')] class extends Component {
                                 After
                             </div>
 
-                            <div class="flex h-[320px] items-center justify-center overflow-hidden"
-                                style="background: repeating-conic-gradient(#e5e7eb 0% 25%, transparent 0% 50%) 50% / 10px 10px;">
+                            <div class="flex h-80 items-center justify-center overflow-hidden"
+                                style="background: repeating-conic-linear(#e5e7eb 0% 25%, transparent 0% 50%) 50% / 10px 10px;">
                                 <img :src="result.processedUrl" alt="Result" class="h-full w-full object-contain p-3">
                             </div>
                         </div>
@@ -313,9 +313,9 @@ new #[Title('Background Remover')] class extends Component {
                 <div class="grid w-full grid-cols-1 gap-8 lg:grid-cols-12">
                     {{-- Upload Section --}}
                     <section
-                        class="relative flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25)] backdrop-blur-2xl sm:p-8 lg:col-span-8">
+                        class="relative flex min-h-140 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.25)] backdrop-blur-2xl sm:p-8 lg:col-span-8">
                         <div
-                            class="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-cyan-400/5 via-transparent to-blue-500/5">
+                            class="pointer-events-none absolute inset-0 rounded-2xl bg-linear-to-br from-cyan-400/5 via-transparent to-blue-500/5">
                         </div>
 
                         {{-- Upload loading overlay --}}
@@ -405,7 +405,7 @@ new #[Title('Background Remover')] class extends Component {
                             @endphp
 
                             <div id="bg-image-card" data-image-info='@json($imageInfo)'
-                                class="group relative flex flex-1 min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/25 transition hover:border-cyan-400/30 hover:bg-white/[0.04]">
+                                class="group relative flex flex-1 min-h-0 flex-col overflow-hidden rounded-xl border border-white/10 bg-slate-950/25 transition hover:border-cyan-400/30 hover:bg-white/4">
 
                                 <button type="button" wire:click="removeImage"
                                     class="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white/70 backdrop-blur-sm transition hover:bg-red-500/70 hover:text-white"
@@ -414,9 +414,9 @@ new #[Title('Background Remover')] class extends Component {
                                 </button>
 
                                 <div
-                                    class="flex min-h-[390px] flex-1 items-center justify-center overflow-hidden bg-white/[0.03]">
+                                    class="flex min-h-97.5 flex-1 items-center justify-center overflow-hidden bg-white/3">
                                     <img src="{{ $image->temporaryUrl() }}" alt="Preview"
-                                        class="max-h-[440px] w-full object-contain p-4" />
+                                        class="max-h-80 w-full object-contain p-4" />
                                 </div>
 
                                 <div class="shrink-0 border-t border-white/10 px-4 py-4">
@@ -527,7 +527,7 @@ new #[Title('Background Remover')] class extends Component {
                                 </p>
                             </div>
 
-                            <div class="flex-grow">
+                            <div class="grow">
                                 {{-- <div
                                     class="rounded-xl border border-cyan-300/15 bg-cyan-400/8 px-4 py-3 text-xs leading-5 text-blue-100/60">
                                     <div class="flex items-start gap-2">
@@ -552,7 +552,7 @@ new #[Title('Background Remover')] class extends Component {
 
                             @if ($image)
                                 <button type="button" x-on:click="removeBg" x-bind:disabled="processing"
-                                    class="group relative mt-8 flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-4 font-extrabold text-white shadow-lg shadow-cyan-500/25 transition hover:-translate-y-0.5 hover:shadow-[0_0_25px_rgba(34,211,238,0.35)] active:translate-y-0 disabled:opacity-60">
+                                    class="group relative mt-8 flex w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-linear-to-r from-cyan-500 to-blue-500 px-6 py-4 font-extrabold text-white shadow-lg shadow-cyan-500/25 transition hover:-translate-y-0.5 hover:shadow-[0_0_25px_rgba(34,211,238,0.35)] active:translate-y-0 disabled:opacity-60 cursor-pointer">
                                     <span
                                         class="absolute inset-y-0 -left-1/2 w-1/2 skew-x-[-20deg] bg-white/20 transition-all duration-700 group-hover:left-full"></span>
 
@@ -589,7 +589,7 @@ new #[Title('Background Remover')] class extends Component {
                                 </label>
 
                                 <button type="button" x-on:click="removeBg" x-bind:disabled="processing"
-                                    class="group relative flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition active:scale-95 disabled:opacity-60">
+                                    class="group relative flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-linear-to-r from-cyan-500 to-blue-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-cyan-500/25 transition active:scale-95 disabled:opacity-60">
                                     <span
                                         class="absolute inset-y-0 -left-1/2 w-1/2 skew-x-[-20deg] bg-white/20 transition-all duration-700 group-hover:left-full"></span>
 
@@ -601,7 +601,7 @@ new #[Title('Background Remover')] class extends Component {
                             </div>
                         @else
                             <label for="bg-image-upload"
-                                class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/25">
+                                class="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-linear-to-r from-cyan-500 to-blue-500 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/25">
                                 <span class="material-symbols-outlined text-base">add_photo_alternate</span>
                                 Choose Image
                             </label>
@@ -657,5 +657,5 @@ new #[Title('Background Remover')] class extends Component {
                 </p>
             </div>
         </div>
-    </main>
+    </div>
 </div>
