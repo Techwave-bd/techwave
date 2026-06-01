@@ -130,10 +130,6 @@ new #[Title('Background Remover')] class extends Component {
 };
 ?>
 
-@push('scripts')
-    @vite('resources/js/bg-remover.js')
-@endpush
-
 <div class="min-h-screen text-white" x-data="bgRemover" data-premium="@json($this->is_premium_user)">
     <div class="mx-auto flex w-full max-w-7xl flex-col items-center px-4 pb-24 pt-10 sm:px-6 lg:px-8">
 
