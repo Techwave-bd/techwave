@@ -2,7 +2,6 @@
 
 use App\Models\Blog;
 use App\Models\Category;
-use App\Models\SiteSetting;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -23,13 +22,6 @@ new #[Title('Blogs | Techwave')] class extends Component {
 
     public int $perPage = 6;
 
-    public SiteSetting $siteSetting;
-
-    public function mount(): void
-    {
-        $this->siteSetting = SiteSetting::current();
-    }
-
     public function updatedSearch(): void
     {
         $this->resetPage();
@@ -47,9 +39,11 @@ new #[Title('Blogs | Techwave')] class extends Component {
 
     public function clearFilters(): void
     {
-        $this->search = '';
-        $this->category = '';
-        $this->tag = '';
+        $this->reset([
+            'search',
+            'category',
+            'tag',
+        ]);
 
         $this->resetPage();
     }
@@ -59,7 +53,7 @@ new #[Title('Blogs | Techwave')] class extends Component {
         $search = trim($this->search);
 
         return Blog::query()
-            ->with('category')
+            ->with('category:id,name,slug')
             ->where('is_active', true)
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
@@ -73,7 +67,9 @@ new #[Title('Blogs | Techwave')] class extends Component {
             })
             ->when($this->category !== '', function ($query) {
                 $query->whereHas('category', function ($categoryQuery) {
-                    $categoryQuery->where('slug', $this->category)->orWhere('id', $this->category);
+                    $categoryQuery
+                        ->where('slug', $this->category)
+                        ->orWhere('id', $this->category);
                 });
             })
             ->when($this->tag !== '', function ($query) {
@@ -81,7 +77,15 @@ new #[Title('Blogs | Techwave')] class extends Component {
             })
             ->latest('published_at')
             ->latest()
-            ->paginate($this->perPage);
+            ->paginate($this->perPage, [
+                'id',
+                'category_id',
+                'title',
+                'slug',
+                'thumbnail',
+                'excerpt',
+                'published_at',
+            ]);
     }
 
     public function getCategoriesProperty()
@@ -97,17 +101,43 @@ new #[Title('Blogs | Techwave')] class extends Component {
             ])
             ->orderBy('name')
             ->limit(10)
-            ->get();
+            ->get([
+                'id',
+                'name',
+                'slug',
+            ]);
     }
 
     public function getRecentBlogsProperty()
     {
-        return Blog::query()->with('category')->where('is_active', true)->latest('published_at')->latest()->limit(3)->get();
+        return Blog::query()
+            ->with('category:id,name,slug')
+            ->where('is_active', true)
+            ->latest('published_at')
+            ->latest()
+            ->limit(3)
+            ->get([
+                'id',
+                'category_id',
+                'title',
+                'slug',
+                'thumbnail',
+                'published_at',
+            ]);
     }
 
     public function getKeywordTagsProperty(): array
     {
-        return Blog::query()->where('is_active', true)->whereNotNull('tags')->pluck('tags')->flatten()->filter()->unique()->take(14)->values()->toArray();
+        return Blog::query()
+            ->where('is_active', true)
+            ->whereNotNull('tags')
+            ->pluck('tags')
+            ->flatten()
+            ->filter()
+            ->unique()
+            ->take(14)
+            ->values()
+            ->toArray();
     }
 
     public function blogImage(Blog $blog): ?string
@@ -168,31 +198,17 @@ new #[Title('Blogs | Techwave')] class extends Component {
                         <div class="absolute left-8 top-8 h-24 w-24 rounded-full bg-cyan-400/12 blur-3xl"></div>
                         <div class="absolute bottom-8 right-8 h-32 w-32 rounded-full bg-blue-500/12 blur-3xl"></div>
 
-                        {{-- <div class="overflow-hidden rounded-3xlborder border-white/10 bg-slate-950/25">
-                            <div class="relative h-80 w-full overflow-hidden sm:h-100">
-                                <div class="absolute inset-0 bg-linear-to-br from-slate-950/85 via-blue-950/45 to-cyan-950/20"></div>
-                                <div class="absolute left-10 top-10 h-32 w-32 rounded-full bg-cyan-400/10 blur-3xl"></div>
-                                <div class="absolute bottom-10 right-10 h-40 w-40 rounded-full bg-blue-500/10 blur-3xl"></div>
-
-                                <div class="relative z-10 flex h-full flex-col justify-center p-8">
-                                    <span class="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-200/80">
-                                        Knowledge Hub
-                                    </span>
-
-                                    <h2 class="mt-4 max-w-md text-3xl font-bold leading-tight text-white sm:text-4xl">
-                                        Smart ideas for digital business growth.
-                                    </h2>
-
-                                    <p class="mt-4 max-w-md text-sm leading-7 text-blue-100/65">
-                                        Read practical guides, updates, and expert insights from our team.
-                                    </p>
-                                </div>
-                            </div>
-                        </div> --}}
-
                         <div class="overflow-hidden rounded-3xl border border-white/10">
-                            <img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80"
-                                alt="Blog hero" class="h-80 w-full object-cover sm:h-100">
+                            <img
+                                src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1000&q=70"
+                                alt="Blog hero"
+                                width="1000"
+                                height="650"
+                                fetchpriority="high"
+                                loading="eager"
+                                decoding="async"
+                                class="h-80 w-full object-cover sm:h-100"
+                            >
                         </div>
                     </div>
                 </div>
@@ -202,6 +218,13 @@ new #[Title('Blogs | Techwave')] class extends Component {
 
     <!-- Blog Content -->
     <section class="relative overflow-hidden pb-20 sm:pb-24">
+        @php
+            $blogs = $this->blogs();
+            $categories = $this->categories;
+            $recentBlogs = $this->recentBlogs;
+            $keywordTags = $this->keywordTags;
+        @endphp
+
         <div class="mx-auto max-w-350 px-4 sm:px-6 lg:px-8">
             <div class="grid gap-8 lg:grid-cols-[1fr_350px] xl:grid-cols-[1fr_390px]">
                 <!-- Main Grid -->
@@ -233,7 +256,7 @@ new #[Title('Blogs | Techwave')] class extends Component {
                     @endif
 
                     <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                        @forelse ($this->blogs() as $blog)
+                        @forelse ($blogs as $blog)
                             @php
                                 $blogImage = $this->blogImage($blog);
                             @endphp
@@ -242,8 +265,15 @@ new #[Title('Blogs | Techwave')] class extends Component {
                                 @if ($blogImage)
                                     <a href="{{ route('client.blogs.details', $blog->slug) }}" wire:navigate
                                         class="block overflow-hidden rounded-[24px] border border-white/10">
-                                        <img src="{{ $blogImage }}" alt="{{ $blog->title }}"
-                                            class="h-56 w-full object-cover transition duration-700 hover:scale-105">
+                                        <img
+                                            src="{{ $blogImage }}"
+                                            alt="{{ $blog->title }}"
+                                            width="700"
+                                            height="450"
+                                            loading="lazy"
+                                            decoding="async"
+                                            class="h-56 w-full object-cover transition duration-700 hover:scale-105"
+                                        >
                                     </a>
                                 @else
                                     <a href="{{ route('client.blogs.details', $blog->slug) }}" wire:navigate
@@ -310,7 +340,7 @@ new #[Title('Blogs | Techwave')] class extends Component {
 
                     <!-- Pagination -->
                     <div class="mt-10">
-                        {{ $this->blogs()->links() }}
+                        {{ $blogs->links() }}
                     </div>
                 </div>
 
@@ -338,12 +368,12 @@ new #[Title('Blogs | Techwave')] class extends Component {
                     </div>
 
                     <!-- Categories -->
-                    @if ($this->categories->count())
+                    @if ($categories->count())
                         <div class="blog-sidebar-card">
                             <h3 class="text-2xl font-bold text-white">Categories</h3>
 
                             <div class="mt-6 space-y-3">
-                                @foreach ($this->categories as $item)
+                                @foreach ($categories as $item)
                                     <button type="button"
                                         wire:click="$set('category', '{{ $item->slug ?? $item->id }}')"
                                         @class([
@@ -360,12 +390,12 @@ new #[Title('Blogs | Techwave')] class extends Component {
                     @endif
 
                     <!-- Recent Posts -->
-                    @if ($this->recentBlogs->count())
+                    @if ($recentBlogs->count())
                         <div class="blog-sidebar-card">
                             <h3 class="text-2xl font-bold text-white">Recent Posts</h3>
 
                             <div class="mt-6 space-y-4">
-                                @foreach ($this->recentBlogs as $recentBlog)
+                                @foreach ($recentBlogs as $recentBlog)
                                     @php
                                         $recentBlogImage = $this->blogImage($recentBlog);
                                     @endphp
@@ -374,8 +404,15 @@ new #[Title('Blogs | Techwave')] class extends Component {
                                         class="recent-post-item">
 
                                         @if ($recentBlogImage)
-                                            <img src="{{ $recentBlogImage }}" alt="{{ $recentBlog->title }}"
-                                                class="h-18 w-18 rounded-2xl object-cover">
+                                            <img
+                                                src="{{ $recentBlogImage }}"
+                                                alt="{{ $recentBlog->title }}"
+                                                width="72"
+                                                height="72"
+                                                loading="lazy"
+                                                decoding="async"
+                                                class="h-18 w-18 rounded-2xl object-cover"
+                                            >
                                         @else
                                             <div
                                                 class="flex h-18 w-18 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/8 text-cyan-200">
@@ -403,12 +440,12 @@ new #[Title('Blogs | Techwave')] class extends Component {
                     @endif
 
                     <!-- Keyword Tags -->
-                    @if (!empty($this->keywordTags))
+                    @if (! empty($keywordTags))
                         <div class="blog-sidebar-card">
                             <h3 class="text-2xl font-bold text-white">Keyword Tags</h3>
 
                             <div class="mt-6 flex flex-wrap gap-2">
-                                @foreach ($this->keywordTags as $item)
+                                @foreach ($keywordTags as $item)
                                     <button type="button" wire:click="$set('tag', '{{ $item }}')"
                                         @class([
                                             'blog-tag',

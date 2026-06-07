@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\SiteSetting;
 use App\Models\SupportTicket;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -10,9 +9,18 @@ use Livewire\Component;
 new class extends Component {
     public int $notificationRefreshKey = 0;
 
+    public int $unreadCount = 0;
+
+    public array $notifications = [];
+
+    public function mount(): void
+    {
+        $this->loadClientNotifications();
+    }
+
     public function getListeners(): array
     {
-        if (!Auth::check()) {
+        if (! Auth::check()) {
             return [];
         }
 
@@ -23,7 +31,67 @@ new class extends Component {
 
     public function refreshClientNotifications(): void
     {
+        $this->loadClientNotifications();
         $this->notificationRefreshKey++;
+    }
+
+    private function loadClientNotifications(): void
+    {
+        if (! Auth::check()) {
+            $this->unreadCount = 0;
+            $this->notifications = [];
+
+            return;
+        }
+
+        $userId = Auth::id();
+
+        $this->unreadCount = SupportTicket::query()
+            ->where('user_id', $userId)
+            ->whereNull('client_read_at')
+            ->count();
+
+        $this->notifications = SupportTicket::query()
+            ->where('user_id', $userId)
+            ->whereNull('client_read_at')
+            ->latest('last_reply_at')
+            ->latest()
+            ->limit(5)
+            ->get([
+                'id',
+                'subject',
+                'priority',
+                'status',
+                'last_reply_at',
+                'updated_at',
+            ])
+            ->map(fn ($ticket) => [
+                'id' => $ticket->id,
+                'subject' => $ticket->subject,
+                'priority' => $ticket->priority,
+                'status' => $ticket->status,
+                'time' => $ticket->last_reply_at?->diffForHumans() ?? $ticket->updated_at?->diffForHumans(),
+            ])
+            ->toArray();
+    }
+
+    public function markAllClientNotificationsRead(): void
+    {
+        if (! Auth::check()) {
+            return;
+        }
+
+        SupportTicket::query()
+            ->where('user_id', Auth::id())
+            ->whereNull('client_read_at')
+            ->update([
+                'client_read_at' => now(),
+            ]);
+
+        $this->loadClientNotifications();
+        $this->notificationRefreshKey++;
+
+        $this->dispatch('toast', message: 'All notifications marked as read.', type: 'success');
     }
 
     public function logout(): void
@@ -35,84 +103,31 @@ new class extends Component {
 
         $this->redirect(route('home'), navigate: true);
     }
-
-    public function unreadClientTicketCount(): int
-    {
-        if (!Auth::check()) {
-            return 0;
-        }
-
-        return SupportTicket::query()->where('user_id', Auth::id())->whereNull('client_read_at')->count();
-    }
-
-    public function latestClientTicketNotifications()
-    {
-        if (!Auth::check()) {
-            return collect();
-        }
-
-        return SupportTicket::query()->where('user_id', Auth::id())->whereNull('client_read_at')->latest('last_reply_at')->latest()->limit(5)->get();
-    }
-
-    public function markAllClientNotificationsRead(): void
-    {
-        if (!Auth::check()) {
-            return;
-        }
-
-        SupportTicket::query()
-            ->where('user_id', Auth::id())
-            ->whereNull('client_read_at')
-            ->update([
-                'client_read_at' => now(),
-            ]);
-
-        $this->notificationRefreshKey++;
-
-        $this->dispatch('toast', message: 'All notifications marked as read.', type: 'success');
-    }
-
-    public function siteSetting(): SiteSetting
-    {
-        return SiteSetting::current();
-    }
-
-    public function logoUrl(): ?string
-    {
-        $logo = $this->siteSetting()->logo;
-
-        if (blank($logo)) {
-            return null;
-        }
-
-        if (str_starts_with($logo, 'http://') || str_starts_with($logo, 'https://')) {
-            return $logo;
-        }
-
-        return Storage::url($logo);
-    }
-
-    public function siteName(): string
-    {
-        return $this->siteSetting()->site_name ?: config('app.name');
-    }
 };
 ?>
 
 <div>
-    <nav class="glass-panel rounded-2xl px-4 py-4 sm:px-6" x-data="{ mobileMenu: false, userMenu: false, notificationOpen: false }">
+    <nav class="glass-panel rounded-2xl px-4 py-4 sm:px-6"
+        x-data="{ mobileMenu: false, userMenu: false, notificationOpen: false }">
+
         <div class="flex items-center justify-between gap-4">
             <a href="{{ route('home') }}" wire:navigate class="flex items-center gap-3">
-                @if ($this->logoUrl())
-                    <img src="{{ $this->logoUrl() }}" alt="{{ $this->siteName() }}" class="h-10 rounded-xl">
+                @if ($siteLogo)
+                    <img
+                        src="{{ $siteLogo }}"
+                        alt="{{ $siteName }}"
+                        width="140"
+                        height="40"
+                        class="h-10 rounded-xl object-contain"
+                    >
                 @else
                     <div
                         class="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-r from-blue-500 to-sky-400 text-sm font-bold text-white shadow-lg shadow-blue-500/25">
-                        {{ strtoupper(substr($this->siteName(), 0, 1)) }}
+                        {{ strtoupper(substr($siteName, 0, 1)) }}
                     </div>
 
                     <span class="text-sm font-bold text-white">
-                        {{ $this->siteName() }}
+                        {{ $siteName }}
                     </span>
                 @endif
             </a>
@@ -169,15 +184,10 @@ new class extends Component {
 
             <div class="hidden items-center gap-3 lg:flex">
                 @auth
-                    @php
-                        $unreadCount = $this->unreadClientTicketCount();
-                        $notifications = $this->latestClientTicketNotifications();
-                    @endphp
-
                     {{-- Client Notification --}}
                     <div class="relative" wire:key="client-notifications-desktop-{{ $notificationRefreshKey }}">
                         <button type="button" @click.stop="notificationOpen = !notificationOpen; userMenu = false"
-                            class="relative flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/8 text-white shadow-lg shadow-blue-950/20 backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/14 cursor-pointer">
+                            class="relative flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-white/8 text-white shadow-lg shadow-blue-950/20 backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/14">
 
                             <span class="material-symbols-outlined text-[22px]">notifications</span>
 
@@ -209,16 +219,16 @@ new class extends Component {
 
                             <div class="notification-scroll max-h-88 divide-y divide-white/10 overflow-y-auto">
                                 @forelse ($notifications as $ticket)
-                                    <a href="{{ route('client.tickets.show', $ticket) }}" wire:navigate
+                                    <a href="{{ route('client.tickets.show', $ticket['id']) }}" wire:navigate
                                         @click="notificationOpen = false"
                                         class="group flex gap-3 px-4 py-3 transition hover:bg-white/8">
 
                                         <div @class([
                                             'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/10',
-                                            'bg-blue-400/15 text-blue-200' => $ticket->priority === 'medium',
-                                            'bg-slate-400/15 text-slate-200' => $ticket->priority === 'low',
-                                            'bg-orange-400/15 text-orange-200' => $ticket->priority === 'high',
-                                            'bg-red-400/15 text-red-200' => $ticket->priority === 'urgent',
+                                            'bg-blue-400/15 text-blue-200' => $ticket['priority'] === 'medium',
+                                            'bg-slate-400/15 text-slate-200' => $ticket['priority'] === 'low',
+                                            'bg-orange-400/15 text-orange-200' => $ticket['priority'] === 'high',
+                                            'bg-red-400/15 text-red-200' => $ticket['priority'] === 'urgent',
                                         ])>
                                             <span class="material-symbols-outlined text-[20px]">support_agent</span>
                                         </div>
@@ -231,21 +241,21 @@ new class extends Component {
 
                                                 <span @class([
                                                     'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase',
-                                                    'bg-blue-400/15 text-blue-200' => $ticket->status === 'open',
-                                                    'bg-amber-400/15 text-amber-200' => $ticket->status === 'pending',
-                                                    'bg-emerald-400/15 text-emerald-200' => $ticket->status === 'answered',
-                                                    'bg-slate-400/15 text-slate-200' => $ticket->status === 'closed',
+                                                    'bg-blue-400/15 text-blue-200' => $ticket['status'] === 'open',
+                                                    'bg-amber-400/15 text-amber-200' => $ticket['status'] === 'pending',
+                                                    'bg-emerald-400/15 text-emerald-200' => $ticket['status'] === 'answered',
+                                                    'bg-slate-400/15 text-slate-200' => $ticket['status'] === 'closed',
                                                 ])>
-                                                    {{ $ticket->status }}
+                                                    {{ $ticket['status'] }}
                                                 </span>
                                             </div>
 
                                             <p class="mt-0.5 truncate text-xs text-blue-100/55">
-                                                {{ $ticket->subject }}
+                                                {{ $ticket['subject'] }}
                                             </p>
 
                                             <p class="mt-1 text-[11px] text-blue-100/35">
-                                                {{ $ticket->last_reply_at?->diffForHumans() ?? $ticket->updated_at?->diffForHumans() }}
+                                                {{ $ticket['time'] }}
                                             </p>
                                         </div>
                                     </a>
@@ -288,10 +298,10 @@ new class extends Component {
                     {{-- User Menu --}}
                     <div class="relative">
                         <button type="button" @click="userMenu = !userMenu; notificationOpen = false"
-                            class="flex items-center gap-3 rounded-full px-2 py-1.5 text-white transition hover:bg-white/5 cursor-pointer">
+                            class="flex cursor-pointer items-center gap-3 rounded-full px-2 py-1.5 text-white transition hover:bg-white/5">
                             @if (auth()->user()->avatar)
                                 <img src="{{ Storage::url(auth()->user()->avatar) }}" alt="{{ auth()->user()->name }}"
-                                    class="object-cover h-10 w-10 rounded-full" />
+                                    class="h-10 w-10 rounded-full object-cover" />
                             @else
                                 <div
                                     class="flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 text-sm font-bold text-white">
@@ -332,7 +342,7 @@ new class extends Component {
 
                             <form wire:submit.prevent="logout">
                                 <button type="submit" wire:loading.attr="disabled"
-                                    class="block w-full rounded-xl px-4 py-3 text-left text-sm text-red-300 transition hover:bg-red-500/15 disabled:opacity-60 cursor-pointer">
+                                    class="block w-full cursor-pointer rounded-xl px-4 py-3 text-left text-sm text-red-300 transition hover:bg-red-500/15 disabled:opacity-60">
                                     <span wire:loading.remove wire:target="logout">Logout</span>
                                     <span wire:loading wire:target="logout">Logging out...</span>
                                 </button>
@@ -354,11 +364,6 @@ new class extends Component {
 
             <div class="flex items-center gap-2 lg:hidden">
                 @auth
-                    @php
-                        $unreadCount = $this->unreadClientTicketCount();
-                        $notifications = $this->latestClientTicketNotifications();
-                    @endphp
-
                     {{-- Mobile Notification --}}
                     <div class="relative" wire:key="client-notifications-mobile-{{ $notificationRefreshKey }}">
                         <button type="button" @click.stop="notificationOpen = !notificationOpen; mobileMenu = false"
@@ -393,7 +398,7 @@ new class extends Component {
 
                             <div class="notification-scroll max-h-88 divide-y divide-white/10 overflow-y-auto">
                                 @forelse ($notifications as $ticket)
-                                    <a href="{{ route('client.tickets.show', $ticket) }}" wire:navigate
+                                    <a href="{{ route('client.tickets.show', $ticket['id']) }}" wire:navigate
                                         @click="notificationOpen = false"
                                         class="flex gap-3 px-4 py-3 transition hover:bg-white/8">
                                         <div
@@ -407,11 +412,11 @@ new class extends Component {
                                             </p>
 
                                             <p class="mt-0.5 truncate text-xs text-blue-100/55">
-                                                {{ $ticket->subject }}
+                                                {{ $ticket['subject'] }}
                                             </p>
 
                                             <p class="mt-1 text-[11px] text-blue-100/35">
-                                                {{ $ticket->last_reply_at?->diffForHumans() ?? $ticket->updated_at?->diffForHumans() }}
+                                                {{ $ticket['time'] }}
                                             </p>
                                         </div>
                                     </a>
@@ -460,10 +465,10 @@ new class extends Component {
 
                 <a href="{{ route('client.tools.index') }}" wire:navigate
                     class="glass-soft rounded-xl px-4 py-3">Tools</a>
+
                 <a href="{{ route('client.blogs') }}" wire:navigate class="glass-soft rounded-xl px-4 py-3">Blogs</a>
 
-                <a href="{{ route('client.about') }}" wire:navigate
-                    class="glass-soft rounded-xl px-4 py-3">About</a>
+                <a href="{{ route('client.about') }}" wire:navigate class="glass-soft rounded-xl px-4 py-3">About</a>
 
                 <a href="{{ route('client.contact') }}" wire:navigate
                     class="glass-soft rounded-xl px-4 py-3">Contact</a>
@@ -487,7 +492,7 @@ new class extends Component {
                         </div>
 
                         <div class="mt-2 flex flex-col gap-2">
-                            <a href="{{ route('account.dashboard') }}" wire:navigate
+                            <a href="{{ route('account.profile') }}" wire:navigate
                                 class="glass-soft rounded-xl px-4 py-3">
                                 Profile
                             </a>

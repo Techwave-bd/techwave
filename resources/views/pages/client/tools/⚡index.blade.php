@@ -4,22 +4,74 @@ use App\Models\ToolCategory;
 use Livewire\Component;
 
 new class extends Component {
-    public function categories()
+    public $categories;
+
+    public array $activeSubscriptions = [];
+
+    public mixed $checkoutPlan = null;
+
+    public function mount(): void
     {
-        return ToolCategory::query()
+        $this->loadCategories();
+        $this->loadActiveSubscriptions();
+
+        $this->checkoutPlan = $this->categories
+            ->flatMap(fn ($category) => $category->activePlans)
+            ->first();
+    }
+
+    private function loadCategories(): void
+    {
+        $this->categories = ToolCategory::query()
             ->where('is_active', true)
             ->orderBy('sort_order')
-            ->with(['tools', 'activePlans'])
+            ->with([
+                'tools' => function ($query) {
+                    $query
+                        ->where('is_active', true)
+                        ->orderBy('sort_order')
+                        ->getQuery();
+                },
+                'activePlans' => function ($query) {
+                    $query
+                        ->where('is_active', true)
+                        ->orderBy('sort_order')
+                        ->getQuery();
+                },
+            ])
             ->get();
     }
 
-    public function hasActiveSubscription(?ToolCategory $category): bool
+    private function loadActiveSubscriptions(): void
     {
-        if (!auth()->check() || !$category) {
-            return false;
+        if (! auth()->check()) {
+            $this->activeSubscriptions = [];
+
+            return;
         }
 
-        return auth()->user()->hasActiveToolSubscription($category);
+        $this->activeSubscriptions = auth()->user()
+            ->toolSubscriptions()
+            ->where('status', 'active')
+            ->where(function ($query) {
+                $query
+                    ->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            })
+            ->latest()
+            ->get([
+                'id',
+                'tool_category_id',
+                'status',
+                'expires_at',
+            ])
+            ->keyBy('tool_category_id')
+            ->toArray();
+    }
+
+    public function hasActiveSubscription(int $categoryId): bool
+    {
+        return isset($this->activeSubscriptions[$categoryId]);
     }
 };
 ?>
@@ -29,13 +81,7 @@ new class extends Component {
 
         {{-- Hero Section --}}
         <section class="relative mb-12 overflow-hidden text-center">
-            <div class="pointer-events-none absolute inset-x-0 top-0 -z-10 mx-auto h-72 max-w-4xl">
-            </div>
-
-            {{-- <div
-                class="mx-auto mb-5 inline-flex items-center rounded-full border border-cyan-300/20 bg-white/[0.06] px-4 py-2 text-xs font-bold uppercase tracking-[0.24em] text-cyan-200/85 shadow-lg shadow-cyan-500/5 backdrop-blur-xl">
-                Tools Library
-            </div> --}}
+            <div class="pointer-events-none absolute inset-x-0 top-0 -z-10 mx-auto h-72 max-w-4xl"></div>
 
             <h1 class="text-5xl font-extrabold leading-tight tracking-tight sm:text-6xl lg:text-7xl">
                 All
@@ -51,9 +97,9 @@ new class extends Component {
 
         {{-- Category Grid --}}
         <section id="tools-library" class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            @forelse ($this->categories() as $category)
+            @forelse ($categories as $category)
                 @php
-                    $isPremium = $this->hasActiveSubscription($category);
+                    $isPremium = $this->hasActiveSubscription($category->id);
                     $firstPlan = $category->activePlans->first();
                 @endphp
 
@@ -73,7 +119,9 @@ new class extends Component {
                     <div class="relative z-10 flex items-start justify-between gap-4">
                         <div
                             class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/8 bg-white/7.5 text-cyan-300 shadow-lg shadow-cyan-500/5">
-                            <span class="material-symbols-outlined text-[30px]">{{ $category->icon ?? 'build' }}</span>
+                            <span class="material-symbols-outlined text-[30px]">
+                                {{ $category->icon ?? 'build' }}
+                            </span>
                         </div>
 
                         <div class="shrink-0">
@@ -165,6 +213,7 @@ new class extends Component {
             <div
                 class="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.18),transparent_36%),radial-gradient(circle_at_bottom_left,rgba(59,130,246,0.16),transparent_34%)] opacity-80 transition duration-700 group-hover:opacity-100">
             </div>
+
             <div
                 class="pointer-events-none absolute inset-0 -z-10 opacity-[0.06] bg-[linear-gradient(rgba(255,255,255,.2)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.2)_1px,transparent_1px)] bg-size-[38px_38px]">
             </div>
@@ -191,16 +240,12 @@ new class extends Component {
                 @guest
                     <button type="button"
                         @click="window.dispatchEvent(new CustomEvent('open-auth', { detail: { mode: 'login' } }))"
-                        class="group/btn relative inline-flex w-full items-center justify-center overflow-hidden rounded-xl cursor-pointer bg-linear-to-r from-cyan-500 to-blue-500 px-8 py-4 text-sm font-black uppercase tracking-wider text-white shadow-2xl shadow-cyan-500/25 transition hover:-translate-y-0.5 hover:shadow-cyan-500/35 sm:w-auto">
+                        class="group/btn relative inline-flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl bg-linear-to-r from-cyan-500 to-blue-500 px-8 py-4 text-sm font-black uppercase tracking-wider text-white shadow-2xl shadow-cyan-500/25 transition hover:-translate-y-0.5 hover:shadow-cyan-500/35 sm:w-auto">
                         <span
                             class="absolute inset-y-0 -left-1/2 w-1/2 skew-x-[-20deg] bg-white/20 transition-all duration-700 group-hover/btn:left-full"></span>
                         <span class="relative">Login to Unlock</span>
                     </button>
                 @else
-                    @php
-                        $checkoutPlan = $this->categories()->flatMap(fn($category) => $category->activePlans)->first();
-                    @endphp
-
                     @if ($checkoutPlan)
                         <a href="{{ route('client.tool-subscriptions.checkout', $checkoutPlan) }}" wire:navigate
                             class="group/btn relative inline-flex w-full items-center justify-center overflow-hidden rounded-xl bg-linear-to-r from-cyan-500 to-blue-500 px-8 py-4 text-sm font-black uppercase tracking-wider text-white shadow-2xl shadow-cyan-500/25 transition hover:-translate-y-0.5 hover:shadow-cyan-500/35 sm:w-auto">

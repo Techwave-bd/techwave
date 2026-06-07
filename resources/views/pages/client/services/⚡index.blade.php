@@ -2,14 +2,11 @@
 
 use App\Models\Service;
 use App\Models\ServiceBooking;
-use App\Models\SiteSetting;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Services | Techwave')] class extends Component {
     public int $perPage = 12;
-
-    public SiteSetting $siteSetting;
 
     public string $full_name = '';
     public string $phone = '';
@@ -20,21 +17,17 @@ new #[Title('Services | Techwave')] class extends Component {
 
     public string $serviceSearch = '';
 
-    public function mount(): void
-    {
-        $this->siteSetting = SiteSetting::current();
-    }
-
     public function getFilteredServicesProperty()
     {
         return Service::query()
+            ->with('category:id,name')
             ->where('is_active', true)
             ->when($this->serviceSearch, function ($query) {
                 $query->where('card_title', 'like', '%' . $this->serviceSearch . '%');
             })
             ->orderBy('card_title')
             ->limit(8)
-            ->get();
+            ->get(['id', 'category_id', 'card_title', 'slug']);
     }
 
     public function submitBooking(): void
@@ -70,7 +63,12 @@ new #[Title('Services | Techwave')] class extends Component {
 
     public function getServicesProperty()
     {
-        return Service::query()->with('category')->where('is_active', true)->latest()->limit($this->perPage)->get();
+        return Service::query()
+            ->with('category:id,name')
+            ->where('is_active', true)
+            ->latest()
+            ->limit($this->perPage)
+            ->get(['id', 'category_id', 'card_title', 'slug', 'icon', 'image', 'short_description', 'included_items', 'benefits']);
     }
 
     public function getTotalServicesProperty(): int
@@ -88,7 +86,7 @@ new #[Title('Services | Techwave')] class extends Component {
             return asset('storage/' . $service->image);
         }
 
-        return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80';
+        return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=70';
     }
 
     public function serviceBullets(Service $service): array
@@ -155,19 +153,25 @@ new #[Title('Services | Techwave')] class extends Component {
 
             <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
 
-                @forelse ($this->services as $service)
-                    <a href="{{ route('client.services.details', ['slug' => $service->slug]) }}" wire:navigate
-                        class="group relative min-h-[430px] overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl shadow-blue-950/20 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300/30 hover:shadow-cyan-950/30">
+                @php
+                    $services = $this->services;
+                    $totalServices = $this->totalServices;
+                @endphp
 
-                        <img src="{{ $this->serviceImage($service) }}" alt="{{ $service->card_title }}"
+                @forelse ($services as $service)
+                    <a href="{{ route('client.services.details', ['slug' => $service->slug]) }}" wire:navigate
+                        class="group relative min-h-107.5 overflow-hidden rounded-3xl border border-white/10 bg-white/5 shadow-2xl shadow-blue-950/20 transition-all duration-300 hover:-translate-y-1 hover:border-cyan-300/30 hover:shadow-cyan-950/30">
+
+                        <img src="{{ $this->serviceImage($service) }}" alt="{{ $service->card_title }}" width="900"
+                            height="650" loading="lazy" decoding="async"
                             class="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110">
 
-                        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/75 to-blue-950/20">
+                        <div class="absolute inset-0 bg-linear-to-t from-slate-950 via-slate-950/75 to-blue-950/20">
                         </div>
                         <div class="absolute inset-0 bg-linear-to-br from-cyan-500/20 via-transparent to-blue-700/20">
                         </div>
 
-                        <div class="relative z-10 flex h-full min-h-[430px] flex-col justify-between p-6">
+                        <div class="relative z-10 flex h-full min-h-107.5 flex-col justify-between p-6">
                             <div class="flex items-start justify-between gap-4">
                                 <span
                                     class="inline-flex items-center rounded-full border border-white/10 bg-slate-950/30 px-3 py-1 text-xs font-semibold text-cyan-100 backdrop-blur-md">
@@ -220,7 +224,7 @@ new #[Title('Services | Techwave')] class extends Component {
 
             </div>
 
-            @if ($this->services->count() < $this->totalServices)
+            @if ($services->count() < $totalServices)
                 <div class="mt-12 flex justify-center">
                     <button type="button" wire:click="loadMore" wire:loading.attr="disabled"
                         class="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 bg-white/8 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-xl transition hover:-translate-y-0.5 hover:bg-white/12 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer">
@@ -268,7 +272,7 @@ new #[Title('Services | Techwave')] class extends Component {
 
             <div class="relative">
                 <div
-                    class="absolute left-1/2 top-0 hidden h-full w-px -translate-x-1/2 bg-gradient-to-b from-cyan-300/0 via-cyan-300/30 to-cyan-300/0 lg:block">
+                    class="absolute left-1/2 top-0 hidden h-full w-px -translate-x-1/2 bg-linear-to-b from-cyan-300/0 via-cyan-300/30 to-cyan-300/0 lg:block">
                 </div>
 
                 <div class="grid gap-6 lg:grid-cols-2">

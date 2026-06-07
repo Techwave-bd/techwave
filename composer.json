@@ -19,6 +19,7 @@
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
+        "fruitcake/laravel-debugbar": "^4.3",
         "laravel/boost": "*",
         "laravel/pail": "^1.2.5",
         "laravel/pint": "^1.27",

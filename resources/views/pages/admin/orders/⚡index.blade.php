@@ -39,7 +39,14 @@ new #[Layout('layouts.admin-app')] #[Title('Orders')] class extends Component {
         $search = trim($this->search);
 
         return Order::query()
-            ->with(['booking', 'user', 'service.category', 'servicePlan', 'pricingPlan'])
+            ->with([
+                'booking:id,booking_no',
+                'user:id,name,email,avatar',
+                'service:id,category_id,card_title,detail_title',
+                'service.category:id,name',
+                'servicePlan:id,name',
+                'pricingPlan:id,title,plan_type',
+            ])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('order_no', 'like', '%' . $search . '%')
@@ -55,16 +62,22 @@ new #[Layout('layouts.admin-app')] #[Title('Orders')] class extends Component {
                             $bookingQuery->where('booking_no', 'like', '%' . $search . '%');
                         })
                         ->orWhereHas('user', function ($userQuery) use ($search) {
-                            $userQuery->where('name', 'like', '%' . $search . '%')->orWhere('email', 'like', '%' . $search . '%');
+                            $userQuery
+                                ->where('name', 'like', '%' . $search . '%')
+                                ->orWhere('email', 'like', '%' . $search . '%');
                         })
                         ->orWhereHas('service', function ($serviceQuery) use ($search) {
-                            $serviceQuery->where('card_title', 'like', '%' . $search . '%')->orWhere('detail_title', 'like', '%' . $search . '%');
+                            $serviceQuery
+                                ->where('card_title', 'like', '%' . $search . '%')
+                                ->orWhere('detail_title', 'like', '%' . $search . '%');
                         })
                         ->orWhereHas('servicePlan', function ($servicePlanQuery) use ($search) {
                             $servicePlanQuery->where('name', 'like', '%' . $search . '%');
                         })
                         ->orWhereHas('pricingPlan', function ($pricingPlanQuery) use ($search) {
-                            $pricingPlanQuery->where('title', 'like', '%' . $search . '%')->orWhere('plan_type', 'like', '%' . $search . '%');
+                            $pricingPlanQuery
+                                ->where('title', 'like', '%' . $search . '%')
+                                ->orWhere('plan_type', 'like', '%' . $search . '%');
                         });
                 });
             })
@@ -75,67 +88,71 @@ new #[Layout('layouts.admin-app')] #[Title('Orders')] class extends Component {
                 $query->where('order_type', $this->orderType);
             })
             ->latest()
-            ->paginate($this->perPage);
+            ->paginate($this->perPage, [
+                'id',
+                'booking_id',
+                'user_id',
+                'service_id',
+                'service_plan_id',
+                'pricing_plan_id',
+                'order_no',
+                'order_type',
+                'full_name',
+                'phone',
+                'email',
+                'company_name',
+                'plan_name',
+                'plan_price',
+                'requested_price',
+                'quoted_price',
+                'amount',
+                'final_price',
+                'currency',
+                'billing_cycle',
+                'status',
+                'created_at',
+            ]);
     }
 
     public function markAsAwaitingPayment(int $orderId): void
     {
-        Order::query()
-            ->findOrFail($orderId)
-            ->update([
-                'status' => 'awaiting_payment',
-            ]);
-
-        $this->dispatch('toast', message: 'Order marked as awaiting payment.', type: 'success');
+        $this->updateOrderStatus($orderId, 'awaiting_payment', 'Order marked as awaiting payment.');
     }
 
     public function markAsPaid(int $orderId): void
     {
-        Order::query()
-            ->findOrFail($orderId)
-            ->update([
-                'status' => 'paid',
-            ]);
-
-        $this->dispatch('toast', message: 'Order marked as paid.', type: 'success');
+        $this->updateOrderStatus($orderId, 'paid', 'Order marked as paid.');
     }
 
     public function markAsActive(int $orderId): void
     {
-        Order::query()
-            ->findOrFail($orderId)
-            ->update([
-                'status' => 'active',
-            ]);
-
-        $this->dispatch('toast', message: 'Order marked as active.', type: 'success');
+        $this->updateOrderStatus($orderId, 'active', 'Order marked as active.');
     }
 
     public function markAsCompleted(int $orderId): void
     {
-        Order::query()
-            ->findOrFail($orderId)
-            ->update([
-                'status' => 'completed',
-            ]);
-
-        $this->dispatch('toast', message: 'Order marked as completed.', type: 'success');
+        $this->updateOrderStatus($orderId, 'completed', 'Order marked as completed.');
     }
 
     public function markAsCancelled(int $orderId): void
     {
+        $this->updateOrderStatus($orderId, 'cancelled', 'Order cancelled.');
+    }
+
+    private function updateOrderStatus(int $orderId, string $status, string $message): void
+    {
         Order::query()
-            ->findOrFail($orderId)
+            ->whereKey($orderId)
             ->update([
-                'status' => 'cancelled',
+                'status' => $status,
             ]);
 
-        $this->dispatch('toast', message: 'Order cancelled.', type: 'success');
+        $this->dispatch('toast', message: $message, type: 'success');
     }
 
     public function delete(int $orderId): void
     {
-        Order::query()->findOrFail($orderId)->delete();
+        Order::query()->whereKey($orderId)->delete();
 
         $this->dispatch('toast', message: 'Order deleted successfully.', type: 'success');
     }
@@ -175,13 +192,19 @@ new #[Layout('layouts.admin-app')] #[Title('Orders')] class extends Component {
 
     public function displayAmount($order): string
     {
-        $amount = $order->amount ?? ($order->final_price ?? ($order->quoted_price ?? ($order->requested_price ?? $order->plan_price)));
+        $amount = $order->amount
+            ?? ($order->final_price
+            ?? ($order->quoted_price
+            ?? ($order->requested_price
+            ?? $order->plan_price)));
 
-        if (!$amount || (float) $amount <= 0) {
+        if (! $amount || (float) $amount <= 0) {
             return 'Negotiable';
         }
 
-        $currency = $order->currency === 'BDT' || blank($order->currency) ? '৳' : $order->currency . ' ';
+        $currency = $order->currency === 'BDT' || blank($order->currency)
+            ? '৳'
+            : $order->currency . ' ';
 
         return $currency . number_format((float) $amount, 2);
     }
@@ -290,7 +313,10 @@ new #[Layout('layouts.admin-app')] #[Title('Orders')] class extends Component {
                     </thead>
 
                     <tbody class="divide-y divide-slate-100">
-                        @forelse ($this->orders() as $order)
+                        @php
+    $orders = $this->orders();
+@endphp
+                        @forelse ($orders as $order)
                             <tr wire:key="order-{{ $order->id }}" class="transition-colors hover:bg-slate-50/80">
                                 <td class="px-6 py-4">
                                     <div>
@@ -527,7 +553,7 @@ new #[Layout('layouts.admin-app')] #[Title('Orders')] class extends Component {
                 </div>
 
                 <div>
-                    {{ $this->orders()->links() }}
+                    {{ $orders->links() }}
                 </div>
             </div>
         </div>

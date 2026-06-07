@@ -12,12 +12,22 @@ use Livewire\Component;
 new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Network &amp; Cybersecurity Experts')] class extends Component {
     public function companyLogos()
     {
-        return CompanyLogo::query()->where('is_active', true)->orderBy('sort_order')->latest()->get();
+        return CompanyLogo::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->latest()
+            ->get(['id', 'name', 'logo', 'website_url']);
     }
 
     public function services()
     {
-        return Service::query()->with('category')->where('is_active', true)->where('is_featured', true)->latest()->take(4)->get();
+        return Service::query()
+            ->with('category:id,name,icon')
+            ->where('is_active', true)
+            ->where('is_featured', true)
+            ->latest()
+            ->take(4)
+            ->get(['id', 'category_id', 'card_title', 'slug', 'icon', 'image', 'short_description']);
     }
 
     public function pricingPlans()
@@ -36,12 +46,30 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
             )
             ->latest()
             ->take(3)
-            ->get();
+            ->get(['id', 'plan_type', 'title', 'icon', 'description', 'monthly_price', 'monthly_discount_price', 'yearly_price', 'yearly_discount_price', 'features']);
     }
 
     public function getProjectsProperty()
     {
-        return Project::query()->with('category')->where('is_active', true)->where('is_featured', true)->latest('completed_at')->latest()->limit(6)->get();
+        return Project::query()
+            ->with('category:id,name,icon')
+            ->where('is_active', true)
+            ->where('is_featured', true)
+            ->latest('completed_at')
+            ->latest()
+            ->limit(6)
+            ->get(['id', 'category_id', 'title', 'slug', 'project_type', 'thumbnail', 'short_description', 'technologies', 'live_url', 'case_study_url', 'is_featured']);
+    }
+
+    public function getFeaturedBlogsProperty()
+    {
+        return Blog::query()
+            ->with('category:id,name')
+            ->where('is_active', true)
+            ->where('is_featured', true)
+            ->latest('published_at')
+            ->limit(3)
+            ->get(['id', 'category_id', 'title', 'slug', 'thumbnail', 'excerpt', 'published_at']);
     }
 
     public function projectImage(Project $project): string
@@ -80,11 +108,6 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
             ->filter()
             ->values()
             ->toArray();
-    }
-
-    public function getFeaturedBlogsProperty()
-    {
-        return Blog::query()->with('category')->where('is_active', true)->where('is_featured', true)->latest('published_at')->limit(3)->get();
     }
 
     public function blogImage(Blog $blog): ?string
@@ -283,7 +306,7 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
             </div>
 
             @php
-                $featuredServices = $this->services()->take(4)->values();
+                $featuredServices = $this->services()->values();
             @endphp
 
             <div
