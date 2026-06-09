@@ -81,6 +81,7 @@ Route::livewire('/', 'pages::client.home')->name('home');
 // Services
 Route::livewire('/services', 'pages::client.services.index')->name('client.services');
 Route::livewire('/services/{slug}', 'pages::client.services.details')->name('client.services.details');
+Route::livewire('/services/{slug}/checkout/{plan:slug}', 'pages::client.services.checkout')->name('client.services.checkout');
 
 // projects
 Route::livewire('/projects', 'pages::client.projects.index')->name('client.projects');
@@ -132,6 +133,9 @@ Route::middleware(['auth', 'verified', 'role:client,admin'])->group(function () 
 
     // Order success page
     Route::livewire('/checkout/success/{order}', 'pages::client.checkout.checkout-success')->name('client.checkout.success');
+
+    // Service booking success page
+    Route::livewire('/services/booking/success/{booking}', 'pages::client.services.booking-success')->name('client.services.booking-success');
 
     // Invoice download
     Route::get('/success/{order}/invoice/download', [PlanOrderInvoiceController::class, 'download'])->name('success.invoice.download');
@@ -244,6 +248,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,manager,
     Route::livewire('/service-plans', 'pages::admin.service-plans.index')->name('service-plans.index');
     Route::livewire('/service-plans/create', 'pages::admin.service-plans.create')->name('service-plans.create');
     Route::livewire('/service-plans/{servicePlan}/edit', 'pages::admin.service-plans.edit')->name('service-plans.edit');
+
+    // Service plan addons
+    Route::livewire('/plan-addons', 'pages::admin.plan-addons.index')->name('plan-addons.index'); 
 
     // Proposal management
     Route::livewire('/proposals', 'pages::admin.proposals.index')->name('proposals.index');

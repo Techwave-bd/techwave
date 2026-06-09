@@ -16,8 +16,8 @@ return new class extends Migration
             $table->foreignId('plan_addon_id')->constrained()->cascadeOnDelete();
             $table->foreignId('service_plan_id')->constrained()->cascadeOnDelete();
             $table->decimal('price', 10, 2)->nullable();
-            $table->decimal('monthly_price', 10, 2)->nullable()->after('price');
-            $table->decimal('yearly_price', 10, 2)->nullable()->after('monthly_price');
+            $table->decimal('monthly_price', 10, 2)->nullable();
+            $table->decimal('yearly_price', 10, 2)->nullable();
             $table->unsignedInteger('sort_order')->default(0);
             $table->timestamps();
 

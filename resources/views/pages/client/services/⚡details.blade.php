@@ -692,7 +692,7 @@ new class extends Component {
                                     @if ($hasMonthlyPrice)
                                         <div x-show="billing === 'monthly'" x-cloak>
                                             @if ($monthlyBuyUrl)
-                                                <a href="{{ $monthlyBuyUrl }}" target="_blank"
+                                                <a href="{{ $monthlyBuyUrl }}" 
                                                     class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
                                                     Choose Plan
                                                 </a>
@@ -709,7 +709,7 @@ new class extends Component {
                                     @if ($hasYearlyPrice)
                                         <div x-show="billing === 'yearly'" x-cloak>
                                             @if ($yearlyBuyUrl)
-                                                <a href="{{ $yearlyBuyUrl }}" target="_blank"
+                                                <a href="{{ $yearlyBuyUrl }}" 
                                                     class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
                                                     Choose Plan
                                                 </a>
@@ -743,7 +743,7 @@ new class extends Component {
 
                                     @if (!$hasMonthlyPrice && !$hasYearlyPrice)
                                         @if ($oneTimeBuyUrl)
-                                            <a href="{{ $oneTimeBuyUrl }}" target="_blank"
+                                            <a href="{{ $oneTimeBuyUrl }}" 
                                                 class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
                                                 Choose Plan
                                             </a>
@@ -1104,7 +1104,7 @@ new class extends Component {
                             </div>
                         </div>
 
-                        <a href="{{ $this->whatsappLink() }}" target="_blank"
+                        <a href="{{ $this->whatsappLink() }}" 
                             class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-linear-to-r from-emerald-500 to-green-400 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:-translate-y-0.5">
                             Chat on WhatsApp
                             <span class="material-symbols-outlined text-[18px]">arrow_forward</span>

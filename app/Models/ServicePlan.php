@@ -137,4 +137,12 @@ class ServicePlan extends Model
     {
         return $this->has_monthly_price && $this->has_yearly_price;
     }
+
+    public function addons()
+    {
+        return $this->belongsToMany(PlanAddon::class, 'addon_service_plan')
+            ->withPivot(['price', 'monthly_price', 'yearly_price', 'sort_order'])
+            ->withTimestamps()
+            ->orderBy('sort_order');
+    }
 }

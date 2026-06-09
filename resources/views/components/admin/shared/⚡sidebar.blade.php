@@ -126,21 +126,21 @@ new class extends Component {
                 </span>
             </a>
 
+            {{-- <a href="{{ route('admin.pricing-plan-bookings.index') }}" wire:navigate
+                wire:current.exact="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                <span class="material-symbols-outlined shrink-0">event_note</span>
+                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                    IT Plan Bookings
+                </span>
+            </a> --}}
+
             <a href="{{ route('admin.bookings.index') }}" wire:navigate
                 wire:current.exact="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
                 class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
                 <span class="material-symbols-outlined shrink-0">developer_board</span>
                 <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
                     Bookings
-                </span>
-            </a>
-
-            <a href="{{ route('admin.tool-subscriptions.index') }}" wire:navigate
-                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
-                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
-                <span class="material-symbols-outlined shrink-0">subscriptions</span>
-                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
-                    Tool Subscriptions
                 </span>
             </a>
 
@@ -203,6 +203,15 @@ new class extends Component {
                 <span class="material-symbols-outlined shrink-0">inventory_2</span>
                 <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
                     Service Plans
+                </span>
+            </a>
+
+            <a href="{{ route('admin.plan-addons.index') }}" wire:navigate
+                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                <span class="material-symbols-outlined shrink-0">extension</span>
+                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                    Plan Addons
                 </span>
             </a>
 
@@ -283,17 +292,31 @@ new class extends Component {
                         <span class="font-manrope text-sm font-medium">Compressed Images</span>
                     </a>
 
-                    {{-- <a href="{{ route('admin.tools.image-resize') }}" wire:navigate
+                    <a href="{{ route('client.tools.image-resizer') }}" wire:navigate
                         wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
                         class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
-                        <span class="material-symbols-outlined shrink-0 text-[20px]">aspect_ratio</span>
-                        <span class="font-manrope text-sm font-medium">Image Resize</span>
-                    </a> --}}
-                    {{-- <a href="{{ route('admin.tools.bg-remove') }}" wire:navigate
+                        <span class="material-symbols-outlined shrink-0 text-[20px]">photo_size_select_large</span>
+                        <span class="font-manrope text-sm font-medium">Image Resizer</span>
+                    </a>
+                    <a href="{{ route('client.tools.bg-remover') }}" wire:navigate
                         wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
                         class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
                         <span class="material-symbols-outlined shrink-0 text-[20px]">magic_exchange</span>
-                        <span class="font-manrope text-sm font-medium">BG Remove</span>
+                        <span class="font-manrope text-sm font-medium">BG Remover</span>
+                    </a>
+
+                    {{-- <a href="{{ route('admin.bg-removed-images.index') }}" wire:navigate
+                        wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                        class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                        <span class="material-symbols-outlined shrink-0 text-[20px]">photo_library</span>
+                        <span class="font-manrope text-sm font-medium">BG Removed Images</span>
+                    </a>
+
+                    <a href="{{ route('admin.resized-images.index') }}" wire:navigate
+                        wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                        class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                        <span class="material-symbols-outlined shrink-0 text-[20px]">photo_library</span>
+                        <span class="font-manrope text-sm font-medium">Resized Images</span>
                     </a> --}}
                 </div>
             </div>
@@ -314,6 +337,15 @@ new class extends Component {
                 <span class="material-symbols-outlined shrink-0">workspace_premium</span>
                 <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
                     Tool Plans
+                </span>
+            </a>
+
+            <a href="{{ route('admin.tool-subscriptions.index') }}" wire:navigate
+                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                <span class="material-symbols-outlined shrink-0">subscriptions</span>
+                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                    Subscriptions
                 </span>
             </a>
         </div>
