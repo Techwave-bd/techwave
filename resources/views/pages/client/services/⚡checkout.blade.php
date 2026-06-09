@@ -28,6 +28,8 @@ new #[Title('Checkout')] class extends Component {
     public string $company_name = '';
     public string $company_phone = '';
     public string $customer_address = '';
+    public string $sender_bkash = '';
+    public string $transaction_id = '';
 
 
     public function mount(string $slug, ServicePlan $plan): void
@@ -251,6 +253,8 @@ new #[Title('Checkout')] class extends Component {
                 'company_name' => ['required', 'string', 'max:255'],
                 'company_phone' => ['required', 'string', 'max:20', 'regex:/^(?:\+88|88)?01[3-9][0-9]{8}$/'],
                 'customer_address' => ['required', 'string', 'max:500'],
+                'sender_bkash' => ['required', 'string', 'max:20', 'regex:/^(?:\+88|88)?01[3-9][0-9]{8}$/'],
+                'transaction_id' => ['required', 'string', 'max:50'],
                 'selectedAddonIds' => ['nullable', 'array'],
                 'selectedAddonIds.*' => ['integer', 'exists:plan_addons,id'],
             ],
@@ -258,6 +262,9 @@ new #[Title('Checkout')] class extends Component {
                 'phone.regex' => 'Please enter a valid Bangladeshi phone number.',
                 'company_phone.regex' => 'Please enter a valid Bangladeshi company phone number.',
                 'customer_address.required' => 'Please enter your company address.',
+                'sender_bkash.required' => 'Please enter your bKash number.',
+                'sender_bkash.regex' => 'Please enter a valid Bangladeshi bKash number.',
+                'transaction_id.required' => 'Please enter the transaction ID.',
             ],
         );
 
@@ -292,6 +299,8 @@ new #[Title('Checkout')] class extends Component {
             'quoted_price' => null,
             'final_price' => $this->grandTotal(),
             'addons' => $selectedAddons,
+            'sender_bkash' => $validated['sender_bkash'],
+            'transaction_id' => $validated['transaction_id'],
             'currency' => 'BDT',
             'message' => $this->buildMessageWithAddress($validated['customer_address']),
             'admin_note' => null,
@@ -302,7 +311,7 @@ new #[Title('Checkout')] class extends Component {
 
         $this->dispatch('toast', message: 'Your booking request has been submitted successfully. Our team will review your request and convert it to an order upon approval.', type: 'success');
 
-        $this->redirectRoute('services.booking-success', ['booking' => $booking], navigate: true);
+        $this->redirectRoute('client.services.booking-success', ['booking' => $booking], navigate: true);
     }
 
     private function buildMessageWithAddress(string $address): string
@@ -312,7 +321,8 @@ new #[Title('Checkout')] class extends Component {
 };
 ?>
 
-<section class="min-h-screen py-10 text-white">
+<div>
+    <section class="min-h-screen py-10 text-white">
         <div class="mx-auto max-w-350 px-4 sm:px-6 lg:px-8">
 
             <div class="mb-8 flex items-center justify-between">
@@ -621,6 +631,73 @@ new #[Title('Checkout')] class extends Component {
                                 </div>
                             </div>
                         </div>
+
+                        {{-- bKash Payment --}}
+                        <div
+                            class="rounded-3xl border border-blue-100/10 bg-white/5 p-6 shadow-2xl shadow-blue-950/20 backdrop-blur-xl sm:p-8">
+                            <div class="mb-6 flex items-start gap-4">
+                                <div
+                                    class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
+                                    <span class="material-symbols-outlined">payments</span>
+                                </div>
+
+                                <div>
+                                    <h2 class="text-xl font-bold">Pay with bKash</h2>
+                                    <p class="mt-1 text-sm text-blue-100/55">
+                                        Send the amount to our bKash number and enter your transaction details.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="mb-6 overflow-hidden rounded-2xl border border-emerald-400/15 bg-emerald-400/5">
+                                <div class="bg-emerald-400/10 px-5 py-3">
+                                    <p class="text-xs font-bold uppercase tracking-wider text-emerald-300">Send Money To
+                                    </p>
+                                </div>
+                                <div class="p-5">
+                                    <p class="text-2xl font-extrabold tracking-wider text-white">
+                                        {{ $siteSetting->bkash_number ?? 'Not set' }}</p>
+                                    <p class="mt-1 text-sm text-blue-100/50">bKash Merchant Number</p>
+                                    <div class="mt-4 flex items-baseline gap-1">
+                                        <span
+                                            class="text-3xl font-extrabold text-white">৳{{ number_format($this->grandTotal() ?? 0, 0) }}</span>
+                                        <span class="text-sm text-blue-100/45">BDT</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-5 sm:grid-cols-2">
+                                <div>
+                                    <label for="sender_bkash"
+                                        class="mb-2 block text-sm font-semibold text-blue-100/80">
+                                        Your bKash Number <span class="text-red-300">*</span>
+                                    </label>
+
+                                    <input id="sender_bkash" type="text" wire:model.live="sender_bkash"
+                                        placeholder="01XXXXXXXXX"
+                                        class="w-full rounded-2xl border border-blue-100/10 bg-white/10 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-blue-100/35 focus:border-emerald-400/60 focus:bg-white/15">
+
+                                    @error('sender_bkash')
+                                        <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                    @enderror
+                                </div>
+
+                                <div>
+                                    <label for="transaction_id"
+                                        class="mb-2 block text-sm font-semibold text-blue-100/80">
+                                        bKash Transaction ID <span class="text-red-300">*</span>
+                                    </label>
+
+                                    <input id="transaction_id" type="text" wire:model.live="transaction_id"
+                                        placeholder="Enter the TrxID from your bKash app"
+                                        class="w-full rounded-2xl border border-blue-100/10 bg-white/10 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-blue-100/35 focus:border-emerald-400/60 focus:bg-white/15">
+
+                                    @error('transaction_id')
+                                        <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                    @enderror
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {{-- Right: Summary --}}
@@ -757,3 +834,4 @@ new #[Title('Checkout')] class extends Component {
             </form>
         </div>
     </section>
+</div>
