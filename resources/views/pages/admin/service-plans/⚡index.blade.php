@@ -64,7 +64,6 @@ new #[Layout('layouts.admin-app')] #[Title('Service Plans')] class extends Compo
             ->when($this->serviceFilter !== 'all', function ($query) {
                 $query->where('service_id', $this->serviceFilter);
             })
-            ->orderBy('sort_order')
             ->latest()
             ->paginate($this->perPage);
     }

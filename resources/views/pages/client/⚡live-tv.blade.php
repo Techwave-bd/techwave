@@ -32,7 +32,7 @@ new #[Title('Live TV')] class extends Component {
 ?>
 
 <div class="min-h-screen text-white" x-data="liveTv()">
-    <main class="relative mx-auto max-w-350 px-4 py-10 sm:px-6 lg:px-8">
+    <section class="relative mx-auto max-w-350 px-4 py-10 sm:px-6 lg:px-8">
 
         <template x-if="!enabled">
             <div class="flex flex-col items-center justify-center py-32 text-center">
@@ -149,7 +149,7 @@ new #[Title('Live TV')] class extends Component {
                 </div>
             </div>
         </template>
-    </main>
+    </section>
 
     @push('scripts')
         <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
