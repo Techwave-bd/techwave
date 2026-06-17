@@ -117,4 +117,21 @@ class User extends Authenticatable implements MustVerifyEmail
 
         return $category->free_max_file_upload ?? 30;
     }
+
+    // public function hasActiveToolSubscriptionForSlug(string $categorySlug): bool
+    // {
+    //     $category = ToolCategory::query()->where('slug', $categorySlug)->first();
+
+    //     return $this->hasActiveToolSubscription($category);
+    // }
+
+    public function savedInvoiceProducts()
+    {
+        return $this->hasMany(SavedInvoiceProduct::class);
+    }
+
+    public function customers()
+    {
+        return $this->hasMany(Customer::class);
+    }
 }

@@ -249,6 +249,7 @@ new class extends Component {
                     Tool Categories
                 </span>
             </a>
+            
 
             <a href="{{ route('admin.tools.index') }}" wire:navigate
                 wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
@@ -256,6 +257,24 @@ new class extends Component {
                 <span class="material-symbols-outlined shrink-0">handyman</span>
                 <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
                     Tools
+                </span>
+            </a>
+
+                        <a href="{{ route('admin.tool-plans.index') }}" wire:navigate
+                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                <span class="material-symbols-outlined shrink-0">workspace_premium</span>
+                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                    Tool Plans
+                </span>
+            </a>
+
+            <a href="{{ route('admin.invoice-themes.index') }}" wire:navigate
+                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                <span class="material-symbols-outlined shrink-0">receipt_long</span>
+                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                    Invoice Themes
                 </span>
             </a>
 
@@ -330,15 +349,6 @@ new class extends Component {
                     PDF Tools
                 </span>
             </a> --}}
-
-            <a href="{{ route('admin.tool-plans.index') }}" wire:navigate
-                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
-                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
-                <span class="material-symbols-outlined shrink-0">workspace_premium</span>
-                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
-                    Tool Plans
-                </span>
-            </a>
 
             <a href="{{ route('admin.tool-subscriptions.index') }}" wire:navigate
                 wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"

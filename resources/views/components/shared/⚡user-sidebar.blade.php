@@ -111,6 +111,13 @@ new class extends Component {
                 </span>
                 <span>Services / Plans</span>
             </a>
+            <a href="{{ route('account.tool-subscriptions') }}" wire:navigate wire:current.exact="client-dash-link-active"
+                class="client-dash-link">
+                <span class="client-dash-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-toolbox-icon lucide-toolbox"><path d="M16 12v4"/><path d="M16 6a2 2 0 0 1 1.414.586l4 4A2 2 0 0 1 22 12v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 .586-1.414l4-4A2 2 0 0 1 8 6z"/><path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M2 14h20"/><path d="M8 12v4"/></svg>
+                </span>
+                <span>Tool Subscriptions</span>
+            </a>
 
             <a href="{{ route('client.tickets.index') }}" wire:navigate wire:current.exact="client-dash-link-active"
                 class="client-dash-link">

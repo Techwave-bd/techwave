@@ -95,6 +95,9 @@ Route::livewire('/tools/image-compressor', 'pages::client.tools.image.image-comp
 Route::livewire('/tools/bg-remover', 'pages::client.tools.image.bg-remover')->name('client.tools.bg-remover');
 Route::livewire('/tools/image-resizer', 'pages::client.tools.image.image-resizer')->name('client.tools.image-resizer');
 
+// Business Tools
+Route::livewire('/tools/invoice-generator', 'pages::client.tools.invoice.invoice-generator')->name('client.tools.invoice-generator');
+
 // Blogs
 Route::livewire('/blogs', 'pages::client.blogs.index')->name('client.blogs');
 Route::livewire('/blogs/{slug}', 'pages::client.blogs.details')->name('client.blogs.details');
@@ -253,7 +256,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,manager,
     Route::livewire('/service-plans/{servicePlan}/edit', 'pages::admin.service-plans.edit')->name('service-plans.edit');
 
     // Service plan addons
-    Route::livewire('/plan-addons', 'pages::admin.plan-addons.index')->name('plan-addons.index'); 
+    Route::livewire('/plan-addons', 'pages::admin.plan-addons.index')->name('plan-addons.index');
 
     // Proposal management
     Route::livewire('/proposals', 'pages::admin.proposals.index')->name('proposals.index');
@@ -312,7 +315,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,manager,
     // Compressed Images Gallery
     Route::livewire('/compressed-images', 'pages::admin.compressed-images.index')->name('compressed-images.index');
 
-    
+    // Invoice theme management
+    Route::livewire('/invoice-themes', 'pages::admin.invoice-themes.index')->name('invoice-themes.index');
+    Route::livewire('/invoice-themes/create', 'pages::admin.invoice-themes.create')->name('invoice-themes.create');
+    Route::livewire('/invoice-themes/{invoiceTheme}/edit', 'pages::admin.invoice-themes.edit')->name('invoice-themes.edit');
+
+
     // Live TV Channels
     Route::livewire('/live-tv-channels', 'pages::admin.live-tv-channels.index')->name('live-tv-channels.index');
     Route::livewire('/live-tv-channels/create', 'pages::admin.live-tv-channels.create')->name('live-tv-channels.create');
