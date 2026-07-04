@@ -111,6 +111,7 @@ new class extends Component {
                 </span>
                 <span>Services / Plans</span>
             </a>
+
             <a href="{{ route('account.tool-subscriptions') }}" wire:navigate wire:current.exact="client-dash-link-active"
                 class="client-dash-link">
                 <span class="client-dash-icon">
@@ -210,6 +211,21 @@ new class extends Component {
                     </div>
                 </div>
             @endif
+
+            <a href="{{ route('account.vcards') }}" wire:navigate wire:current.exact="client-dash-link-active"
+                class="client-dash-link">
+                <span class="client-dash-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect width="16" height="18" x="4" y="3" rx="2" />
+                        <line x1="8" y1="21" x2="16" y2="21" />
+                        <line x1="12" y1="3" x2="12" y2="21" />
+                        <line x1="8" y1="9" x2="16" y2="9" />
+                        <line x1="8" y1="13" x2="16" y2="13" />
+                    </svg>
+                </span>
+                <span>My vCards</span>
+            </a>
 
             <a href="{{ route('account.change-password') }}" wire:navigate wire:current.exact="client-dash-link-active"
                 class="client-dash-link">

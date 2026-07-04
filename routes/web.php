@@ -102,6 +102,12 @@ Route::livewire('/tools/invoice-generator/create/{invoiceTheme:slug}', 'pages::c
 // QR Code tools
 Route::livewire('/tools/qr-code-generator', 'pages::client.tools.qr-code.qr-code-generator')->name('client.tools.qr-code-generator');
 
+// Virtual Card tools
+Route::livewire('/tools/vcard-generator', 'pages::client.tools.v-card.vcard-generator')->name('client.tools.vcard-generator');
+
+// Public vCard
+Route::livewire('/vcard/{slug}', 'pages::client.tools.v-card.show')->name('vcard.public.show');
+
 // Blogs
 Route::livewire('/blogs', 'pages::client.blogs.index')->name('client.blogs');
 Route::livewire('/blogs/{slug}', 'pages::client.blogs.details')->name('client.blogs.details');
@@ -178,6 +184,9 @@ Route::middleware(['auth', 'verified', 'role:client,admin'])->group(function () 
     Route::post('/bg-removed-images', [BgRemovedImageController::class, 'store'])->name('bg-removed-images.store');
 
     Route::get('/resized-images/{path}', [ResizedImageController::class, 'show'])->where('path', '.*')->name('storage.resized-images');
+
+    // virtual card management 
+    Route::livewire('/account/vcards', 'pages::client.account.v-card.vcards')->name('account.vcards');
 });
 
 Route::match(['get', 'post'], '/sslcommerz/success', [SslCommerzController::class, 'success'])
