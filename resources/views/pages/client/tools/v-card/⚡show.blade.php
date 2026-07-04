@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-new #[Layout('layouts.vcard')] class extends Component {
+new #[Layout('layouts::vcard')] class extends Component {
     public Vcard $vcard;
 
     /** @var array<string, mixed> */
@@ -81,14 +81,14 @@ new #[Layout('layouts.vcard')] class extends Component {
 
     public function socialUsesBrandIcon(string $platform): bool
     {
-        $value = (string) (($this->data['socialCustomIcons'][$platform] ?? null) ?: ('brand:' . $platform));
+        $value = (string) ($this->data['socialCustomIcons'][$platform] ?? null ?: 'brand:' . $platform);
 
         return str_starts_with($value, 'brand:');
     }
 
     public function socialDisplayBrand(string $platform): string
     {
-        $value = (string) (($this->data['socialCustomIcons'][$platform] ?? null) ?: ('brand:' . $platform));
+        $value = (string) ($this->data['socialCustomIcons'][$platform] ?? null ?: 'brand:' . $platform);
 
         if (!str_starts_with($value, 'brand:')) {
             return $platform;
@@ -108,7 +108,7 @@ new #[Layout('layouts.vcard')] class extends Component {
 
     public function socialMaterialIcon(string $platform): string
     {
-        $value = (string) (($this->data['socialCustomIcons'][$platform] ?? null) ?: 'share');
+        $value = (string) ($this->data['socialCustomIcons'][$platform] ?? null ?: 'share');
 
         return str_starts_with($value, 'brand:') ? 'share' : $value;
     }
@@ -134,7 +134,7 @@ new #[Layout('layouts.vcard')] class extends Component {
         $first = strtoupper(substr($this->data['firstName'] ?? '', 0, 1));
         $last = strtoupper(substr($this->data['lastName'] ?? '', 0, 1));
 
-        return ($first . $last) ?: '?';
+        return $first . $last ?: '?';
     }
 
     /**
@@ -155,16 +155,9 @@ new #[Layout('layouts.vcard')] class extends Component {
             'lastName' => $vcard->last_name ?? '',
             'designation' => $this->getStoredValue($vcard, 'designation', $vcard->job_title ?? ''),
             'aboutMe' => $this->getStoredValue($vcard, 'about_me', $vcard->note ?? ''),
-            'phones' => $this->getStoredArray($vcard, 'phones', array_values(array_filter([
-                $vcard->phone_mobile ? ['type' => 'mobile', 'label' => 'Mobile', 'value' => $vcard->phone_mobile, 'icon' => 'call'] : null,
-                $vcard->phone_work ? ['type' => 'work', 'label' => 'Work', 'value' => $vcard->phone_work, 'icon' => 'work'] : null,
-            ]))),
-            'emails' => $this->getStoredArray($vcard, 'emails', array_values(array_filter([
-                $vcard->email ? ['label' => 'Email', 'value' => $vcard->email, 'icon' => 'mail'] : null,
-            ]))),
-            'sites' => $this->getStoredArray($vcard, 'sites', array_values(array_filter([
-                $vcard->website ? ['label' => 'Website', 'value' => $vcard->website, 'icon' => 'language'] : null,
-            ]))),
+            'phones' => $this->getStoredArray($vcard, 'phones', array_values(array_filter([$vcard->phone_mobile ? ['type' => 'mobile', 'label' => 'Mobile', 'value' => $vcard->phone_mobile, 'icon' => 'call'] : null, $vcard->phone_work ? ['type' => 'work', 'label' => 'Work', 'value' => $vcard->phone_work, 'icon' => 'work'] : null]))),
+            'emails' => $this->getStoredArray($vcard, 'emails', array_values(array_filter([$vcard->email ? ['label' => 'Email', 'value' => $vcard->email, 'icon' => 'mail'] : null]))),
+            'sites' => $this->getStoredArray($vcard, 'sites', array_values(array_filter([$vcard->website ? ['label' => 'Website', 'value' => $vcard->website, 'icon' => 'language'] : null]))),
             'street' => $this->getStoredValue($vcard, 'street', ''),
             'city' => $this->getStoredValue($vcard, 'city', ''),
             'state' => $this->getStoredValue($vcard, 'state', ''),
@@ -175,18 +168,21 @@ new #[Layout('layouts.vcard')] class extends Component {
             'locationUrl' => $this->getStoredValue($vcard, 'location_url', ''),
             'latitude' => $this->getStoredValue($vcard, 'latitude', ''),
             'longitude' => $this->getStoredValue($vcard, 'longitude', ''),
-            'companies' => $this->getStoredArray($vcard, 'companies', array_values(array_filter([
-                ($vcard->company || $vcard->job_title) ? ['company_name' => $vcard->company ?? '', 'profession' => $vcard->job_title ?? '', 'icon' => 'business_center'] : null,
-            ]))),
-            'socialLinks' => array_filter(array_merge(
-                $this->getStoredArray($vcard, 'social_links', []),
-                array_filter([
-                    'facebook' => $this->getStoredValue($vcard, 'facebook', ''),
-                    'linkedin' => $this->getStoredValue($vcard, 'linkedin', ''),
-                    'twitter' => $this->getStoredValue($vcard, 'twitter', ''),
-                    'instagram' => $this->getStoredValue($vcard, 'instagram', ''),
-                ], fn($v) => filled($v)),
-            )),
+            'companies' => $this->getStoredArray($vcard, 'companies', array_values(array_filter([$vcard->company || $vcard->job_title ? ['company_name' => $vcard->company ?? '', 'profession' => $vcard->job_title ?? '', 'icon' => 'business_center'] : null]))),
+            'socialLinks' => array_filter(
+                array_merge(
+                    $this->getStoredArray($vcard, 'social_links', []),
+                    array_filter(
+                        [
+                            'facebook' => $this->getStoredValue($vcard, 'facebook', ''),
+                            'linkedin' => $this->getStoredValue($vcard, 'linkedin', ''),
+                            'twitter' => $this->getStoredValue($vcard, 'twitter', ''),
+                            'instagram' => $this->getStoredValue($vcard, 'instagram', ''),
+                        ],
+                        fn($v) => filled($v),
+                    ),
+                ),
+            ),
             'showSocialName' => (bool) $this->getStoredValue($vcard, 'show_social_name', false),
             'showSocialAsCards' => (bool) $this->getStoredValue($vcard, 'show_social_as_cards', false),
             'socialIconMode' => $this->getStoredArray($vcard, 'social_icon_mode', []),
@@ -319,10 +315,32 @@ new #[Layout('layouts.vcard')] class extends Component {
             href="https://fonts.googleapis.com/css2?family={{ str_replace('%2B', '+', urlencode($data['fontFamily'])) }}:wght@300;400;500;600;700;800;900&display=swap"
             rel="stylesheet">
     @endif
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+        rel="stylesheet">
     <meta name="description" content="Digital business card for {{ $this->fullName }}">
 @endpush
 
 <style>
+    .material-symbols-outlined {
+        font-family: 'Material Symbols Outlined' !important;
+        font-weight: normal;
+        font-style: normal;
+        font-size: 24px;
+        line-height: 1;
+        letter-spacing: normal;
+        text-transform: none;
+        display: inline-block;
+        white-space: nowrap;
+        word-wrap: normal;
+        direction: ltr;
+        -webkit-font-feature-settings: 'liga';
+        -webkit-font-smoothing: antialiased;
+        font-feature-settings: 'liga';
+    }
+
     @keyframes publicVcardLoadingBar {
         from {
             width: 0
@@ -360,6 +378,7 @@ new #[Layout('layouts.vcard')] class extends Component {
     }
 
     @keyframes publicVcardPulseGlow {
+
         0%,
         100% {
             transform: scale(1);
@@ -375,14 +394,27 @@ new #[Layout('layouts.vcard')] class extends Component {
 
 @php
     $templates = [
-        'modern-banner-center' => ['has_banner' => true, 'avatar_position' => 'center-over-banner', 'effect' => 'normal'],
+        'modern-banner-center' => [
+            'has_banner' => true,
+            'avatar_position' => 'center-over-banner',
+            'effect' => 'normal',
+        ],
         'modern-banner-left' => ['has_banner' => true, 'avatar_position' => 'left-over-banner', 'effect' => 'normal'],
         'clean-no-banner' => ['has_banner' => false, 'avatar_position' => 'top-center', 'effect' => 'normal'],
         'minimal-left' => ['has_banner' => false, 'avatar_position' => 'left-inline', 'effect' => 'normal'],
         'dark-banner' => ['has_banner' => true, 'avatar_position' => 'center-over-banner', 'effect' => 'normal'],
-        'user-image-banner' => ['has_banner' => true, 'avatar_position' => 'banner-profile-cover', 'use_profile_as_banner' => true, 'effect' => 'hero-portrait'],
+        'user-image-banner' => [
+            'has_banner' => true,
+            'avatar_position' => 'banner-profile-cover',
+            'use_profile_as_banner' => true,
+            'effect' => 'hero-portrait',
+        ],
         'creative-square' => ['has_banner' => false, 'avatar_position' => 'square-top', 'effect' => 'normal'],
-        'water-glass-card' => ['has_banner' => true, 'avatar_position' => 'center-over-banner', 'effect' => 'water-glass'],
+        'water-glass-card' => [
+            'has_banner' => true,
+            'avatar_position' => 'center-over-banner',
+            'effect' => 'water-glass',
+        ],
         'glassmorphism-card' => ['has_banner' => false, 'avatar_position' => 'top-center', 'effect' => 'glassmorphism'],
     ];
 
@@ -392,7 +424,9 @@ new #[Layout('layouts.vcard')] class extends Component {
     $templateEffect = $activeTemplate['effect'] ?? 'normal';
     $useProfileAsBanner = (bool) ($activeTemplate['use_profile_as_banner'] ?? false);
     $isWaterGlass = $templateEffect === 'water-glass';
-    $isGlass = ($data['fieldShadow'] ?? 'soft') === 'glass' || in_array($templateEffect, ['water-glass', 'glassmorphism'], true);
+    $isGlass =
+        ($data['fieldShadow'] ?? 'soft') === 'glass' ||
+        in_array($templateEffect, ['water-glass', 'glassmorphism'], true);
 
     $normalizeHex = function ($color, $fallback = '#ffffff') {
         $color = trim((string) $color);
@@ -403,20 +437,24 @@ new #[Layout('layouts.vcard')] class extends Component {
         $r = hexdec(substr($hex, 0, 2));
         $g = hexdec(substr($hex, 2, 2));
         $b = hexdec(substr($hex, 4, 2));
-        return (($r * 299 + $g * 587 + $b * 114) / 1000) < 145;
+        return ($r * 299 + $g * 587 + $b * 114) / 1000 < 145;
     };
 
     $accent = $normalizeHex($data['accentColor'] ?? '#06b6d4', '#06b6d4');
     $cardBg = $normalizeHex($data['cardBg'] ?? '#ffffff', '#ffffff');
     $pageBg = $normalizeHex($data['bgColor'] ?? '#0f172a', '#0f172a');
     $darkCard = $isGlass || $isDark($cardBg);
-    $text = $isGlass ? '#ffffff' : $normalizeHex($data['textColor'] ?? ($darkCard ? '#ffffff' : '#111827'), $darkCard ? '#ffffff' : '#111827');
+    $text = $isGlass
+        ? '#ffffff'
+        : $normalizeHex($data['textColor'] ?? ($darkCard ? '#ffffff' : '#111827'), $darkCard ? '#ffffff' : '#111827');
     $muted = $darkCard ? 'rgba(255,255,255,.72)' : '#64748b';
     $fieldBg = $darkCard ? 'rgba(255,255,255,.07)' : '#ffffff';
-    $fieldBorderColor = $darkCard ? 'rgba(255,255,255,.14)' : ($data['fieldBorderColor'] ?? '#e2e8f0');
+    $fieldBorderColor = $darkCard ? 'rgba(255,255,255,.14)' : $data['fieldBorderColor'] ?? '#e2e8f0';
     $fieldRadius = min(32, max(0, (int) ($data['fieldBorderRadius'] ?? 12)));
     $fieldWidth = min(10, max(0, (int) ($data['fieldBorderWidth'] ?? 1)));
-    $fieldStyle = in_array(($data['fieldBorderStyle'] ?? 'solid'), ['solid', 'dashed', 'dotted', 'none'], true) ? $data['fieldBorderStyle'] : 'solid';
+    $fieldStyle = in_array($data['fieldBorderStyle'] ?? 'solid', ['solid', 'dashed', 'dotted', 'none'], true)
+        ? $data['fieldBorderStyle']
+        : 'solid';
     $fieldShadow = $data['fieldShadow'] ?? 'soft';
     $fieldShadowCss = match ($fieldShadow) {
         'none' => 'none',
@@ -424,48 +462,96 @@ new #[Layout('layouts.vcard')] class extends Component {
         'glass' => 'inset 0 1px 0 rgba(255,255,255,.35), 0 18px 45px rgba(15,23,42,.22)',
         default => '0 1px 3px rgba(15,23,42,.10)',
     };
-    $fieldCardStyle = 'border:' . ($fieldStyle === 'none' ? '0' : $fieldWidth . 'px ' . $fieldStyle . ' ' . $fieldBorderColor) . '; border-radius:' . $fieldRadius . 'px; background:' . ($isGlass ? 'linear-gradient(135deg,rgba(255,255,255,.24),rgba(255,255,255,.09))' : $fieldBg) . '; box-shadow:' . $fieldShadowCss . ';' . ($isGlass ? 'backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);' : '');
-    $iconStyle = $isGlass ? 'background:rgba(255,255,255,.18);color:#fff;' : 'background:' . ($darkCard ? 'rgba(255,255,255,.10)' : $accent . '18') . ';color:' . $accent . ';';
+    $fieldCardStyle =
+        'border:' .
+        ($fieldStyle === 'none' ? '0' : $fieldWidth . 'px ' . $fieldStyle . ' ' . $fieldBorderColor) .
+        '; border-radius:' .
+        $fieldRadius .
+        'px; background:' .
+        ($isGlass ? 'linear-gradient(135deg,rgba(255,255,255,.24),rgba(255,255,255,.09))' : $fieldBg) .
+        '; box-shadow:' .
+        $fieldShadowCss .
+        ';' .
+        ($isGlass
+            ? 'backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);'
+            : '');
+    $iconStyle = $isGlass
+        ? 'background:rgba(255,255,255,.18);color:#fff;'
+        : 'background:' . ($darkCard ? 'rgba(255,255,255,.10)' : $accent . '18') . ';color:' . $accent . ';';
 
     $avatarRadiusValue = min(56, max(0, (int) ($data['avatarBorderRadius'] ?? 56)));
     $avatarRadius = $avatarRadiusValue >= 56 ? '999px' : $avatarRadiusValue . 'px';
     $ringEnabled = (bool) ($data['avatarRingEnabled'] ?? true);
     $ringWidth = min(12, max(0, (int) ($data['avatarRingWidth'] ?? 4)));
     $ringColor = $data['avatarRingColor'] ?? '#ffffff';
-    $avatarStyle = 'border-radius:' . $avatarRadius . ';' . ($ringEnabled ? 'border:' . $ringWidth . 'px solid ' . $ringColor . ';' : 'border:0;') . 'box-shadow:0 18px 40px rgba(15,23,42,.22);';
+    $avatarStyle =
+        'border-radius:' .
+        $avatarRadius .
+        ';' .
+        ($ringEnabled ? 'border:' . $ringWidth . 'px solid ' . $ringColor . ';' : 'border:0;') .
+        'box-shadow:0 18px 40px rgba(15,23,42,.22);';
 
     $profileUrl = filled($data['profilePath'] ?? null) ? Storage::url($data['profilePath']) : null;
     $bannerUrl = filled($data['bannerPath'] ?? null) ? Storage::url($data['bannerPath']) : null;
     $bannerImage = $useProfileAsBanner && $profileUrl ? $profileUrl : $bannerUrl;
     $showHeaderAvatar = !($useProfileAsBanner && $profileUrl);
 
-    $phones = collect($data['phones'] ?? [])->filter(fn($x) => filled($x['value'] ?? ''))->values();
-    $emails = collect($data['emails'] ?? [])->filter(fn($x) => filled($x['value'] ?? ''))->values();
-    $sites = collect($data['sites'] ?? [])->filter(fn($x) => filled($x['value'] ?? ''))->values();
-    $companies = collect($data['companies'] ?? [])->filter(fn($x) => filled($x['company_name'] ?? '') || filled($x['profession'] ?? ''))->values();
+    $phones = collect($data['phones'] ?? [])
+        ->filter(fn($x) => filled($x['value'] ?? ''))
+        ->values();
+    $emails = collect($data['emails'] ?? [])
+        ->filter(fn($x) => filled($x['value'] ?? ''))
+        ->values();
+    $sites = collect($data['sites'] ?? [])
+        ->filter(fn($x) => filled($x['value'] ?? ''))
+        ->values();
+    $companies = collect($data['companies'] ?? [])
+        ->filter(fn($x) => filled($x['company_name'] ?? '') || filled($x['profession'] ?? ''))
+        ->values();
     $socialLinks = array_filter($data['socialLinks'] ?? []);
     $sectionOrder = $data['previewSectionOrder'] ?? ['phones', 'emails', 'sites', 'location', 'companies', 'social'];
 
-    $address = trim(implode(', ', array_filter([$data['street'] ?? '', $data['city'] ?? '', $data['state'] ?? '', $data['zip'] ?? '', $data['country'] ?? ''])));
-    $coordinates = trim(($data['latitude'] ?? '') . (filled($data['latitude'] ?? '') && filled($data['longitude'] ?? '') ? ', ' : '') . ($data['longitude'] ?? ''));
-    $locationHref = filled($data['locationUrl'] ?? '') ? $data['locationUrl'] : ($coordinates ? 'https://www.google.com/maps/search/?api=1&query=' . urlencode($coordinates) : ($address ? 'https://www.google.com/maps/search/?api=1&query=' . urlencode($address) : ''));
+    $address = trim(
+        implode(
+            ', ',
+            array_filter([
+                $data['street'] ?? '',
+                $data['city'] ?? '',
+                $data['state'] ?? '',
+                $data['zip'] ?? '',
+                $data['country'] ?? '',
+            ]),
+        ),
+    );
+    $coordinates = trim(
+        ($data['latitude'] ?? '') .
+            (filled($data['latitude'] ?? '') && filled($data['longitude'] ?? '') ? ', ' : '') .
+            ($data['longitude'] ?? ''),
+    );
+    $locationHref = filled($data['locationUrl'] ?? '')
+        ? $data['locationUrl']
+        : ($coordinates
+            ? 'https://www.google.com/maps/search/?api=1&query=' . urlencode($coordinates)
+            : ($address
+                ? 'https://www.google.com/maps/search/?api=1&query=' . urlencode($address)
+                : ''));
     $locationDisplay = $address ?: ($coordinates ?: (filled($data['locationUrl'] ?? '') ? 'Show on map' : ''));
     $firstPhone = $phones->first();
     $firstEmail = $emails->first();
 @endphp
 
-<div class="min-h-screen px-3 py-6 sm:px-5 sm:py-10"
+<div class="min-h-screen p-0 sm:px-5 sm:py-10"
     style="background:{{ $pageBg }};font-family:'{{ $data['fontFamily'] ?? 'Poppins' }}',sans-serif;">
-    <div class="mx-auto w-full max-w-[350px]">
+    <div class="mx-auto min-h-screen w-full sm:min-h-0 sm:max-w-[350px]">
         <div
-            class="relative rounded-[2.35rem] border border-white/15 bg-white/10 p-2 shadow-2xl ring-1 ring-white/15 backdrop-blur-2xl">
-            <div x-data="{showLoader:@js((bool) ($data['loadingScreenEnabled'] ?? false)),seconds:{{ (int) ($data['loadingTime'] ?? 2) }},init(){if(this.showLoader)setTimeout(()=>this.showLoader=false,this.seconds*1000)}}"
-                class="relative max-h-[calc(100vh-3rem)] overflow-y-auto rounded-[1.9rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            class="relative min-h-screen w-full border-0 bg-transparent p-0 shadow-none ring-0 sm:min-h-0 sm:rounded-[2.35rem] sm:border sm:border-white/15 sm:bg-white/10 sm:p-2 sm:shadow-2xl sm:ring-1 sm:ring-white/15 sm:backdrop-blur-2xl">
+            <div x-data="{ showLoader: @js((bool) ($data['loadingScreenEnabled'] ?? false)), seconds: {{ (int) ($data['loadingTime'] ?? 2) }}, init() { if (this.showLoader) setTimeout(() => this.showLoader = false, this.seconds * 1000) } }"
+                class="relative min-h-screen w-full overflow-visible rounded-none sm:min-h-0 sm:overflow-hidden sm:rounded-[1.9rem]"
                 style="{{ $isWaterGlass ? 'background:radial-gradient(circle at 18% 0%,rgba(125,211,252,.50),transparent 34%),radial-gradient(circle at 90% 16%,rgba(34,211,238,.30),transparent 30%),linear-gradient(160deg,rgba(8,47,73,.96),rgba(15,23,42,.90));' : ($isGlass ? 'background:radial-gradient(circle at 20% 0%,rgba(56,189,248,.30),transparent 34%),radial-gradient(circle at 90% 12%,rgba(167,139,250,.32),transparent 30%),linear-gradient(160deg,rgba(15,23,42,.96),rgba(30,41,59,.90));' : 'background:' . $cardBg . ';') }}color:{{ $text }};">
 
-                @if (($data['loadingScreenEnabled'] ?? false))
+                @if ($data['loadingScreenEnabled'] ?? false)
                     <div x-show="showLoader" x-transition.opacity
-                        class="absolute inset-0 z-50 grid place-items-center rounded-[1.9rem] px-8 text-center backdrop-blur-xl"
+                        class="absolute inset-0 z-50 grid place-items-center rounded-none px-8 sm:rounded-[1.9rem] text-center backdrop-blur-xl"
                         style="background:linear-gradient(160deg,rgba(2,6,23,.92),rgba(15,23,42,.88));">
                         <div class="w-full max-w-[220px]">
                             @if (filled($data['loadingPath'] ?? null))
@@ -506,10 +592,12 @@ new #[Layout('layouts.vcard')] class extends Component {
                 @endif
 
                 @if ($hasBanner)
-                    <div class="relative h-52 overflow-hidden rounded-t-[1.9rem]"
+                    <div class="relative h-52 overflow-hidden rounded-t-none sm:rounded-t-[1.9rem]"
                         style="background:linear-gradient(135deg,{{ $accent }},#f8fafc);">
-                        @if ($bannerImage)<img src="{{ $bannerImage }}" class="absolute inset-0 h-full w-full object-cover"
-                        alt="Banner">@endif
+                        @if ($bannerImage)
+                            <img src="{{ $bannerImage }}" class="absolute inset-0 h-full w-full object-cover"
+                                alt="Banner">
+                        @endif
                         <div
                             class="absolute inset-0 {{ $isGlass ? 'bg-gradient-to-b from-black/10 via-transparent to-slate-950/70' : 'bg-gradient-to-b from-black/5 via-transparent to-white' }}">
                         </div>
@@ -517,17 +605,19 @@ new #[Layout('layouts.vcard')] class extends Component {
                             <div
                                 class="absolute bottom-5 z-10 {{ $avatarPosition === 'center-over-banner' ? 'inset-x-0 flex justify-center' : 'left-5' }}">
                                 @if ($profileUrl)
-                                    <img src="{{ $profileUrl }}" class="h-24 w-24 object-cover" style="{{ $avatarStyle }}"
-                                        alt="{{ $this->fullName }}">
+                                    <img src="{{ $profileUrl }}" class="h-24 w-24 object-cover"
+                                        style="{{ $avatarStyle }}" alt="{{ $this->fullName }}">
                                 @else
                                     <div class="grid h-24 w-24 place-items-center text-2xl font-black text-white"
-                                        style="background:{{ $accent }};{{ $avatarStyle }}">{{ $this->initials }}</div>
+                                        style="background:{{ $accent }};{{ $avatarStyle }}">
+                                        {{ $this->initials }}</div>
                                 @endif
                             </div>
                         @elseif ($showHeaderAvatar && $avatarPosition === 'banner-profile-cover')
                             <div class="absolute inset-0 z-10 grid place-items-center">
                                 <div class="grid h-28 w-28 place-items-center text-3xl font-black text-white ring-8 ring-white/10"
-                                    style="background:{{ $accent }};{{ $avatarStyle }}">{{ $this->initials }}</div>
+                                    style="background:{{ $accent }};{{ $avatarStyle }}">{{ $this->initials }}
+                                </div>
                             </div>
                         @endif
                     </div>
@@ -535,43 +625,61 @@ new #[Layout('layouts.vcard')] class extends Component {
                     <div class="relative px-5 pt-6">
                         @if ($avatarPosition === 'left-inline')
                             <div class="flex items-center gap-4">
-                                @if ($profileUrl)<img src="{{ $profileUrl }}" class="h-20 w-20 object-cover"
-                                style="{{ $avatarStyle }}" alt="{{ $this->fullName }}">@else<div
+                                @if ($profileUrl)
+                                    <img src="{{ $profileUrl }}" class="h-20 w-20 object-cover"
+                                    style="{{ $avatarStyle }}" alt="{{ $this->fullName }}">@else<div
                                         class="grid h-20 w-20 place-items-center text-2xl font-black text-white"
-                                    style="background:{{ $accent }};{{ $avatarStyle }}">{{ $this->initials }}</div>@endif
+                                        style="background:{{ $accent }};{{ $avatarStyle }}">
+                                        {{ $this->initials }}</div>
+                                @endif
                             </div>
                         @else
-                            <div class="flex justify-center">@if ($profileUrl)<img src="{{ $profileUrl }}"
-                            class="h-28 w-28 object-cover" style="{{ $avatarStyle }}" alt="{{ $this->fullName }}">@else
-                                        <div class="grid h-28 w-28 place-items-center text-3xl font-black text-white"
-                                    style="background:{{ $accent }};{{ $avatarStyle }}">{{ $this->initials }}</div>@endif</div>
+                            <div class="flex justify-center">
+                                @if ($profileUrl)
+                                    <img src="{{ $profileUrl }}" class="h-28 w-28 object-cover"
+                                        style="{{ $avatarStyle }}" alt="{{ $this->fullName }}">
+                                @else
+                                    <div class="grid h-28 w-28 place-items-center text-3xl font-black text-white"
+                                        style="background:{{ $accent }};{{ $avatarStyle }}">
+                                        {{ $this->initials }}</div>
+                                @endif
+                            </div>
                         @endif
                     </div>
                 @endif
 
                 <div class="relative z-20 flex flex-col px-5 pb-12 {{ $hasBanner ? 'pt-4' : 'pt-5' }}">
                     <div class="{{ $avatarPosition === 'left-inline' && !$hasBanner ? 'mt-3' : '' }}">
-                        <h1 class="text-[22px] font-black leading-tight" style="color:{{ $text }}">{{ $this->fullName }}
+                        <h1 class="text-[22px] font-black leading-tight" style="color:{{ $text }}">
+                            {{ $this->fullName }}
                         </h1>
                         @if (filled($data['designation'] ?? ''))
-                            <p class="mt-1 text-xs font-semibold" style="color:{{ $muted }}">{{ $data['designation'] }}</p>
+                            <p class="mt-1 text-xs font-semibold" style="color:{{ $muted }}">
+                                {{ $data['designation'] }}</p>
                         @endif
                         @if (filled($data['aboutMe'] ?? ''))
-                        <p class="mt-4 text-sm leading-6" style="color:{{ $muted }}">{{ $data['aboutMe'] }}</p>@endif
+                            <p class="mt-4 text-sm leading-6" style="color:{{ $muted }}">{{ $data['aboutMe'] }}
+                            </p>
+                        @endif
                     </div>
 
                     @if (($data['contactButtonPosition'] ?? 'top') === 'top')
                         <div class="mt-5 flex items-center gap-3">
-                            <button wire:click="downloadVcf" class="rounded-full px-5 py-2.5 text-sm font-black shadow-lg"
+                            <button wire:click="downloadVcf"
+                                class="rounded-full px-5 py-2.5 text-sm font-black shadow-lg"
                                 style="background:{{ $accent }};color:{{ $data['buttonTextColor'] ?? '#fff' }}">{{ $data['contactButtonText'] ?? 'Save Contact' }}</button>
-                            @if ($firstPhone)<a href="tel:{{ $firstPhone['value'] }}"
-                                class="grid h-10 w-10 place-items-center rounded-full shadow-sm ring-1 ring-white/15"
-                                style="background:{{ $darkCard ? 'rgba(255,255,255,.10)' : '#fff' }};color:{{ $accent }}"><span
-                            class="material-symbols-outlined">call</span></a>@endif
-                            @if ($firstEmail)<a href="mailto:{{ $firstEmail['value'] }}"
-                                class="grid h-10 w-10 place-items-center rounded-full shadow-sm ring-1 ring-white/15"
-                                style="background:{{ $darkCard ? 'rgba(255,255,255,.10)' : '#fff' }};color:{{ $accent }}"><span
-                            class="material-symbols-outlined">mail</span></a>@endif
+                            @if ($firstPhone)
+                                <a href="tel:{{ $firstPhone['value'] }}"
+                                    class="grid h-10 w-10 place-items-center rounded-full shadow-sm ring-1 ring-white/15"
+                                    style="background:{{ $darkCard ? 'rgba(255,255,255,.10)' : '#fff' }};color:{{ $accent }}"><span
+                                        class="material-symbols-outlined">call</span></a>
+                            @endif
+                            @if ($firstEmail)
+                                <a href="mailto:{{ $firstEmail['value'] }}"
+                                    class="grid h-10 w-10 place-items-center rounded-full shadow-sm ring-1 ring-white/15"
+                                    style="background:{{ $darkCard ? 'rgba(255,255,255,.10)' : '#fff' }};color:{{ $accent }}"><span
+                                        class="material-symbols-outlined">mail</span></a>
+                            @endif
                         </div>
                     @endif
 
@@ -581,13 +689,16 @@ new #[Layout('layouts.vcard')] class extends Component {
                                 @foreach ($phones as $item)
                                     <a href="tel:{{ $item['value'] }}" class="flex items-center gap-3 px-3 py-3"
                                         style="{{ $fieldCardStyle }}">
-                                        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg" style="{{ $iconStyle }}">
-                                            <span class="material-symbols-outlined">{{ $item['icon'] ?? 'call' }}</span>
+                                        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
+                                            style="{{ $iconStyle }}">
+                                            <span
+                                                class="material-symbols-outlined">{{ $item['icon'] ?? 'call' }}</span>
                                         </div>
                                         <div class="min-w-0">
                                             <p class="text-[11px] font-black" style="color: {{ $muted }}">
                                                 {{ $item['label'] ?? 'Phone' }}</p>
-                                            <p class="truncate text-sm font-semibold" style="color: {{ $text }}">
+                                            <p class="truncate text-sm font-semibold"
+                                                style="color: {{ $text }}">
                                                 {{ $item['value'] }}</p>
                                         </div>
                                     </a>
@@ -596,36 +707,64 @@ new #[Layout('layouts.vcard')] class extends Component {
                                 @foreach ($emails as $item)
                                     <a href="mailto:{{ $item['value'] }}" class="flex items-center gap-3 px-3 py-3"
                                         style="{{ $fieldCardStyle }}">
-                                        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg" style="{{ $iconStyle }}">
-                                            <span class="material-symbols-outlined">{{ $item['icon'] ?? 'mail' }}</span>
+                                        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
+                                            style="{{ $iconStyle }}">
+                                            <span
+                                                class="material-symbols-outlined">{{ $item['icon'] ?? 'mail' }}</span>
                                         </div>
                                         <div class="min-w-0">
                                             <p class="text-[11px] font-black" style="color: {{ $muted }}">
                                                 {{ $item['label'] ?? 'Email' }}</p>
-                                            <p class="truncate text-sm font-semibold" style="color: {{ $text }}">
+                                            <p class="truncate text-sm font-semibold"
+                                                style="color: {{ $text }}">
                                                 {{ $item['value'] }}</p>
                                         </div>
                                     </a>
                                 @endforeach
                             @elseif ($section === 'sites')
                                 @foreach ($sites as $item)
-                                    <a href="{{ $item['value'] }}" target="_blank" rel="noopener"
+                                    @php
+                                        $websiteValue = trim((string) ($item['value'] ?? ''));
+
+                                        $websiteHref = $websiteValue;
+
+                                        if (
+                                            $websiteHref !== '' &&
+                                            !str_starts_with($websiteHref, 'http://') &&
+                                            !str_starts_with($websiteHref, 'https://') &&
+                                            !str_starts_with($websiteHref, '//')
+                                        ) {
+                                            $websiteHref = '//' . ltrim($websiteHref, '/');
+                                        }
+                                    @endphp
+
+                                    <a href="{{ $websiteHref }}" target="_blank" rel="noopener noreferrer"
                                         class="flex items-center gap-3 px-3 py-3" style="{{ $fieldCardStyle }}">
-                                        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg" style="{{ $iconStyle }}">
-                                            <span class="material-symbols-outlined">{{ $item['icon'] ?? 'language' }}</span>
+
+                                        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
+                                            style="{{ $iconStyle }}">
+                                            <span class="material-symbols-outlined">
+                                                {{ $item['icon'] ?? 'language' }}
+                                            </span>
                                         </div>
+
                                         <div class="min-w-0">
                                             <p class="text-[11px] font-black" style="color: {{ $muted }}">
-                                                {{ $item['label'] ?? 'Website' }}</p>
-                                            <p class="truncate text-sm font-semibold" style="color: {{ $text }}">
-                                                {{ $item['value'] }}</p>
+                                                {{ $item['label'] ?? 'Website' }}
+                                            </p>
+
+                                            <p class="truncate text-sm font-semibold"
+                                                style="color: {{ $text }}">
+                                                {{ $websiteValue }}
+                                            </p>
                                         </div>
                                     </a>
                                 @endforeach
                             @elseif ($section === 'location' && $locationDisplay)
                                 <a href="{{ $locationHref }}" target="_blank" rel="noopener"
                                     class="flex items-center gap-3 px-3 py-3" style="{{ $fieldCardStyle }}">
-                                    <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg" style="{{ $iconStyle }}">
+                                    <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
+                                        style="{{ $iconStyle }}">
                                         <span
                                             class="material-symbols-outlined">{{ $data['locationIcon'] ?? 'location_on' }}</span>
                                     </div>
@@ -639,13 +778,17 @@ new #[Layout('layouts.vcard')] class extends Component {
                             @elseif ($section === 'companies')
                                 @foreach ($companies as $item)
                                     <div class="flex items-center gap-3 px-3 py-3" style="{{ $fieldCardStyle }}">
-                                        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg" style="{{ $iconStyle }}">
-                                            <span class="material-symbols-outlined">{{ $item['icon'] ?? 'business_center' }}</span>
+                                        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
+                                            style="{{ $iconStyle }}">
+                                            <span
+                                                class="material-symbols-outlined">{{ $item['icon'] ?? 'business_center' }}</span>
                                         </div>
                                         <div class="min-w-0">
-                                            <p class="truncate text-[11px] font-black" style="color: {{ $muted }}">
+                                            <p class="truncate text-[11px] font-black"
+                                                style="color: {{ $muted }}">
                                                 {{ $item['company_name'] ?? 'Company' }}</p>
-                                            <p class="truncate text-sm font-semibold" style="color: {{ $text }}">
+                                            <p class="truncate text-sm font-semibold"
+                                                style="color: {{ $text }}">
                                                 {{ $item['profession'] ?? '' }}</p>
                                         </div>
                                     </div>
@@ -663,8 +806,10 @@ new #[Layout('layouts.vcard')] class extends Component {
                                                 ];
                                             @endphp
                                             <a href="{{ $url }}" target="_blank" rel="noopener"
-                                                class="flex items-center gap-3 px-3 py-3" style="{{ $fieldCardStyle }}">
-                                                <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white shadow-sm">
+                                                class="flex items-center gap-3 px-3 py-3"
+                                                style="{{ $fieldCardStyle }}">
+                                                <div
+                                                    class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white shadow-sm">
                                                     @if ($this->socialUsesBrandIcon($platform))
                                                         <img src="https://cdn.simpleicons.org/{{ $social['icon_slug'] }}/{{ ltrim($social['color'], '#') }}"
                                                             class="h-5 w-5" alt="{{ $social['label'] }}">
@@ -674,9 +819,11 @@ new #[Layout('layouts.vcard')] class extends Component {
                                                     @endif
                                                 </div>
                                                 <div class="min-w-0">
-                                                    <p class="text-[11px] font-black" style="color: {{ $muted }}">
+                                                    <p class="text-[11px] font-black"
+                                                        style="color: {{ $muted }}">
                                                         {{ $this->socialDisplayLabel($platform) }}</p>
-                                                    <p class="truncate text-sm font-semibold" style="color: {{ $text }}">{{ $url }}</p>
+                                                    <p class="truncate text-sm font-semibold"
+                                                        style="color: {{ $text }}">{{ $url }}</p>
                                                 </div>
                                             </a>
                                         @endforeach
@@ -693,7 +840,7 @@ new #[Layout('layouts.vcard')] class extends Component {
                                                 ];
                                             @endphp
                                             <a href="{{ $url }}" target="_blank" rel="noopener"
-                                                class="{{ ($data['showSocialName'] ?? false) ? 'inline-flex items-center gap-2 rounded-full px-3 py-2' : 'grid h-10 w-10 place-items-center rounded-full' }} bg-white/80 shadow-sm ring-1 ring-white/60 backdrop-blur-xl"
+                                                class="{{ $data['showSocialName'] ?? false ? 'inline-flex items-center gap-2 rounded-full px-3 py-2' : 'grid h-10 w-10 place-items-center rounded-full' }} bg-white/80 shadow-sm ring-1 ring-white/60 backdrop-blur-xl"
                                                 title="{{ $this->socialDisplayLabel($platform) }}">
                                                 @if ($this->socialUsesBrandIcon($platform))
                                                     <img src="https://cdn.simpleicons.org/{{ $social['icon_slug'] }}/{{ ltrim($social['color'], '#') }}"
@@ -719,15 +866,25 @@ new #[Layout('layouts.vcard')] class extends Component {
 
             @if (($data['contactButtonPosition'] ?? 'top') === 'floating')
                 @php
-                    $placement = match ($data['floatingButtonPlacement'] ?? 'bottom-right') { 'top-left' => 'top-6 left-6', 'top-right' => 'top-6 right-6', 'bottom-left' => 'bottom-6 left-6', default => 'bottom-6 right-6'};
+                    $placement = match ($data['floatingButtonPlacement'] ?? 'bottom-right') {
+                        'top-left' => 'top-6 left-6',
+                        'top-right' => 'top-6 right-6',
+                        'bottom-left' => 'bottom-6 left-6',
+                        default => 'bottom-6 right-6',
+                    };
                     $btnRadiusValue = min(56, max(0, (int) ($data['floatingButtonBorderRadius'] ?? 56)));
                     $btnRadius = $btnRadiusValue >= 56 ? '999px' : $btnRadiusValue . 'px';
-                    $ringShape = match ($data['floatingButtonRingShape'] ?? 'circle') { 'square' => '0px', 'rounded' => '18px', default => '999px'};
+                    $ringShape = match ($data['floatingButtonRingShape'] ?? 'circle') {
+                        'square' => '0px',
+                        'rounded' => '18px',
+                        default => '999px',
+                    };
                 @endphp
                 <div class="absolute {{ $placement }} z-30 grid h-14 w-14 place-items-center">
-                    @if (($data['floatingButtonRingEnabled'] ?? true) && (int) ($data['floatingButtonRingWidth'] ?? 4) > 0)<span
-                        class="pointer-events-none absolute"
-                    style="inset:-{{ (int) $data['floatingButtonRingWidth'] }}px;border:{{ (int) $data['floatingButtonRingWidth'] }}px solid {{ $data['floatingButtonRingColor'] ?? '#fff' }};border-radius:{{ $ringShape }}"></span>@endif
+                    @if (($data['floatingButtonRingEnabled'] ?? true) && (int) ($data['floatingButtonRingWidth'] ?? 4) > 0)
+                        <span class="pointer-events-none absolute"
+                            style="inset:-{{ (int) $data['floatingButtonRingWidth'] }}px;border:{{ (int) $data['floatingButtonRingWidth'] }}px solid {{ $data['floatingButtonRingColor'] ?? '#fff' }};border-radius:{{ $ringShape }}"></span>
+                    @endif
                     <button wire:click="downloadVcf"
                         class="relative grid h-14 w-14 place-items-center text-white shadow-2xl"
                         style="background:{{ $accent }};border-radius:{{ $btnRadius }}"><span
@@ -736,7 +893,7 @@ new #[Layout('layouts.vcard')] class extends Component {
             @endif
         </div>
 
-        @php($siteName = SiteSetting::current()->site_name ?? config('app.name'))
-        <p class="mt-5 text-center text-xs text-white/40">Powered by {{ $siteName }}</p>
+        {{-- @php($siteName = SiteSetting::current()->site_name ?? config('app.name'))
+        <p class="py-5 text-center text-xs text-white/40">Powered by {{ $siteName }}</p> --}}
     </div>
 </div>
