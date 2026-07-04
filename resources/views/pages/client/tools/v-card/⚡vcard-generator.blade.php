@@ -383,7 +383,7 @@ new #[Title('VCard Generator')] class extends Component {
             return false;
         }
 
-        $category = ToolCategory::query()->where('slug', 'business')->first();
+        $category = ToolCategory::query()->where('slug', 'business-tools')->first();
 
         if (!$category) {
             return false;
