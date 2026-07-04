@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-new #[Layout('layouts::vcard')] class extends Component {
+new #[Layout('layouts.vcard')] class extends Component {
     public Vcard $vcard;
 
     /** @var array<string, mixed> */

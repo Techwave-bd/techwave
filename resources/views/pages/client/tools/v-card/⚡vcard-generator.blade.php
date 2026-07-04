@@ -259,7 +259,7 @@ new #[Title('VCard Generator')] class extends Component {
 
     public function socialCustomIcon(string $platform): string
     {
-        $icon = $this->socialCustomIcons[$platform] ?? ('brand:' . $platform);
+        $icon = $this->socialCustomIcons[$platform] ?? 'brand:' . $platform;
 
         if (str_starts_with($icon, 'brand:')) {
             return 'share';
@@ -270,12 +270,12 @@ new #[Title('VCard Generator')] class extends Component {
 
     public function socialUsesBrandIcon(string $platform): bool
     {
-        return str_starts_with((string) ($this->socialCustomIcons[$platform] ?? ('brand:' . $platform)), 'brand:');
+        return str_starts_with((string) ($this->socialCustomIcons[$platform] ?? 'brand:' . $platform), 'brand:');
     }
 
     public function socialDisplayBrand(string $platform): string
     {
-        $value = (string) ($this->socialCustomIcons[$platform] ?? ('brand:' . $platform));
+        $value = (string) ($this->socialCustomIcons[$platform] ?? 'brand:' . $platform);
 
         if (!str_starts_with($value, 'brand:')) {
             return $platform;
@@ -904,7 +904,7 @@ new #[Title('VCard Generator')] class extends Component {
     public function saveVcard(): void
     {
         if (!auth()->check()) {
-            $this->addError('vcard', 'Please login to save your vCard.');
+            $this->dispatch('toast', message: 'Please login to save your vCard.', type: 'error');
 
             return;
         }
@@ -954,7 +954,7 @@ new #[Title('VCard Generator')] class extends Component {
                 'emails.*.value' => ['nullable', 'email', 'max:150'],
                 'emails.*.icon' => ['nullable', 'string', 'max:50'],
                 'sites.*.label' => ['nullable', 'string', 'max:80'],
-                'sites.*.value' => ['nullable', 'url', 'max:255'],
+                'sites.*.value' => ['nullable', 'string', 'max:255'],
                 'sites.*.icon' => ['nullable', 'string', 'max:50'],
                 'street' => ['nullable', 'string', 'max:180'],
                 'city' => ['nullable', 'string', 'max:100'],
@@ -964,7 +964,7 @@ new #[Title('VCard Generator')] class extends Component {
                 'locationLabel' => ['nullable', 'string', 'max:80'],
                 'locationIcon' => ['nullable', 'string', 'max:50'],
                 'locationSearch' => ['nullable', 'string', 'max:255'],
-                'locationUrl' => ['nullable', 'url', 'max:500'],
+                'locationUrl' => ['nullable', 'string', 'max:500'],
                 'latitude' => ['nullable', 'string', 'max:60'],
                 'longitude' => ['nullable', 'string', 'max:60'],
                 'companies.*.company_name' => ['nullable', 'string', 'max:160'],
@@ -991,7 +991,7 @@ new #[Title('VCard Generator')] class extends Component {
         );
 
         if (!$this->hasMinimumVcardData()) {
-            $this->addError('vcard', 'Please add at least one detail before saving your vCard.');
+            $this->dispatch('toast', message: 'Please add at least one detail before saving your vCard.', type: 'error');
 
             return;
         }
@@ -1138,9 +1138,10 @@ new #[Title('VCard Generator')] class extends Component {
             $this->loadUserVcards();
             $this->resetErrorBag('vcard');
 
-            session()->flash('vcard_saved', 'vCard saved successfully.');
+            $this->dispatch('toast', message: 'vCard saved successfully.', type: 'success');
         } catch (\Throwable $e) {
             $this->addError('vcard', 'Save failed: ' . $e->getMessage());
+            $this->dispatch('toast', message: 'Save failed: ' . $e->getMessage(), type: 'error');
         }
     }
 
@@ -1155,7 +1156,7 @@ new #[Title('VCard Generator')] class extends Component {
         $this->resetForm();
         $this->loadUserVcards();
 
-        session()->flash('vcard_deleted', 'vCard deleted successfully.');
+        $this->dispatch('toast', message: 'vCard deleted successfully.', type: 'success');
     }
 
     private function resetForm(): void
@@ -1331,15 +1332,9 @@ new #[Title('VCard Generator')] class extends Component {
         $this->loadingTime = min(10, max(1, (int) $this->getStoredValue($vcard, 'loading_time', 2)));
         $this->qrLogoPreview = $vcard->qr_logo_path ? Storage::url($vcard->qr_logo_path) : null;
 
-        $storedQrLogoMode = $this->getStoredValue(
-            $vcard,
-            'qr_logo_mode',
-            $vcard->qr_logo_path ? 'custom' : 'none'
-        );
+        $storedQrLogoMode = $this->getStoredValue($vcard, 'qr_logo_mode', $vcard->qr_logo_path ? 'custom' : 'none');
 
-        $this->qrLogoMode = $this->isPremium && $storedQrLogoMode === 'custom' && $vcard->qr_logo_path
-            ? 'custom'
-            : ($this->isPremium ? 'none' : 'site');
+        $this->qrLogoMode = $this->isPremium && $storedQrLogoMode === 'custom' && $vcard->qr_logo_path ? 'custom' : ($this->isPremium ? 'none' : 'site');
 
         $this->qrHasLogo = $this->isPremium ? $this->qrLogoMode === 'custom' : true;
 
@@ -1373,11 +1368,7 @@ new #[Title('VCard Generator')] class extends Component {
             return $this->getSiteLogoPath();
         }
 
-        $mode = $this->qrLogoMode ?: $this->getStoredValue(
-            $vcard,
-            'qr_logo_mode',
-            $vcard->qr_logo_path ? 'custom' : 'none'
-        );
+        $mode = $this->qrLogoMode ?: $this->getStoredValue($vcard, 'qr_logo_mode', $vcard->qr_logo_path ? 'custom' : 'none');
 
         if ($mode !== 'custom' || !$this->qrHasLogo) {
             return null;
@@ -1405,10 +1396,7 @@ new #[Title('VCard Generator')] class extends Component {
         $url = $this->publicVcardUrl($vcard);
         $logoPath = $this->resolveQrLogoPath($vcard);
 
-        $qr = QrCode::format('svg')
-            ->size(320)
-            ->margin(1)
-            ->errorCorrection('H');
+        $qr = QrCode::format('svg')->size(320)->margin(1)->errorCorrection('H');
 
         // Logos are rendered as a centered HTML overlay in the preview and
         // drawn directly onto the JavaScript PNG canvas. This keeps free site
@@ -1548,7 +1536,7 @@ new #[Title('VCard Generator')] class extends Component {
     public function generateVcf()
     {
         if (!$this->hasMinimumVcardData()) {
-            $this->addError('vcf', 'Please add at least one detail before downloading VCF.');
+            $this->dispatch('toast', message: 'Please add at least one detail before downloading VCF.', type: 'error');
 
             return null;
         }
@@ -1631,99 +1619,106 @@ new #[Title('VCard Generator')] class extends Component {
 };
 ?>
 
-@push('meta')
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,100..1000&family=Inter:opsz,wght@14..32,100..1000&family=Lora:wght@400..700&family=Merriweather:wght@300..900&family=Montserrat:wght@100..900&family=Nunito:wght@200..1000&family=Oswald:wght@200..700&family=Playfair+Display:wght@400..900&family=Plus+Jakarta+Sans:wght@200..800&family=Poppins:wght@100..900&family=Raleway:wght@100..900&family=Roboto:wght@100..900&family=Source+Sans+3:wght@200..900&family=Space+Grotesk:wght@300..700&display=swap"
-        rel="stylesheet">
+@push('styles')
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,100..1000&family=Inter:opsz,wght@14..32,100..1000&family=Lora:wght@400..700&family=Merriweather:wght@300..900&family=Montserrat:wght@100..900&family=Nunito:wght@200..1000&family=Oswald:wght@200..700&family=Playfair+Display:wght@400..900&family=Plus+Jakarta+Sans:wght@200..800&family=Poppins:wght@100..900&family=Raleway:wght@100..900&family=Roboto:wght@100..900&family=Source+Sans+3:wght@200..900&family=Space+Grotesk:wght@300..700&display=swap');
+
+        .vcard-builder select {
+            background-color: #020617 !important;
+            color: #ffffff !important;
+            border-color: rgba(255, 255, 255, 0.10) !important;
+            color-scheme: dark;
+        }
+
+        .vcard-builder select option,
+        .vcard-builder select optgroup {
+            background-color: #020617 !important;
+            color: #ffffff !important;
+        }
+
+        .vcard-builder select option:checked {
+            background-color: #0e7490 !important;
+            color: #ffffff !important;
+        }
+
+        .vcard-builder select option:hover,
+        .vcard-builder select option:focus {
+            background-color: #164e63 !important;
+            color: #ffffff !important;
+        }
+
+        .vcard-builder select:focus {
+            border-color: rgba(103, 232, 249, 0.45) !important;
+            box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.10);
+        }
+
+        @keyframes vcardLoadingBar {
+            from {
+                width: 0%;
+            }
+
+            to {
+                width: 100%;
+            }
+        }
+
+        @keyframes vcardLoadingFloat {
+
+            0%,
+            100% {
+                transform: translateY(0) scale(1);
+            }
+
+            50% {
+                transform: translateY(-6px) scale(1.02);
+            }
+        }
+
+        @keyframes vcardLoadingShine {
+            0% {
+                transform: translateX(-120%);
+            }
+
+            100% {
+                transform: translateX(120%);
+            }
+        }
+
+        @keyframes vcardLoadingPulse {
+
+            0%,
+            100% {
+                opacity: .45;
+                transform: scale(.92);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.04);
+            }
+        }
+
+        @keyframes vcardLoadingSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
 @endpush
-
-<style>
-    .vcard-builder select {
-        background-color: #020617 !important;
-        color: #ffffff !important;
-        border-color: rgba(255, 255, 255, 0.10) !important;
-        color-scheme: dark;
-    }
-
-    .vcard-builder select option,
-    .vcard-builder select optgroup {
-        background-color: #020617 !important;
-        color: #ffffff !important;
-    }
-
-    .vcard-builder select option:checked {
-        background-color: #0e7490 !important;
-        color: #ffffff !important;
-    }
-
-    .vcard-builder select option:hover,
-    .vcard-builder select option:focus {
-        background-color: #164e63 !important;
-        color: #ffffff !important;
-    }
-
-    .vcard-builder select:focus {
-        border-color: rgba(103, 232, 249, 0.45) !important;
-        box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.10);
-    }
-
-    @keyframes vcardLoadingBar {
-        from {
-            width: 0%;
-        }
-
-        to {
-            width: 100%;
-        }
-    }
-
-    @keyframes vcardLoadingFloat {
-
-        0%,
-        100% {
-            transform: translateY(0) scale(1);
-        }
-
-        50% {
-            transform: translateY(-6px) scale(1.02);
-        }
-    }
-
-    @keyframes vcardLoadingShine {
-        0% {
-            transform: translateX(-120%);
-        }
-
-        100% {
-            transform: translateX(120%);
-        }
-    }
-
-    @keyframes vcardLoadingPulse {
-
-        0%,
-        100% {
-            opacity: .45;
-            transform: scale(.92);
-        }
-
-        50% {
-            opacity: 1;
-            transform: scale(1.04);
-        }
-    }
-
-    @keyframes vcardLoadingSpin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-</style>
 
 <div class="vcard-builder min-h-screen text-white" x-data="{
     iconPicker: { open: false, path: '', type: 'contact', title: 'Choose icon', selected: '' },
+    openSection: @js($this->openSection),
+    openAppearancePanel: @js($this->openAppearancePanel),
+    openBasicPanel: @js($this->openBasicPanel),
+    openContentPanel: @js($this->openContentPanel),
+    toggleOpenPanel(section) {
+        this.openSection = this.openSection === section ? '' : section;
+    },
+
+    toggleOpenSubPanel(panel, prop) {
+        this[prop] = this[prop] === panel ? '' : panel;
+    },
     openIconPicker(path, type, title, selected) {
         this.iconPicker = { open: true, path, type, title, selected };
         document.body.classList.add('overflow-hidden');
@@ -1855,6 +1850,8 @@ new #[Title('VCard Generator')] class extends Component {
     }
 }" @keydown.escape.window="closeIconPicker()"
     x-cloak>
+
+
     <section class="mx-auto max-w-350 px-4 py-10 sm:px-6 lg:px-8">
         <div class="relative mb-6 text-center sm:mb-10">
             <p class="text-xs font-black uppercase tracking-[0.28em] text-cyan-300 sm:text-sm sm:tracking-[0.35em]">
@@ -1871,7 +1868,7 @@ new #[Title('VCard Generator')] class extends Component {
                 {{-- 1. Appearance --}}
                 <div
                     class="overflow-hidden rounded-3xl border border-white/10 bg-white/6 shadow-xl shadow-cyan-950/10 backdrop-blur-xl">
-                    <button type="button" wire:click="toggleSection('appearance')"
+                    <button type="button" @click="toggleOpenPanel('appearance')"
                         class="flex w-full cursor-pointer items-center justify-between gap-4 p-4 text-left sm:p-5">
                         <div class="flex items-center gap-3">
                             <div
@@ -1884,769 +1881,756 @@ new #[Title('VCard Generator')] class extends Component {
                                     navbar.</p>
                             </div>
                         </div>
-                        <span
-                            class="material-symbols-outlined transition {{ $this->openSection === 'appearance' ? 'rotate-180' : '' }}">expand_more</span>
+                        <span class="material-symbols-outlined transition"
+                            :class="openSection === 'appearance' ? 'rotate-180' : ''">expand_more</span>
                     </button>
 
-                    @if ($this->openSection === 'appearance')
-                        <div class="border-t border-white/10 p-4 sm:p-5">
-                            {{-- Select Template --}}
-                            <div class="overflow-hidden border-b border-white/10 last:border-b-0">
-                                <button type="button" wire:click="toggleAppearancePanel('template')"
-                                    class="flex w-full cursor-pointer items-center gap-3 py-4 text-left">
-                                    <span
-                                        class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->openAppearancePanel === 'template' ? 'rotate-90' : '' }}">chevron_right</span>
-                                    <span class="text-sm font-black text-white">Select Template</span>
-                                </button>
+                    <div x-show="openSection === 'appearance'" x-collapse class="border-t border-white/10 p-4 sm:p-5">
+                        {{-- Select Template --}}
+                        <div class="overflow-hidden border-b border-white/10 last:border-b-0">
+                            <button type="button" @click="toggleOpenSubPanel('template', 'openAppearancePanel')"
+                                class="flex w-full cursor-pointer items-center gap-3 py-4 text-left">
+                                <span class="material-symbols-outlined text-base text-cyan-200 transition"
+                                    :class="openAppearancePanel === 'template' ? 'rotate-90' : ''">chevron_right</span>
+                                <span class="text-sm font-black text-white">Select Template</span>
+                            </button>
 
-                                @if ($this->openAppearancePanel === 'template')
-                                    <div class="pb-6 pl-7" x-data="{
-                                        isDragging: false,
-                                        dragMoved: false,
-                                        startX: 0,
-                                        scrollLeft: 0,
-                                        slideTemplate(direction) {
-                                            this.$refs.templateScroller.scrollBy({
-                                                left: direction * 260,
-                                                behavior: 'smooth'
-                                            });
-                                        },
-                                        startDrag(event) {
-                                            this.isDragging = true;
-                                            this.dragMoved = false;
-                                            this.startX = event.pageX - this.$refs.templateScroller.offsetLeft;
-                                            this.scrollLeft = this.$refs.templateScroller.scrollLeft;
-                                        },
-                                        moveDrag(event) {
-                                            if (!this.isDragging) return;
-                                            const x = event.pageX - this.$refs.templateScroller.offsetLeft;
-                                            const walk = (x - this.startX) * 1.35;
-                                            if (Math.abs(walk) > 6) this.dragMoved = true;
-                                            this.$refs.templateScroller.scrollLeft = this.scrollLeft - walk;
-                                        },
-                                        stopDrag() {
-                                            this.isDragging = false;
-                                            setTimeout(() => this.dragMoved = false, 80);
-                                        }
-                                    }">
-                                        <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                                            <div class="min-w-0">
-                                                {{-- <p class="text-sm font-black text-white">Template slider</p>
+                            <div x-show="openAppearancePanel === 'template'" x-collapse class="pb-6 pl-7"
+                                x-data="{
+                                    isDragging: false,
+                                    dragMoved: false,
+                                    startX: 0,
+                                    scrollLeft: 0,
+                                    slideTemplate(direction) {
+                                        this.$refs.templateScroller.scrollBy({
+                                            left: direction * 260,
+                                            behavior: 'smooth'
+                                        });
+                                    },
+                                    startDrag(event) {
+                                        this.isDragging = true;
+                                        this.dragMoved = false;
+                                        this.startX = event.pageX - this.$refs.templateScroller.offsetLeft;
+                                        this.scrollLeft = this.$refs.templateScroller.scrollLeft;
+                                    },
+                                    moveDrag(event) {
+                                        if (!this.isDragging) return;
+                                        const x = event.pageX - this.$refs.templateScroller.offsetLeft;
+                                        const walk = (x - this.startX) * 1.35;
+                                        if (Math.abs(walk) > 6) this.dragMoved = true;
+                                        this.$refs.templateScroller.scrollLeft = this.scrollLeft - walk;
+                                    },
+                                    stopDrag() {
+                                        this.isDragging = false;
+                                        setTimeout(() => this.dragMoved = false, 80);
+                                    }
+                                }">
+                                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                                    <div class="min-w-0">
+                                        {{-- <p class="text-sm font-black text-white">Template slider</p>
                                                 <p class="mt-1 text-xs text-blue-100/45">Grab and drag, or use the arrow
                                                     buttons.</p> --}}
-                                            </div>
+                                    </div>
 
-                                            <div class="flex shrink-0 items-center gap-2">
-                                                {{-- <span
+                                    <div class="flex shrink-0 items-center gap-2">
+                                        {{-- <span
                                                     class="hidden rounded-full bg-cyan-400/10 px-3 py-1 text-[10px] font-black text-cyan-100 sm:inline-flex">
                                                     {{ $this->templates[$this->template]['label'] ?? 'Selected' }}
                                                 </span> --}}
 
-                                                <button type="button" x-on:click="slideTemplate(-1)"
-                                                    class="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/8 text-cyan-100 shadow-lg transition hover:bg-white/14"
-                                                    title="Previous templates" aria-label="Previous templates">
-                                                    <span class="material-symbols-outlined text-lg">chevron_left</span>
-                                                </button>
+                                        <button type="button" x-on:click="slideTemplate(-1)"
+                                            class="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/8 text-cyan-100 shadow-lg transition hover:bg-white/14"
+                                            title="Previous templates" aria-label="Previous templates">
+                                            <span class="material-symbols-outlined text-lg">chevron_left</span>
+                                        </button>
 
-                                                <button type="button" x-on:click="slideTemplate(1)"
-                                                    class="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/8 text-cyan-100 shadow-lg transition hover:bg-white/14"
-                                                    title="Next templates" aria-label="Next templates">
-                                                    <span class="material-symbols-outlined text-lg">chevron_right</span>
-                                                </button>
-                                            </div>
-                                        </div>
+                                        <button type="button" x-on:click="slideTemplate(1)"
+                                            class="grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/8 text-cyan-100 shadow-lg transition hover:bg-white/14"
+                                            title="Next templates" aria-label="Next templates">
+                                            <span class="material-symbols-outlined text-lg">chevron_right</span>
+                                        </button>
+                                    </div>
+                                </div>
 
-                                        <div class="w-full min-w-0 overflow-hidden">
-                                            <div x-ref="templateScroller" x-on:mousedown="startDrag($event)"
-                                                x-on:mousemove.prevent="moveDrag($event)" x-on:mouseup="stopDrag()"
-                                                x-on:mouseleave="stopDrag()"
-                                                x-on:click.capture="if (dragMoved) { $event.preventDefault(); $event.stopPropagation(); }"
-                                                class="flex cursor-grab select-none gap-4 overflow-x-auto pb-4 pr-2 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                                                @foreach ($this->templates as $slug => $template)
-                                                    @php
-                                                        $tplHasBanner = (bool) ($template['has_banner'] ?? true);
-                                                        $tplAvatarPosition =
-                                                            $template['avatar_position'] ?? 'center-over-banner';
-                                                        $tplAccent = $template['accent'] ?? '#06b6d4';
-                                                        $tplBg = $template['bg'] ?? '#0f172a';
-                                                        $tplText = $template['text'] ?? '#111827';
-                                                        $tplCardBg = $template['card_bg'] ?? '#ffffff';
-                                                        $tplEffect = $template['effect'] ?? 'normal';
-                                                        $tplAvatarRadiusValue = min(
-                                                            56,
-                                                            max(0, (int) $this->avatarBorderRadius),
-                                                        );
-                                                        $tplAvatarRadius =
-                                                            $tplAvatarRadiusValue >= 56
-                                                            ? '999px'
-                                                            : $tplAvatarRadiusValue . 'px';
-                                                        $isSelectedTemplate = $this->template === $slug;
-                                                        $templateLocked =
-                                                            !$this->isPremium && $slug !== 'modern-banner-center';
-                                                    @endphp
+                                <div class="w-full min-w-0 overflow-hidden">
+                                    <div x-ref="templateScroller" x-on:mousedown="startDrag($event)"
+                                        x-on:mousemove.prevent="moveDrag($event)" x-on:mouseup="stopDrag()"
+                                        x-on:mouseleave="stopDrag()"
+                                        x-on:click.capture="if (dragMoved) { $event.preventDefault(); $event.stopPropagation(); }"
+                                        class="flex cursor-grab select-none gap-4 overflow-x-auto pb-4 pr-2 active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                        @foreach ($this->templates as $slug => $template)
+                                            @php
+                                                $tplHasBanner = (bool) ($template['has_banner'] ?? true);
+                                                $tplAvatarPosition =
+                                                    $template['avatar_position'] ?? 'center-over-banner';
+                                                $tplAccent = $template['accent'] ?? '#06b6d4';
+                                                $tplBg = $template['bg'] ?? '#0f172a';
+                                                $tplText = $template['text'] ?? '#111827';
+                                                $tplCardBg = $template['card_bg'] ?? '#ffffff';
+                                                $tplEffect = $template['effect'] ?? 'normal';
+                                                $tplAvatarRadiusValue = min(
+                                                    56,
+                                                    max(0, (int) $this->avatarBorderRadius),
+                                                );
+                                                $tplAvatarRadius =
+                                                    $tplAvatarRadiusValue >= 56
+                                                        ? '999px'
+                                                        : $tplAvatarRadiusValue . 'px';
+                                                $isSelectedTemplate = $this->template === $slug;
+                                                $templateLocked = !$this->isPremium && $slug !== 'modern-banner-center';
+                                            @endphp
 
-                                                    <button type="button"
-                                                        @if (!$templateLocked) wire:click="selectTemplate('{{ $slug }}')" @endif
-                                                        class="relative w-[185px] shrink-0 overflow-hidden rounded-2xl border-2 bg-white p-2 text-center transition {{ $templateLocked ? '' : 'hover:-translate-y-1 hover:shadow-xl' }} {{ $isSelectedTemplate ? 'border-cyan-400 ring-4 ring-cyan-400/15' : 'border-slate-200 hover:border-cyan-300' }}">
-                                                        @if ($templateLocked)
-                                                            <span class="absolute right-3 top-3 z-20">
-                                                                <span
-                                                                    class="material-symbols-outlined text-sm text-amber-400">crown</span>
-                                                            </span>
-                                                        @endif
+                                            <button type="button"
+                                                @if (!$templateLocked) wire:click="selectTemplate('{{ $slug }}')" @endif
+                                                class="relative w-[185px] shrink-0 overflow-hidden rounded-2xl border-2 bg-white p-2 text-center transition {{ $templateLocked ? '' : 'hover:-translate-y-1 hover:shadow-xl' }} {{ $isSelectedTemplate ? 'border-cyan-400 ring-4 ring-cyan-400/15' : 'border-slate-200 hover:border-cyan-300' }}">
+                                                @if ($templateLocked)
+                                                    <span class="absolute right-3 top-3 z-20">
+                                                        <span
+                                                            class="material-symbols-outlined text-sm text-amber-400">crown</span>
+                                                    </span>
+                                                @endif
 
-                                                        <div class="relative mx-auto h-44 overflow-hidden rounded-xl border border-slate-100 shadow-sm"
-                                                            style="background: {{ $tplBg }}; font-family: '{{ $this->fontFamily }}', sans-serif;">
+                                                <div class="relative mx-auto h-44 overflow-hidden rounded-xl border border-slate-100 shadow-sm"
+                                                    style="background: {{ $tplBg }}; font-family: '{{ $this->fontFamily }}', sans-serif;">
 
-                                                            <div class="absolute inset-2 overflow-hidden rounded-xl {{ in_array($tplEffect, ['glass', 'water-glass', 'glassmorphism'], true) ? 'backdrop-blur-xl ring-1 ring-white/30' : '' }}"
-                                                                style="background: {{ in_array($tplEffect, ['glass', 'water-glass', 'glassmorphism'], true) ? 'rgba(255,255,255,0.16)' : $tplCardBg }};">
+                                                    <div class="absolute inset-2 overflow-hidden rounded-xl {{ in_array($tplEffect, ['glass', 'water-glass', 'glassmorphism'], true) ? 'backdrop-blur-xl ring-1 ring-white/30' : '' }}"
+                                                        style="background: {{ in_array($tplEffect, ['glass', 'water-glass', 'glassmorphism'], true) ? 'rgba(255,255,255,0.16)' : $tplCardBg }};">
 
-                                                                @if ($tplHasBanner)
-                                                                    <div class="relative h-[72px] overflow-hidden"
-                                                                        style="background: linear-gradient(135deg, {{ $tplAccent }}, {{ $tplBg }});">
-                                                                        <div class="absolute inset-0 opacity-25"
-                                                                            style="background-image: radial-gradient(circle at 22% 20%, #ffffff 0 2px, transparent 2px), radial-gradient(circle at 76% 48%, #ffffff 0 2px, transparent 2px); background-size: 22px 22px;">
-                                                                        </div>
-                                                                        <div
-                                                                            class="absolute inset-0 bg-linear-to-b from-transparent to-white/90">
-                                                                        </div>
-
-                                                                        @if ($tplAvatarPosition === 'center-over-banner')
-                                                                            <div
-                                                                                class="absolute inset-x-0 bottom-1 flex justify-center">
-                                                                                <div class="grid h-10 w-10 place-items-center border-[3px] border-white text-[10px] font-black text-white shadow"
-                                                                                    style="background: {{ $tplAccent }}; border-radius: {{ $tplAvatarRadius }};">
-                                                                                    {{ $this->getInitials() }}
-                                                                                </div>
-                                                                            </div>
-                                                                        @elseif ($tplAvatarPosition === 'left-over-banner')
-                                                                            <div class="absolute bottom-1 left-3">
-                                                                                <div class="grid h-10 w-10 place-items-center border-[3px] border-white text-[10px] font-black text-white shadow"
-                                                                                    style="background: {{ $tplAccent }}; border-radius: {{ $tplAvatarRadius }};">
-                                                                                    {{ $this->getInitials() }}
-                                                                                </div>
-                                                                            </div>
-                                                                        @endif
-                                                                    </div>
-
-                                                                    <div
-                                                                        class="{{ $tplAvatarPosition === 'left-over-banner' ? 'px-3 pt-2 text-left' : 'px-3 pt-2 text-center' }}">
-                                                                        <div class="{{ $tplAvatarPosition === 'left-over-banner' ? 'h-2 w-16' : 'mx-auto h-2 w-16' }} rounded-full"
-                                                                            style="background: {{ $tplText }};">
-                                                                        </div>
-                                                                        <div class="{{ $tplAvatarPosition === 'left-over-banner' ? 'mt-1 h-1.5 w-12' : 'mx-auto mt-1 h-1.5 w-12' }} rounded-full"
-                                                                            style="background: {{ $tplText }}55;">
-                                                                        </div>
-                                                                    </div>
-                                                                @else
-                                                                    <div class="px-3 pt-4">
-                                                                        @if ($tplAvatarPosition === 'left-inline')
-                                                                            <div class="flex items-center gap-2">
-                                                                                <div class="grid h-11 w-11 shrink-0 place-items-center text-[10px] font-black text-white shadow"
-                                                                                    style="background: {{ $tplAccent }}; border-radius: {{ $tplAvatarRadius }};">
-                                                                                    {{ $this->getInitials() }}
-                                                                                </div>
-                                                                                <div class="min-w-0 flex-1">
-                                                                                    <div class="h-2 w-16 rounded-full"
-                                                                                        style="background: {{ $tplText }};">
-                                                                                    </div>
-                                                                                    <div class="mt-1 h-1.5 w-10 rounded-full"
-                                                                                        style="background: {{ $tplText }}55;">
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
-                                                                        @else
-                                                                            <div class="flex justify-center">
-                                                                                <div class="grid h-12 w-12 place-items-center text-[11px] font-black text-white shadow"
-                                                                                    style="background: {{ $tplAccent }}; border-radius: {{ $tplAvatarRadius }};">
-                                                                                    {{ $this->getInitials() }}
-                                                                                </div>
-                                                                            </div>
-                                                                            <div class="mt-3 text-center">
-                                                                                <div class="mx-auto h-2 w-16 rounded-full"
-                                                                                    style="background: {{ $tplText }};">
-                                                                                </div>
-                                                                                <div class="mx-auto mt-1 h-1.5 w-12 rounded-full"
-                                                                                    style="background: {{ $tplText }}55;">
-                                                                                </div>
-                                                                            </div>
-                                                                        @endif
-                                                                    </div>
-                                                                @endif
-
-                                                                <div class="mx-3 mt-3 h-5 rounded-full"
-                                                                    style="background: {{ $tplAccent }};"></div>
-
-                                                                <div class="mx-3 mt-2 space-y-1.5">
-                                                                    @for ($i = 0; $i < 3; $i++)
-                                                                        <div class="flex items-center gap-1.5 border px-1.5 py-1 shadow-sm {{ in_array($tplEffect, ['glass', 'water-glass', 'glassmorphism'], true) ? 'backdrop-blur-xl' : 'bg-white' }}"
-                                                                            style="border-color: {{ in_array($tplEffect, ['glass', 'water-glass', 'glassmorphism'], true) ? 'rgba(255,255,255,0.30)' : ($this->fieldBorderStyle === 'none' ? 'transparent' : $this->fieldBorderColor) }}; border-style: {{ $this->fieldBorderStyle }}; border-width: {{ $this->fieldBorderStyle === 'none' ? 0 : (int) $this->fieldBorderWidth }}px; border-radius: {{ (int) $this->fieldBorderRadius }}px; background: {{ in_array($tplEffect, ['glass', 'water-glass', 'glassmorphism'], true) ? 'rgba(255,255,255,0.16)' : '#ffffff' }};">
-                                                                            <span class="h-4 w-4 rounded"
-                                                                                style="background: {{ $tplAccent }}22;"></span>
-                                                                            <span class="h-1.5 flex-1 rounded-full"
-                                                                                style="background: {{ $tplText }}22;"></span>
-                                                                        </div>
-                                                                    @endfor
+                                                        @if ($tplHasBanner)
+                                                            <div class="relative h-[72px] overflow-hidden"
+                                                                style="background: linear-gradient(135deg, {{ $tplAccent }}, {{ $tplBg }});">
+                                                                <div class="absolute inset-0 opacity-25"
+                                                                    style="background-image: radial-gradient(circle at 22% 20%, #ffffff 0 2px, transparent 2px), radial-gradient(circle at 76% 48%, #ffffff 0 2px, transparent 2px); background-size: 22px 22px;">
+                                                                </div>
+                                                                <div
+                                                                    class="absolute inset-0 bg-linear-to-b from-transparent to-white/90">
                                                                 </div>
 
-                                                                @if ($this->contactButtonPosition === 'floating')
-                                                                    <div class="absolute bottom-2 right-2 grid h-8 w-8 place-items-center text-white shadow-lg ring-2 ring-white"
-                                                                        style="background: {{ $tplAccent }}; border-radius: {{ $this->floatingButtonBorderRadius >= 56 ? '999px' : $this->floatingButtonBorderRadius . 'px' }};">
-                                                                        <span
-                                                                            class="material-symbols-outlined text-[16px]">person_add</span>
+                                                                @if ($tplAvatarPosition === 'center-over-banner')
+                                                                    <div
+                                                                        class="absolute inset-x-0 bottom-1 flex justify-center">
+                                                                        <div class="grid h-10 w-10 place-items-center border-[3px] border-white text-[10px] font-black text-white shadow"
+                                                                            style="background: {{ $tplAccent }}; border-radius: {{ $tplAvatarRadius }};">
+                                                                            {{ $this->getInitials() }}
+                                                                        </div>
+                                                                    </div>
+                                                                @elseif ($tplAvatarPosition === 'left-over-banner')
+                                                                    <div class="absolute bottom-1 left-3">
+                                                                        <div class="grid h-10 w-10 place-items-center border-[3px] border-white text-[10px] font-black text-white shadow"
+                                                                            style="background: {{ $tplAccent }}; border-radius: {{ $tplAvatarRadius }};">
+                                                                            {{ $this->getInitials() }}
+                                                                        </div>
                                                                     </div>
                                                                 @endif
                                                             </div>
 
-                                                            @if ($isSelectedTemplate)
-                                                                <div
-                                                                    class="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-cyan-400 text-white shadow-lg">
-                                                                    <span
-                                                                        class="material-symbols-outlined text-[16px]">check</span>
+                                                            <div
+                                                                class="{{ $tplAvatarPosition === 'left-over-banner' ? 'px-3 pt-2 text-left' : 'px-3 pt-2 text-center' }}">
+                                                                <div class="{{ $tplAvatarPosition === 'left-over-banner' ? 'h-2 w-16' : 'mx-auto h-2 w-16' }} rounded-full"
+                                                                    style="background: {{ $tplText }};">
                                                                 </div>
-                                                            @endif
+                                                                <div class="{{ $tplAvatarPosition === 'left-over-banner' ? 'mt-1 h-1.5 w-12' : 'mx-auto mt-1 h-1.5 w-12' }} rounded-full"
+                                                                    style="background: {{ $tplText }}55;">
+                                                                </div>
+                                                            </div>
+                                                        @else
+                                                            <div class="px-3 pt-4">
+                                                                @if ($tplAvatarPosition === 'left-inline')
+                                                                    <div class="flex items-center gap-2">
+                                                                        <div class="grid h-11 w-11 shrink-0 place-items-center text-[10px] font-black text-white shadow"
+                                                                            style="background: {{ $tplAccent }}; border-radius: {{ $tplAvatarRadius }};">
+                                                                            {{ $this->getInitials() }}
+                                                                        </div>
+                                                                        <div class="min-w-0 flex-1">
+                                                                            <div class="h-2 w-16 rounded-full"
+                                                                                style="background: {{ $tplText }};">
+                                                                            </div>
+                                                                            <div class="mt-1 h-1.5 w-10 rounded-full"
+                                                                                style="background: {{ $tplText }}55;">
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                @else
+                                                                    <div class="flex justify-center">
+                                                                        <div class="grid h-12 w-12 place-items-center text-[11px] font-black text-white shadow"
+                                                                            style="background: {{ $tplAccent }}; border-radius: {{ $tplAvatarRadius }};">
+                                                                            {{ $this->getInitials() }}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="mt-3 text-center">
+                                                                        <div class="mx-auto h-2 w-16 rounded-full"
+                                                                            style="background: {{ $tplText }};">
+                                                                        </div>
+                                                                        <div class="mx-auto mt-1 h-1.5 w-12 rounded-full"
+                                                                            style="background: {{ $tplText }}55;">
+                                                                        </div>
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                        @endif
+
+                                                        <div class="mx-3 mt-3 h-5 rounded-full"
+                                                            style="background: {{ $tplAccent }};"></div>
+
+                                                        <div class="mx-3 mt-2 space-y-1.5">
+                                                            @for ($i = 0; $i < 3; $i++)
+                                                                <div class="flex items-center gap-1.5 border px-1.5 py-1 shadow-sm {{ in_array($tplEffect, ['glass', 'water-glass', 'glassmorphism'], true) ? 'backdrop-blur-xl' : 'bg-white' }}"
+                                                                    style="border-color: {{ in_array($tplEffect, ['glass', 'water-glass', 'glassmorphism'], true) ? 'rgba(255,255,255,0.30)' : ($this->fieldBorderStyle === 'none' ? 'transparent' : $this->fieldBorderColor) }}; border-style: {{ $this->fieldBorderStyle }}; border-width: {{ $this->fieldBorderStyle === 'none' ? 0 : (int) $this->fieldBorderWidth }}px; border-radius: {{ (int) $this->fieldBorderRadius }}px; background: {{ in_array($tplEffect, ['glass', 'water-glass', 'glassmorphism'], true) ? 'rgba(255,255,255,0.16)' : '#ffffff' }};">
+                                                                    <span class="h-4 w-4 rounded"
+                                                                        style="background: {{ $tplAccent }}22;"></span>
+                                                                    <span class="h-1.5 flex-1 rounded-full"
+                                                                        style="background: {{ $tplText }}22;"></span>
+                                                                </div>
+                                                            @endfor
                                                         </div>
 
-                                                        <div class="mt-3 flex items-center justify-center gap-1.5">
-                                                            <span class="h-2 w-2 rounded-full"
-                                                                style="background: {{ $tplAccent }};"></span>
-                                                            <p class="truncate text-xs font-black text-slate-700">
-                                                                {{ $template['label'] }}</p>
+                                                        @if ($this->contactButtonPosition === 'floating')
+                                                            <div class="absolute bottom-2 right-2 grid h-8 w-8 place-items-center text-white shadow-lg ring-2 ring-white"
+                                                                style="background: {{ $tplAccent }}; border-radius: {{ $this->floatingButtonBorderRadius >= 56 ? '999px' : $this->floatingButtonBorderRadius . 'px' }};">
+                                                                <span
+                                                                    class="material-symbols-outlined text-[16px]">person_add</span>
+                                                            </div>
+                                                        @endif
+                                                    </div>
+
+                                                    @if ($isSelectedTemplate)
+                                                        <div
+                                                            class="absolute right-2 top-2 grid h-6 w-6 place-items-center rounded-full bg-cyan-400 text-white shadow-lg">
+                                                            <span
+                                                                class="material-symbols-outlined text-[16px]">check</span>
                                                         </div>
-                                                        <p class="mt-1 text-[10px] font-semibold text-slate-400">
-                                                            {{ $template['use_profile_as_banner'] ?? false ? 'Profile hero' : ($tplHasBanner ? 'Banner' : 'No banner') }}
-                                                            ·
-                                                            {{ str_replace('-', ' ', $tplAvatarPosition) }}
-                                                        </p>
+                                                    @endif
+                                                </div>
+
+                                                <div class="mt-3 flex items-center justify-center gap-1.5">
+                                                    <span class="h-2 w-2 rounded-full"
+                                                        style="background: {{ $tplAccent }};"></span>
+                                                    <p class="truncate text-xs font-black text-slate-700">
+                                                        {{ $template['label'] }}</p>
+                                                </div>
+                                                <p class="mt-1 text-[10px] font-semibold text-slate-400">
+                                                    {{ $template['use_profile_as_banner'] ?? false ? 'Profile hero' : ($tplHasBanner ? 'Banner' : 'No banner') }}
+                                                    ·
+                                                    {{ str_replace('-', ' ', $tplAvatarPosition) }}
+                                                </p>
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Contact Setting --}}
+                        <div class="overflow-hidden border-b border-white/10 last:border-b-0">
+                            <button type="button"
+                                @click="toggleOpenSubPanel('contact-setting', 'openAppearancePanel', $event)"
+                                class="flex w-full items-center justify-between gap-3 py-4 text-left {{ !$this->isPremium ? 'opacity-55' : 'cursor-pointer' }}">
+                                <span class="flex items-center gap-3">
+                                    <span class="material-symbols-outlined text-base text-cyan-200 transition"
+                                        :class="openAppearancePanel === 'contact-setting' ? 'rotate-90' : ''">chevron_right</span>
+                                    <span class="text-sm font-black text-white">Contact Setting</span>
+                                </span>
+                                @if (!$this->isPremium)
+                                    <span
+                                        class="inline-flex items-center justify-center rounded-full border border-amber-300/20 bg-amber-400/10 p-1.5">
+                                        <span class="material-symbols-outlined text-sm text-amber-400">crown</span>
+                                    </span>
+                                @endif
+                            </button>
+
+                            <div x-show="openAppearancePanel === 'contact-setting'" x-collapse class="pb-6 pl-7">
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label class="mb-1 block text-xs font-bold text-blue-100/55">Button
+                                            text</label>
+                                        <input wire:model.live.debounce.300ms="contactButtonText" type="text"
+                                            placeholder="Save Contact"
+                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1 block text-xs font-bold text-blue-100/55">Button
+                                            text color</label>
+                                        <input wire:model.live="buttonTextColor" type="color"
+                                            class="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1 block text-xs font-bold text-blue-100/55">Button
+                                            position</label>
+                                        <select wire:model.live="contactButtonPosition"
+                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/40 !bg-slate-950 !text-white">
+                                            <option value="top" style="background-color: #020617; color: #ffffff;">
+                                                Top button
+                                            </option>
+                                            <option value="floating"
+                                                style="background-color: #020617; color: #ffffff;">Floating
+                                                button</option>
+                                        </select>
+                                    </div>
+
+                                    <div
+                                        class="rounded-2xl border border-cyan-300/15 bg-cyan-400/10 p-4 text-xs leading-5 text-cyan-100">
+                                        Top button shows under the profile details. Floating button can be
+                                        placed on any card corner.
+                                    </div>
+
+                                    @if ($this->contactButtonPosition === 'floating')
+                                        <div class="sm:col-span-2 rounded-2xl border border-white/10 bg-black/20 p-4">
+                                            <label class="mb-3 block text-xs font-bold text-blue-100/55">Floating
+                                                button placement</label>
+                                            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                                                @foreach ([
+        'top-left' => 'Top left',
+        'top-right' => 'Top right',
+        'bottom-left' => 'Bottom left',
+        'bottom-right' => 'Bottom right',
+    ] as $placementValue => $placementLabel)
+                                                    <button type="button"
+                                                        wire:click="$set('floatingButtonPlacement', '{{ $placementValue }}')"
+                                                        class="rounded-2xl border px-3 py-3 text-xs font-black transition {{ $this->floatingButtonPlacement === $placementValue ? 'border-cyan-300 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-white/5 text-blue-100/65 hover:bg-white/10' }}">
+                                                        {{ $placementLabel }}
                                                     </button>
                                                 @endforeach
                                             </div>
                                         </div>
-                                    </div>
-                                @endif
-                            </div>
 
-                            {{-- Contact Setting --}}
-                            <div class="overflow-hidden border-b border-white/10 last:border-b-0">
-                                <button type="button" wire:click="toggleAppearancePanel('contact-setting')"
-                                    class="flex w-full items-center justify-between gap-3 py-4 text-left {{ !$this->isPremium ? 'opacity-55' : 'cursor-pointer' }}">
-                                    <span class="flex items-center gap-3">
-                                        <span
-                                            class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->openAppearancePanel === 'contact-setting' ? 'rotate-90' : '' }}">chevron_right</span>
-                                        <span class="text-sm font-black text-white">Contact Setting</span>
-                                    </span>
-                                    @if (!$this->isPremium)
-                                        <span
-                                            class="inline-flex items-center justify-center rounded-full border border-amber-300/20 bg-amber-400/10 p-1.5">
-                                            <span class="material-symbols-outlined text-sm text-amber-400">crown</span>
-                                        </span>
-                                    @endif
-                                </button>
-
-                                @if ($this->openAppearancePanel === 'contact-setting')
-                                    <div class="pb-6 pl-7">
-                                        <div class="grid gap-4 sm:grid-cols-2">
-                                            <div>
-                                                <label class="mb-1 block text-xs font-bold text-blue-100/55">Button
-                                                    text</label>
-                                                <input wire:model.live="contactButtonText" type="text"
-                                                    placeholder="Save Contact"
-                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
+                                        <div class="sm:col-span-2 rounded-2xl border border-white/10 bg-black/20 p-4">
+                                            <label
+                                                class="mb-1 flex items-center justify-between text-xs font-bold text-blue-100/55">
+                                                <span>Floating button radius</span>
+                                                <span>{{ $this->floatingButtonBorderRadius >= 56 ? 'Circle' : $this->floatingButtonBorderRadius . 'px' }}</span>
+                                            </label>
+                                            <input wire:model.live="floatingButtonBorderRadius" type="range"
+                                                min="0" max="56" step="1"
+                                                class="w-full accent-cyan-400">
+                                            <div class="mt-3 grid grid-cols-3 gap-2">
+                                                <button type="button"
+                                                    wire:click="$set('floatingButtonBorderRadius', 0)" title="Square"
+                                                    class="grid h-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 transition hover:bg-white/10">
+                                                    <span class="h-4 w-4 rounded-none border-2 border-current"></span>
+                                                </button>
+                                                <button type="button"
+                                                    wire:click="$set('floatingButtonBorderRadius', 18)"
+                                                    title="Rounded"
+                                                    class="grid h-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 transition hover:bg-white/10">
+                                                    <span class="h-4 w-4 rounded-md border-2 border-current"></span>
+                                                </button>
+                                                <button type="button"
+                                                    wire:click="$set('floatingButtonBorderRadius', 56)" title="Circle"
+                                                    class="grid h-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 transition hover:bg-white/10">
+                                                    <span class="h-4 w-4 rounded-full border-2 border-current"></span>
+                                                </button>
                                             </div>
+                                        </div>
 
-                                            <div>
-                                                <label class="mb-1 block text-xs font-bold text-blue-100/55">Button
-                                                    text color</label>
-                                                <input wire:model.live="buttonTextColor" type="color"
-                                                    class="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
-                                            </div>
-
-                                            <div>
-                                                <label class="mb-1 block text-xs font-bold text-blue-100/55">Button
-                                                    position</label>
-                                                <select wire:model.live="contactButtonPosition"
-                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/40 !bg-slate-950 !text-white">
-                                                    <option value="top"
-                                                        style="background-color: #020617; color: #ffffff;">Top button
-                                                    </option>
-                                                    <option value="floating"
-                                                        style="background-color: #020617; color: #ffffff;">Floating
-                                                        button</option>
-                                                </select>
-                                            </div>
-
-                                            <div
-                                                class="rounded-2xl border border-cyan-300/15 bg-cyan-400/10 p-4 text-xs leading-5 text-cyan-100">
-                                                Top button shows under the profile details. Floating button can be
-                                                placed on any card corner.
-                                            </div>
-
-                                            @if ($this->contactButtonPosition === 'floating')
-                                                <div
-                                                    class="sm:col-span-2 rounded-2xl border border-white/10 bg-black/20 p-4">
-                                                    <label
-                                                        class="mb-3 block text-xs font-bold text-blue-100/55">Floating
-                                                        button placement</label>
-                                                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                                        @foreach ([
-                                                                'top-left' => 'Top left',
-                                                                'top-right' => 'Top right',
-                                                                'bottom-left' => 'Bottom left',
-                                                                'bottom-right' => 'Bottom right',
-                                                            ] as $placementValue => $placementLabel)
-                                                                    <button type="button"
-                                                                        wire:click="$set('floatingButtonPlacement', '{{ $placementValue }}')"
-                                                                        class="rounded-2xl border px-3 py-3 text-xs font-black transition {{ $this->floatingButtonPlacement === $placementValue ? 'border-cyan-300 bg-cyan-400/15 text-cyan-100' : 'border-white/10 bg-white/5 text-blue-100/65 hover:bg-white/10' }}">
-                                                                        {{ $placementLabel }}
-                                                                    </button>
-                                                        @endforeach
+                                        <div class="sm:col-span-2 rounded-2xl border border-white/10 bg-black/20 p-4">
+                                            <label
+                                                class="flex items-center justify-between gap-3 text-xs font-bold text-blue-100/70">
+                                                <span>Floating button ring</span>
+                                                <input wire:model.live="floatingButtonRingEnabled" type="checkbox"
+                                                    class="accent-cyan-400">
+                                            </label>
+                                            @if ($this->floatingButtonRingEnabled)
+                                                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                                    <div>
+                                                        <label
+                                                            class="block text-[10px] font-bold uppercase tracking-wider text-blue-100/45">Ring
+                                                            color</label>
+                                                        <input wire:model.live="floatingButtonRingColor"
+                                                            type="color"
+                                                            class="mt-1 h-10 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1 @error('floatingButtonRingColor') ring-2 ring-red-400/60 @enderror">
+                                                        @error('floatingButtonRingColor')
+                                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                        @enderror
+                                                    </div>
+                                                    <div>
+                                                        <label
+                                                            class="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-blue-100/45">
+                                                            <span>Ring width</span>
+                                                            <span>{{ $this->floatingButtonRingWidth }}px</span>
+                                                        </label>
+                                                        <input wire:model.live="floatingButtonRingWidth"
+                                                            type="range" min="0" max="12"
+                                                            step="1"
+                                                            class="w-full accent-cyan-400 @error('floatingButtonRingWidth') accent-red-400 @enderror">
+                                                        @error('floatingButtonRingWidth')
+                                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                        @enderror
                                                     </div>
                                                 </div>
 
-                                                <div
-                                                    class="sm:col-span-2 rounded-2xl border border-white/10 bg-black/20 p-4">
+                                                <div class="mt-3">
                                                     <label
-                                                        class="mb-1 flex items-center justify-between text-xs font-bold text-blue-100/55">
-                                                        <span>Floating button radius</span>
-                                                        <span>{{ $this->floatingButtonBorderRadius >= 56 ? 'Circle' : $this->floatingButtonBorderRadius . 'px' }}</span>
-                                                    </label>
-                                                    <input wire:model.live="floatingButtonBorderRadius" type="range"
-                                                        min="0" max="56" step="1"
-                                                        class="w-full accent-cyan-400">
-                                                    <div class="mt-3 grid grid-cols-3 gap-2">
+                                                        class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-blue-100/45">Ring
+                                                        shape</label>
+                                                    <div class="grid grid-cols-3 gap-2">
                                                         <button type="button"
-                                                            wire:click="$set('floatingButtonBorderRadius', 0)"
-                                                            title="Square"
-                                                            class="grid h-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 transition hover:bg-white/10">
+                                                            wire:click="$set('floatingButtonRingShape', 'square')"
+                                                            class="grid h-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 transition hover:bg-white/10 {{ $this->floatingButtonRingShape === 'square' ? 'border-cyan-300 bg-cyan-400/15 text-cyan-100' : '' }}"
+                                                            title="Square ring">
                                                             <span
                                                                 class="h-4 w-4 rounded-none border-2 border-current"></span>
                                                         </button>
                                                         <button type="button"
-                                                            wire:click="$set('floatingButtonBorderRadius', 18)"
-                                                            title="Rounded"
-                                                            class="grid h-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 transition hover:bg-white/10">
+                                                            wire:click="$set('floatingButtonRingShape', 'rounded')"
+                                                            class="grid h-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 transition hover:bg-white/10 {{ $this->floatingButtonRingShape === 'rounded' ? 'border-cyan-300 bg-cyan-400/15 text-cyan-100' : '' }}"
+                                                            title="Rounded ring">
                                                             <span
                                                                 class="h-4 w-4 rounded-md border-2 border-current"></span>
                                                         </button>
                                                         <button type="button"
-                                                            wire:click="$set('floatingButtonBorderRadius', 56)"
-                                                            title="Circle"
-                                                            class="grid h-9 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 transition hover:bg-white/10">
+                                                            wire:click="$set('floatingButtonRingShape', 'circle')"
+                                                            class="grid h-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 transition hover:bg-white/10 {{ $this->floatingButtonRingShape === 'circle' ? 'border-cyan-300 bg-cyan-400/15 text-cyan-100' : '' }}"
+                                                            title="Circle ring">
                                                             <span
                                                                 class="h-4 w-4 rounded-full border-2 border-current"></span>
                                                         </button>
                                                     </div>
                                                 </div>
-
-                                                <div
-                                                    class="sm:col-span-2 rounded-2xl border border-white/10 bg-black/20 p-4">
-                                                    <label
-                                                        class="flex items-center justify-between gap-3 text-xs font-bold text-blue-100/70">
-                                                        <span>Floating button ring</span>
-                                                        <input wire:model.live="floatingButtonRingEnabled"
-                                                            type="checkbox" class="accent-cyan-400">
-                                                    </label>
-                                                    @if ($this->floatingButtonRingEnabled)
-                                                        <div class="mt-3 grid gap-3 sm:grid-cols-2">
-                                                            <div>
-                                                                <label
-                                                                    class="block text-[10px] font-bold uppercase tracking-wider text-blue-100/45">Ring
-                                                                    color</label>
-                                                                <input wire:model.live="floatingButtonRingColor"
-                                                                    type="color"
-                                                                    class="mt-1 h-10 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
-                                                            </div>
-                                                            <div>
-                                                                <label
-                                                                    class="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-blue-100/45">
-                                                                    <span>Ring width</span>
-                                                                    <span>{{ $this->floatingButtonRingWidth }}px</span>
-                                                                </label>
-                                                                <input wire:model.live="floatingButtonRingWidth"
-                                                                    type="range" min="0" max="12"
-                                                                    step="1" class="w-full accent-cyan-400">
-                                                            </div>
-                                                        </div>
-
-                                                        <div class="mt-3">
-                                                            <label
-                                                                class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-blue-100/45">Ring
-                                                                shape</label>
-                                                            <div class="grid grid-cols-3 gap-2">
-                                                                <button type="button"
-                                                                    wire:click="$set('floatingButtonRingShape', 'square')"
-                                                                    class="grid h-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 transition hover:bg-white/10 {{ $this->floatingButtonRingShape === 'square' ? 'border-cyan-300 bg-cyan-400/15 text-cyan-100' : '' }}"
-                                                                    title="Square ring">
-                                                                    <span
-                                                                        class="h-4 w-4 rounded-none border-2 border-current"></span>
-                                                                </button>
-                                                                <button type="button"
-                                                                    wire:click="$set('floatingButtonRingShape', 'rounded')"
-                                                                    class="grid h-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 transition hover:bg-white/10 {{ $this->floatingButtonRingShape === 'rounded' ? 'border-cyan-300 bg-cyan-400/15 text-cyan-100' : '' }}"
-                                                                    title="Rounded ring">
-                                                                    <span
-                                                                        class="h-4 w-4 rounded-md border-2 border-current"></span>
-                                                                </button>
-                                                                <button type="button"
-                                                                    wire:click="$set('floatingButtonRingShape', 'circle')"
-                                                                    class="grid h-10 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 transition hover:bg-white/10 {{ $this->floatingButtonRingShape === 'circle' ? 'border-cyan-300 bg-cyan-400/15 text-cyan-100' : '' }}"
-                                                                    title="Circle ring">
-                                                                    <span
-                                                                        class="h-4 w-4 rounded-full border-2 border-current"></span>
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    @endif
-                                                </div>
                                             @endif
                                         </div>
-                                    </div>
-                                @endif
-                            </div>
-
-                            {{-- Design --}}
-                            <div class="overflow-hidden border-b border-white/10 last:border-b-0">
-                                <button type="button" wire:click="toggleAppearancePanel('design')"
-                                    class="flex w-full items-center justify-between gap-3 py-4 text-left {{ !$this->isPremium ? 'opacity-55' : 'cursor-pointer' }}">
-                                    <span class="flex items-center gap-3">
-                                        <span
-                                            class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->openAppearancePanel === 'design' ? 'rotate-90' : '' }}">chevron_right</span>
-                                        <span class="text-sm font-black text-white">Design</span>
-                                    </span>
-                                    @if (!$this->isPremium)
-                                        <span
-                                            class="inline-flex items-center justify-center rounded-full border border-amber-300/20 bg-amber-400/10 p-1.5">
-                                            <span class="material-symbols-outlined text-sm text-amber-400">crown</span>
-                                        </span>
                                     @endif
-                                </button>
-
-                                @if ($this->openAppearancePanel === 'design')
-                                    <div class="pb-6 pl-7">
-                                        <label
-                                            class="mb-3 block text-xs font-black uppercase tracking-wider text-blue-100/55">Color
-                                            palette</label>
-                                        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
-                                            @foreach ([['#06b6d4', '#1e293b', '#ffffff'], ['#2563eb', '#ffffff', '#111827'], ['#d4a762', '#1c1917', '#fafaf9'], ['#ec4899', '#312e81', '#ffffff'], ['#22c55e', '#14532d', '#ffffff'], ['#f97316', '#1c1917', '#ffffff'], ['#8b5cf6', '#111827', '#ffffff'], ['#64748b', '#f8fafc', '#334155']] as $preset)
-                                                <button type="button"
-                                                    wire:click="applyColorPreset('{{ $preset[0] }}', '{{ $preset[1] }}', '{{ $preset[2] }}')"
-                                                    class="overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-1 transition hover:-translate-y-0.5 hover:bg-white/10">
-                                                    <div class="flex h-12 overflow-hidden rounded-xl">
-                                                        <span class="w-1/3"
-                                                            style="background: {{ $preset[0] }}"></span>
-                                                        <span class="w-1/3"
-                                                            style="background: {{ $preset[1] }}"></span>
-                                                        <span class="w-1/3"
-                                                            style="background: {{ $preset[2] }}"></span>
-                                                    </div>
-                                                </button>
-                                            @endforeach
-                                        </div>
-
-                                        <div class="mt-5 grid gap-4 grid-cols-2 lg:grid-cols-4">
-                                            <div>
-                                                <label class="mb-1 block text-xs font-bold text-blue-100/55">Accent
-                                                    color</label>
-                                                <input wire:model.live="accentColor" type="color"
-                                                    class="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
-                                            </div>
-                                            <div>
-                                                <label class="mb-1 block text-xs font-bold text-blue-100/55">Card
-                                                    background</label>
-                                                <input wire:model.live="cardBg" type="color"
-                                                    class="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
-                                            </div>
-                                            <div>
-                                                <label class="mb-1 block text-xs font-bold text-blue-100/55">Page
-                                                    background</label>
-                                                <input wire:model.live="bgColor" type="color"
-                                                    class="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
-                                            </div>
-
-                                        </div>
-
-                                        <div class="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5">
-                                            <div
-                                                class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                                <div>
-                                                    <h4 class="text-sm font-black text-white">Avatar & info card style
-                                                    </h4>
-                                                    <p class="mt-1 text-xs leading-5 text-blue-100/45">Grouped controls
-                                                        for profile image, avatar ring and contact info cards.</p>
-                                                </div>
-                                                <span
-                                                    class="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/80">Design
-                                                    controls</span>
-                                            </div>
-
-                                            <div class="space-y-4">
-                                                <div class="grid gap-4 lg:grid-cols-2">
-                                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                                        <div class="mb-3 flex items-center justify-between gap-3">
-                                                            <div>
-                                                                <p
-                                                                    class="text-xs font-black uppercase tracking-[0.18em] text-cyan-100/60">
-                                                                    Avatar</p>
-                                                                <p class="mt-1 text-sm font-bold text-white">Image
-                                                                    radius</p>
-                                                            </div>
-                                                            <div class="grid h-12 w-12 place-items-center border text-white shadow-lg"
-                                                                style="background: {{ $this->accentColor }}; border-color: {{ $this->avatarRingEnabled ? $this->avatarRingColor : 'rgba(255,255,255,0.15)' }}; border-width: {{ $this->avatarRingEnabled ? (int) $this->avatarRingWidth : 1 }}px; border-radius: {{ $this->avatarBorderRadius >= 56 ? 999 : $this->avatarBorderRadius }}px;">
-                                                                <span
-                                                                    class="text-xs font-black">{{ strtoupper(substr($this->getInitials(), 0, 2)) }}</span>
-                                                            </div>
-                                                        </div>
-
-                                                        <label
-                                                            class="mb-2 flex items-center justify-between text-xs font-bold text-blue-100/55">
-                                                            <span>User image radius</span>
-                                                            <span>{{ $this->avatarBorderRadius >= 56 ? 'Circle' : $this->avatarBorderRadius . 'px' }}</span>
-                                                        </label>
-                                                        <input wire:model.live="avatarBorderRadius" type="range"
-                                                            min="0" max="56" step="1"
-                                                            class="w-full accent-cyan-400">
-
-                                                        <div class="mt-3 grid grid-cols-3 gap-2">
-                                                            <button type="button"
-                                                                wire:click="$set('avatarBorderRadius', 0)"
-                                                                title="Square"
-                                                                class="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] font-semibold text-blue-100/75 transition hover:bg-white/10">
-                                                                <span
-                                                                    class="h-4 w-4 rounded-none border-2 border-current"></span>
-                                                                Flat
-                                                            </button>
-                                                            <button type="button"
-                                                                wire:click="$set('avatarBorderRadius', 20)"
-                                                                title="Rounded"
-                                                                class="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] font-semibold text-blue-100/75 transition hover:bg-white/10">
-                                                                <span
-                                                                    class="h-4 w-4 rounded-md border-2 border-current"></span>
-                                                                Soft
-                                                            </button>
-                                                            <button type="button"
-                                                                wire:click="$set('avatarBorderRadius', 56)"
-                                                                title="Circle"
-                                                                class="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] font-semibold text-blue-100/75 transition hover:bg-white/10">
-                                                                <span
-                                                                    class="h-4 w-4 rounded-full border-2 border-current"></span>
-                                                                Round
-                                                            </button>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                                        <div class="mb-3 flex items-center justify-between gap-3">
-                                                            <div>
-                                                                <p
-                                                                    class="text-xs font-black uppercase tracking-[0.18em] text-cyan-100/60">
-                                                                    Avatar ring</p>
-                                                                <p class="mt-1 text-sm font-bold text-white">Border
-                                                                    around profile image</p>
-                                                            </div>
-                                                            <label
-                                                                class="inline-flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2">
-                                                                <span
-                                                                    class="text-[11px] font-black text-blue-100/70">{{ $this->avatarRingEnabled ? 'On' : 'Off' }}</span>
-                                                                <input wire:model.live="avatarRingEnabled"
-                                                                    type="checkbox" class="peer sr-only">
-                                                                <span
-                                                                    class="relative h-5 w-9 rounded-full bg-white/10 transition peer-checked:bg-cyan-400/80 after:absolute after:left-1 after:top-1 after:h-3 after:w-3 after:rounded-full after:bg-white after:shadow after:transition after:content-[''] peer-checked:after:translate-x-4"></span>
-                                                            </label>
-                                                        </div>
-
-                                                        @if ($this->avatarRingEnabled)
-                                                            <div class="grid gap-3 sm:grid-cols-2">
-                                                                <div
-                                                                    class="rounded-2xl border border-white/10 bg-black/20 p-3">
-                                                                    <label
-                                                                        class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-blue-100/45">Ring
-                                                                        color</label>
-                                                                    <input wire:model.live="avatarRingColor"
-                                                                        type="color"
-                                                                        class="h-11 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
-                                                                </div>
-                                                                <div
-                                                                    class="rounded-2xl border border-white/10 bg-black/20 p-3">
-                                                                    <label
-                                                                        class="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-blue-100/45">
-                                                                        <span>Ring width</span>
-                                                                        <span>{{ $this->avatarRingWidth }}px</span>
-                                                                    </label>
-                                                                    <input wire:model.live="avatarRingWidth"
-                                                                        type="range" min="0" max="12"
-                                                                        step="1" class="w-full accent-cyan-400">
-                                                                </div>
-                                                            </div>
-                                                        @else
-                                                            <p
-                                                                class="rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-xs leading-5 text-blue-100/45">
-                                                                Avatar ring is hidden. Turn it on to customize color and
-                                                                width.</p>
-                                                        @endif
-                                                    </div>
-                                                </div>
-
-                                                <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
-                                                    <div
-                                                        class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                                        <div>
-                                                            <p
-                                                                class="text-xs font-black uppercase tracking-[0.18em] text-cyan-100/60">
-                                                                Info cards</p>
-                                                            <p class="mt-1 text-sm font-bold text-white">Phone, email,
-                                                                website, location, company and social cards</p>
-                                                        </div>
-                                                        <div class="rounded-2xl px-3 py-2 text-[11px] font-semibold text-blue-100/70"
-                                                            style="border: {{ (int) $this->fieldBorderWidth }}px {{ $this->fieldBorderStyle === 'none' ? 'solid' : $this->fieldBorderStyle }} {{ $this->fieldBorderStyle === 'none' || (int) $this->fieldBorderWidth === 0 ? 'transparent' : $this->fieldBorderColor }}; border-radius: {{ (int) $this->fieldBorderRadius }}px; background: rgba(15, 23, 42, 0.55);">
-                                                            Live border preview
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="grid gap-4 md:grid-cols-2">
-                                                        <div
-                                                            class="rounded-2xl border border-white/10 bg-black/20 p-3">
-                                                            <label
-                                                                class="mb-2 block text-xs font-bold text-blue-100/55">Border
-                                                                color</label>
-                                                            <input wire:model.live="fieldBorderColor" type="color"
-                                                                class="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
-                                                        </div>
-
-                                                        <div
-                                                            class="rounded-2xl border border-white/10 bg-black/20 p-3">
-                                                            <label
-                                                                class="mb-2 flex items-center justify-between text-xs font-bold text-blue-100/55">
-                                                                <span>Border width</span>
-                                                                <span>{{ $this->fieldBorderWidth }}px</span>
-                                                            </label>
-                                                            <input wire:model.live="fieldBorderWidth" type="range"
-                                                                min="0" max="10" step="1"
-                                                                class="w-full accent-cyan-400">
-                                                        </div>
-
-                                                        <div
-                                                            class="rounded-2xl border border-white/10 bg-black/20 p-3">
-                                                            <label
-                                                                class="mb-2 flex items-center justify-between text-xs font-bold text-blue-100/55">
-                                                                <span>Field radius</span>
-                                                                <span>{{ $this->fieldBorderRadius }}px</span>
-                                                            </label>
-                                                            <input wire:model.live="fieldBorderRadius" type="range"
-                                                                min="0" max="32" step="1"
-                                                                class="w-full accent-cyan-400">
-                                                        </div>
-
-                                                        <div
-                                                            class="rounded-2xl border border-white/10 bg-black/20 p-3">
-                                                            <label
-                                                                class="mb-2 block text-xs font-bold text-blue-100/55">Border
-                                                                style</label>
-                                                            <select wire:model.live="fieldBorderStyle"
-                                                                class="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs text-white outline-none !bg-slate-950 !text-white">
-                                                                <option value="solid"
-                                                                    style="background-color: #020617; color: #ffffff;">
-                                                                    Solid</option>
-                                                                <option value="dashed"
-                                                                    style="background-color: #020617; color: #ffffff;">
-                                                                    Dashed</option>
-                                                                <option value="dotted"
-                                                                    style="background-color: #020617; color: #ffffff;">
-                                                                    Dotted</option>
-                                                                <option value="none"
-                                                                    style="background-color: #020617; color: #ffffff;">
-                                                                    No border</option>
-                                                            </select>
-                                                        </div>
-
-                                                        <div
-                                                            class="rounded-2xl border border-white/10 bg-black/20 p-3 md:col-span-2">
-                                                            <label
-                                                                class="mb-2 block text-xs font-bold text-blue-100/55">Shadow
-                                                                effect</label>
-                                                            <select wire:model.live="fieldShadow"
-                                                                class="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs text-white outline-none !bg-slate-950 !text-white">
-                                                                <option value="none"
-                                                                    style="background-color: #020617; color: #ffffff;">
-                                                                    None</option>
-                                                                <option value="soft"
-                                                                    style="background-color: #020617; color: #ffffff;">
-                                                                    Soft</option>
-                                                                <option value="medium"
-                                                                    style="background-color: #020617; color: #ffffff;">
-                                                                    Medium</option>
-                                                                <option value="glass"
-                                                                    style="background-color: #020617; color: #ffffff;">
-                                                                    Glass</option>
-                                                            </select>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endif
+                                </div>
                             </div>
-
-                            {{-- Fonts --}}
-                            <div class="overflow-hidden border-b border-white/10 last:border-b-0">
-                                <button type="button" wire:click="toggleAppearancePanel('fonts')"
-                                    class="flex w-full items-center justify-between gap-3 py-4 text-left {{ !$this->isPremium ? 'opacity-55' : 'cursor-pointer' }}">
-                                    <span class="flex items-center gap-3">
-                                        <span
-                                            class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->openAppearancePanel === 'fonts' ? 'rotate-90' : '' }}">chevron_right</span>
-                                        <span class="text-sm font-black text-white">Fonts</span>
-                                    </span>
-                                    @if (!$this->isPremium)
-                                        <span
-                                            class="inline-flex items-center justify-center rounded-full border border-amber-300/20 bg-amber-400/10 p-1.5">
-                                            <span class="material-symbols-outlined text-sm text-amber-400">crown</span>
-                                        </span>
-                                    @endif
-                                </button>
-
-                                @if ($this->openAppearancePanel === 'fonts')
-                                    <div class="pb-6 pl-7">
-                                        <div class="grid gap-4 sm:grid-cols-2">
-                                            <div>
-                                                <label class="mb-1 block text-xs font-bold text-blue-100/55">Font
-                                                    family</label>
-                                                <select wire:model.live="fontFamily"
-                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/40 !bg-slate-950 !text-white"
-                                                    style="font-family: '{{ $this->fontFamily }}', sans-serif">
-                                                    @foreach ($this->fonts as $value => $label)
-                                                        <option value="{{ $value }}"
-                                                            style="background-color: #020617; color: #ffffff;">
-                                                            {{ $label }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label class="mb-1 block text-xs font-bold text-blue-100/55">Font
-                                                    color</label>
-                                                <input wire:model.live="textColor" type="color"
-                                                    class="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
-                                            </div>
-                                        </div>
-                                        <div class="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
-                                            <p class="text-xs font-bold text-blue-100/55">Preview</p>
-                                            <p class="mt-2 text-lg"
-                                                style="font-family: '{{ $this->fontFamily }}', sans-serif; color: {{ $this->textColor }};">
-                                                {{ $this->getFullName() }} — Digital vCard preview
-                                            </p>
-                                        </div>
-                                    </div>
-                                @endif
-                            </div>
-
                         </div>
-                    @endif
+
+                        {{-- Design --}}
+                        <div class="overflow-hidden border-b border-white/10 last:border-b-0">
+                            <button type="button"
+                                @click="toggleOpenSubPanel('design', 'openAppearancePanel', $event)"
+                                class="flex w-full items-center justify-between gap-3 py-4 text-left {{ !$this->isPremium ? 'opacity-55' : 'cursor-pointer' }}">
+                                <span class="flex items-center gap-3">
+                                    <span class="material-symbols-outlined text-base text-cyan-200 transition"
+                                        :class="openAppearancePanel === 'design' ? 'rotate-90' : ''">chevron_right</span>
+                                    <span class="text-sm font-black text-white">Design</span>
+                                </span>
+                                @if (!$this->isPremium)
+                                    <span
+                                        class="inline-flex items-center justify-center rounded-full border border-amber-300/20 bg-amber-400/10 p-1.5">
+                                        <span class="material-symbols-outlined text-sm text-amber-400">crown</span>
+                                    </span>
+                                @endif
+                            </button>
+
+                            <div x-show="openAppearancePanel === 'design'" x-collapse class="pb-6 pl-7">
+                                <label
+                                    class="mb-3 block text-xs font-black uppercase tracking-wider text-blue-100/55">Color
+                                    palette</label>
+                                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+                                    @foreach ([['#06b6d4', '#1e293b', '#ffffff'], ['#2563eb', '#ffffff', '#111827'], ['#d4a762', '#1c1917', '#fafaf9'], ['#ec4899', '#312e81', '#ffffff'], ['#22c55e', '#14532d', '#ffffff'], ['#f97316', '#1c1917', '#ffffff'], ['#8b5cf6', '#111827', '#ffffff'], ['#64748b', '#f8fafc', '#334155']] as $preset)
+                                        <button type="button"
+                                            wire:click="applyColorPreset('{{ $preset[0] }}', '{{ $preset[1] }}', '{{ $preset[2] }}')"
+                                            class="overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-1 transition hover:-translate-y-0.5 hover:bg-white/10">
+                                            <div class="flex h-12 overflow-hidden rounded-xl">
+                                                <span class="w-1/3" style="background: {{ $preset[0] }}"></span>
+                                                <span class="w-1/3" style="background: {{ $preset[1] }}"></span>
+                                                <span class="w-1/3" style="background: {{ $preset[2] }}"></span>
+                                            </div>
+                                        </button>
+                                    @endforeach
+                                </div>
+
+                                <div class="mt-5 grid gap-4 grid-cols-2 lg:grid-cols-4">
+                                    <div>
+                                        <label class="mb-1 block text-xs font-bold text-blue-100/55">Accent
+                                            color</label>
+                                        <input wire:model.live="accentColor" type="color"
+                                            class="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-bold text-blue-100/55">Card
+                                            background</label>
+                                        <input wire:model.live="cardBg" type="color"
+                                            class="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-bold text-blue-100/55">Page
+                                            background</label>
+                                        <input wire:model.live="bgColor" type="color"
+                                            class="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
+                                    </div>
+
+                                </div>
+
+                                <div class="mt-5 rounded-2xl border border-white/10 bg-black/20 p-4 sm:p-5">
+                                    <div
+                                        class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                        <div>
+                                            <h4 class="text-sm font-black text-white">Avatar & info card style
+                                            </h4>
+                                            <p class="mt-1 text-xs leading-5 text-blue-100/45">Grouped controls
+                                                for profile image, avatar ring and contact info cards.</p>
+                                        </div>
+                                        <span
+                                            class="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-cyan-100/80">Design
+                                            controls</span>
+                                    </div>
+
+                                    <div class="space-y-4">
+                                        <div class="grid gap-4 lg:grid-cols-2">
+                                            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                <div class="mb-3 flex items-center justify-between gap-3">
+                                                    <div>
+                                                        <p
+                                                            class="text-xs font-black uppercase tracking-[0.18em] text-cyan-100/60">
+                                                            Avatar</p>
+                                                        <p class="mt-1 text-sm font-bold text-white">Image
+                                                            radius</p>
+                                                    </div>
+                                                    <div class="grid h-12 w-12 place-items-center border text-white shadow-lg"
+                                                        style="background: {{ $this->accentColor }}; border-color: {{ $this->avatarRingEnabled ? $this->avatarRingColor : 'rgba(255,255,255,0.15)' }}; border-width: {{ $this->avatarRingEnabled ? (int) $this->avatarRingWidth : 1 }}px; border-radius: {{ $this->avatarBorderRadius >= 56 ? 999 : $this->avatarBorderRadius }}px;">
+                                                        <span
+                                                            class="text-xs font-black">{{ strtoupper(substr($this->getInitials(), 0, 2)) }}</span>
+                                                    </div>
+                                                </div>
+
+                                                <label
+                                                    class="mb-2 flex items-center justify-between text-xs font-bold text-blue-100/55">
+                                                    <span>User image radius</span>
+                                                    <span>{{ $this->avatarBorderRadius >= 56 ? 'Circle' : $this->avatarBorderRadius . 'px' }}</span>
+                                                </label>
+                                                <input wire:model.live="avatarBorderRadius" type="range"
+                                                    min="0" max="56" step="1"
+                                                    class="w-full accent-cyan-400">
+
+                                                <div class="mt-3 grid grid-cols-3 gap-2">
+                                                    <button type="button" wire:click="$set('avatarBorderRadius', 0)"
+                                                        title="Square"
+                                                        class="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] font-semibold text-blue-100/75 transition hover:bg-white/10">
+                                                        <span
+                                                            class="h-4 w-4 rounded-none border-2 border-current"></span>
+                                                        Flat
+                                                    </button>
+                                                    <button type="button" wire:click="$set('avatarBorderRadius', 20)"
+                                                        title="Rounded"
+                                                        class="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] font-semibold text-blue-100/75 transition hover:bg-white/10">
+                                                        <span
+                                                            class="h-4 w-4 rounded-md border-2 border-current"></span>
+                                                        Soft
+                                                    </button>
+                                                    <button type="button" wire:click="$set('avatarBorderRadius', 56)"
+                                                        title="Circle"
+                                                        class="flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-[11px] font-semibold text-blue-100/75 transition hover:bg-white/10">
+                                                        <span
+                                                            class="h-4 w-4 rounded-full border-2 border-current"></span>
+                                                        Round
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                                <div class="mb-3 flex items-center justify-between gap-3">
+                                                    <div>
+                                                        <p
+                                                            class="text-xs font-black uppercase tracking-[0.18em] text-cyan-100/60">
+                                                            Avatar ring</p>
+                                                        <p class="mt-1 text-sm font-bold text-white">Border
+                                                            around profile image</p>
+                                                    </div>
+                                                    <label
+                                                        class="inline-flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-3 py-2">
+                                                        <span
+                                                            class="text-[11px] font-black text-blue-100/70">{{ $this->avatarRingEnabled ? 'On' : 'Off' }}</span>
+                                                        <input wire:model.live="avatarRingEnabled" type="checkbox"
+                                                            class="peer sr-only">
+                                                        <span
+                                                            class="relative h-5 w-9 rounded-full bg-white/10 transition peer-checked:bg-cyan-400/80 after:absolute after:left-1 after:top-1 after:h-3 after:w-3 after:rounded-full after:bg-white after:shadow after:transition after:content-[''] peer-checked:after:translate-x-4"></span>
+                                                    </label>
+                                                </div>
+
+                                                @if ($this->avatarRingEnabled)
+                                                    <div class="grid gap-3 sm:grid-cols-2">
+                                                        <div
+                                                            class="rounded-2xl border border-white/10 bg-black/20 p-3">
+                                                            <label
+                                                                class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-blue-100/45">Ring
+                                                                color</label>
+                                                            <input wire:model.live="avatarRingColor" type="color"
+                                                                class="h-11 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1 @error('avatarRingColor') ring-2 ring-red-400/60 @enderror">
+                                                            @error('avatarRingColor')
+                                                                <p class="mt-1 text-xs text-red-300">{{ $message }}
+                                                                </p>
+                                                            @enderror
+                                                        </div>
+                                                        <div
+                                                            class="rounded-2xl border border-white/10 bg-black/20 p-3">
+                                                            <label
+                                                                class="mb-2 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-blue-100/45">
+                                                                <span>Ring width</span>
+                                                                <span>{{ $this->avatarRingWidth }}px</span>
+                                                            </label>
+                                                            <input wire:model.live="avatarRingWidth" type="range"
+                                                                min="0" max="12" step="1"
+                                                                class="w-full accent-cyan-400 @error('avatarRingWidth') accent-red-400 @enderror">
+                                                            @error('avatarRingWidth')
+                                                                <p class="mt-1 text-xs text-red-300">{{ $message }}
+                                                                </p>
+                                                            @enderror
+                                                        </div>
+                                                    </div>
+                                                @else
+                                                    <p
+                                                        class="rounded-2xl border border-white/10 bg-black/20 px-3 py-3 text-xs leading-5 text-blue-100/45">
+                                                        Avatar ring is hidden. Turn it on to customize color and
+                                                        width.</p>
+                                                @endif
+                                            </div>
+                                        </div>
+
+                                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4">
+                                            <div
+                                                class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                <div>
+                                                    <p
+                                                        class="text-xs font-black uppercase tracking-[0.18em] text-cyan-100/60">
+                                                        Info cards</p>
+                                                    <p class="mt-1 text-sm font-bold text-white">Phone, email,
+                                                        website, location, company and social cards</p>
+                                                </div>
+                                                <div class="rounded-2xl px-3 py-2 text-[11px] font-semibold text-blue-100/70"
+                                                    style="border: {{ (int) $this->fieldBorderWidth }}px {{ $this->fieldBorderStyle === 'none' ? 'solid' : $this->fieldBorderStyle }} {{ $this->fieldBorderStyle === 'none' || (int) $this->fieldBorderWidth === 0 ? 'transparent' : $this->fieldBorderColor }}; border-radius: {{ (int) $this->fieldBorderRadius }}px; background: rgba(15, 23, 42, 0.55);">
+                                                    Live border preview
+                                                </div>
+                                            </div>
+
+                                            <div class="grid gap-4 md:grid-cols-2">
+                                                <div class="rounded-2xl border border-white/10 bg-black/20 p-3">
+                                                    <label class="mb-2 block text-xs font-bold text-blue-100/55">Border
+                                                        color</label>
+                                                    <input wire:model.live="fieldBorderColor" type="color"
+                                                        class="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
+                                                </div>
+
+                                                <div class="rounded-2xl border border-white/10 bg-black/20 p-3">
+                                                    <label
+                                                        class="mb-2 flex items-center justify-between text-xs font-bold text-blue-100/55">
+                                                        <span>Border width</span>
+                                                        <span>{{ $this->fieldBorderWidth }}px</span>
+                                                    </label>
+                                                    <input wire:model.live="fieldBorderWidth" type="range"
+                                                        min="0" max="10" step="1"
+                                                        class="w-full accent-cyan-400 @error('fieldBorderWidth') accent-red-400 @enderror">
+                                                    @error('fieldBorderWidth')
+                                                        <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                    @enderror
+                                                </div>
+
+                                                <div class="rounded-2xl border border-white/10 bg-black/20 p-3">
+                                                    <label
+                                                        class="mb-2 flex items-center justify-between text-xs font-bold text-blue-100/55">
+                                                        <span>Field radius</span>
+                                                        <span>{{ $this->fieldBorderRadius }}px</span>
+                                                    </label>
+                                                    <input wire:model.live="fieldBorderRadius" type="range"
+                                                        min="0" max="32" step="1"
+                                                        class="w-full accent-cyan-400">
+                                                </div>
+
+                                                <div class="rounded-2xl border border-white/10 bg-black/20 p-3">
+                                                    <label class="mb-2 block text-xs font-bold text-blue-100/55">Border
+                                                        style</label>
+                                                    <select wire:model.live="fieldBorderStyle"
+                                                        class="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs text-white outline-none !bg-slate-950 !text-white">
+                                                        <option value="solid"
+                                                            style="background-color: #020617; color: #ffffff;">
+                                                            Solid</option>
+                                                        <option value="dashed"
+                                                            style="background-color: #020617; color: #ffffff;">
+                                                            Dashed</option>
+                                                        <option value="dotted"
+                                                            style="background-color: #020617; color: #ffffff;">
+                                                            Dotted</option>
+                                                        <option value="none"
+                                                            style="background-color: #020617; color: #ffffff;">
+                                                            No border</option>
+                                                    </select>
+                                                </div>
+
+                                                <div
+                                                    class="rounded-2xl border border-white/10 bg-black/20 p-3 md:col-span-2">
+                                                    <label class="mb-2 block text-xs font-bold text-blue-100/55">Shadow
+                                                        effect</label>
+                                                    <select wire:model.live="fieldShadow"
+                                                        class="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-3 text-xs text-white outline-none !bg-slate-950 !text-white">
+                                                        <option value="none"
+                                                            style="background-color: #020617; color: #ffffff;">
+                                                            None</option>
+                                                        <option value="soft"
+                                                            style="background-color: #020617; color: #ffffff;">
+                                                            Soft</option>
+                                                        <option value="medium"
+                                                            style="background-color: #020617; color: #ffffff;">
+                                                            Medium</option>
+                                                        <option value="glass"
+                                                            style="background-color: #020617; color: #ffffff;">
+                                                            Glass</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Fonts --}}
+                        <div class="overflow-hidden border-b border-white/10 last:border-b-0">
+                            <button type="button" @click="toggleOpenSubPanel('fonts', 'openAppearancePanel', $event)"
+                                class="flex w-full items-center justify-between gap-3 py-4 text-left {{ !$this->isPremium ? 'opacity-55' : 'cursor-pointer' }}">
+                                <span class="flex items-center gap-3">
+                                    <span class="material-symbols-outlined text-base text-cyan-200 transition"
+                                        :class="openAppearancePanel === 'fonts' ? 'rotate-90' : ''">chevron_right</span>
+                                    <span class="text-sm font-black text-white">Fonts</span>
+                                </span>
+                                @if (!$this->isPremium)
+                                    <span
+                                        class="inline-flex items-center justify-center rounded-full border border-amber-300/20 bg-amber-400/10 p-1.5">
+                                        <span class="material-symbols-outlined text-sm text-amber-400">crown</span>
+                                    </span>
+                                @endif
+                            </button>
+
+                            <div x-show="openAppearancePanel === 'fonts'" x-collapse class="pb-6 pl-7">
+                                <div class="grid gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <label class="mb-1 block text-xs font-bold text-blue-100/55">Font
+                                            family</label>
+                                        <select wire:model.live="fontFamily"
+                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none focus:border-cyan-300/40 !bg-slate-950 !text-white"
+                                            style="font-family: '{{ $this->fontFamily }}', sans-serif">
+                                            @foreach ($this->fonts as $value => $label)
+                                                <option value="{{ $value }}"
+                                                    style="background-color: #020617; color: #ffffff;">
+                                                    {{ $label }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-bold text-blue-100/55">Font
+                                            color</label>
+                                        <input wire:model.live="textColor" type="color"
+                                            class="h-12 w-full cursor-pointer rounded-xl border border-white/10 bg-black/25 p-1">
+                                    </div>
+                                </div>
+                                <div class="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+                                    <p class="text-xs font-bold text-blue-100/55">Preview</p>
+                                    <p class="mt-2 text-lg"
+                                        style="font-family: '{{ $this->fontFamily }}', sans-serif; color: {{ $this->textColor }};">
+                                        {{ $this->getFullName() }} — Digital vCard preview
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
 
                 {{-- 2. Basic Information --}}
                 <div
                     class="overflow-hidden rounded-3xl border border-white/10 bg-white/6 shadow-xl shadow-cyan-950/10 backdrop-blur-xl">
-                    <button type="button" wire:click="toggleSection('basic')"
+                    <button type="button" @click="toggleOpenPanel('basic', $event)"
                         class="flex w-full cursor-pointer items-center justify-between gap-4 p-4 text-left sm:p-5">
                         <div class="flex items-center gap-3">
                             <div
@@ -2658,452 +2642,512 @@ new #[Title('VCard Generator')] class extends Component {
                                 <p class="text-xs text-blue-100/45">About me, contact information and location.</p>
                             </div>
                         </div>
-                        <span
-                            class="material-symbols-outlined transition {{ $this->openSection === 'basic' ? 'rotate-180' : '' }}">expand_more</span>
+                        <span class="material-symbols-outlined transition"
+                            :class="openSection === 'basic' ? 'rotate-180' : ''">expand_more</span>
                     </button>
 
-                    @if ($this->openSection === 'basic')
-                        <div class="border-t border-white/10 p-4 sm:p-5">
-                            {{-- About Me --}}
-                            <div class="overflow-hidden border-b border-white/10 last:border-b-0">
-                                <button type="button" wire:click="toggleBasicPanel('about')"
-                                    class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
-                                    <span
-                                        class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->openBasicPanel === 'about' ? 'rotate-90' : '' }}">chevron_right</span>
-                                    <span>
-                                        <span class="block text-sm font-black text-white">About me</span>
-                                    </span>
-                                </button>
+                    <div x-show="openSection === 'basic'" x-collapse class="border-t border-white/10 p-4 sm:p-5">
+                        {{-- About Me --}}
+                        <div class="overflow-hidden border-b border-white/10 last:border-b-0">
+                            <button type="button" @click="toggleOpenSubPanel('about', 'openBasicPanel', $event)"
+                                class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
+                                <span class="material-symbols-outlined text-base text-cyan-200 transition"
+                                    :class="openBasicPanel === 'about' ? 'rotate-90' : ''">chevron_right</span>
+                                <span>
+                                    <span class="block text-sm font-black text-white">About me</span>
+                                </span>
+                            </button>
 
-                                @if ($this->openBasicPanel === 'about')
-                                    <div class="pb-6 pl-7">
-                                        <div class="grid gap-5 lg:grid-cols-[240px_1fr]">
-                                            <div class="space-y-4">
-                                                <div>
-                                                    <label class="mb-1 block text-xs font-bold text-blue-100/55">Card
-                                                        banner image</label>
-                                                    <label
-                                                        class="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/4 px-4 py-5 text-center transition hover:bg-white/8">
-                                                        @if ($this->bannerPreview)
-                                                            <img src="{{ $this->bannerPreview }}"
-                                                                alt="Banner preview"
-                                                                class="mb-2 h-24 w-full rounded-xl object-cover shadow-lg">
-                                                            <p class="text-xs text-blue-100/55">Click to change banner
-                                                            </p>
-                                                        @else
-                                                            <span
-                                                                class="material-symbols-outlined text-4xl text-blue-100/35">panorama</span>
-                                                            <p class="mt-2 text-xs font-bold text-blue-100/70">Upload
-                                                                banner</p>
-                                                            <p class="mt-1 text-[10px] text-blue-100/35">JPG, PNG,
-                                                                WebP. Max 5MB</p>
-                                                        @endif
-                                                        <input wire:model="bannerImage" type="file"
-                                                            accept="image/*" class="hidden">
-                                                    </label>
-                                                    @if ($this->bannerPreview)
-                                                        <button type="button" wire:click="removeBanner"
-                                                            class="mt-2 w-full rounded-xl border border-white/10 bg-white/4 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-white/8">Remove
-                                                            banner</button>
-                                                    @endif
-                                                    @error('bannerImage')
-                                                        <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                                                    @enderror
-                                                </div>
+                            <div x-show="openBasicPanel === 'about'" x-collapse class="pb-6 pl-7">
+                                <div class="grid gap-5 lg:grid-cols-[240px_1fr]">
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="mb-1 block text-xs font-bold text-blue-100/55">Card
+                                                banner image</label>
+                                            <label
+                                                class="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/4 px-4 py-5 text-center transition hover:bg-white/8">
+                                                @if ($this->bannerPreview)
+                                                    <img src="{{ $this->bannerPreview }}" alt="Banner preview"
+                                                        class="mb-2 h-24 w-full rounded-xl object-cover shadow-lg">
+                                                    <p class="text-xs text-blue-100/55">Click to change banner
+                                                    </p>
+                                                @else
+                                                    <span
+                                                        class="material-symbols-outlined text-4xl text-blue-100/35">panorama</span>
+                                                    <p class="mt-2 text-xs font-bold text-blue-100/70">Upload
+                                                        banner</p>
+                                                    <p class="mt-1 text-[10px] text-blue-100/35">JPG, PNG,
+                                                        WebP. Max 5MB</p>
+                                                @endif
+                                                <input wire:model="bannerImage" type="file" accept="image/*"
+                                                    class="hidden">
+                                            </label>
+                                            @if ($this->bannerPreview)
+                                                <button type="button" wire:click="removeBanner"
+                                                    class="mt-2 w-full rounded-xl border border-white/10 bg-white/4 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-white/8">Remove
+                                                    banner</button>
+                                            @endif
+                                            @error('bannerImage')
+                                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
+                                        </div>
 
-                                                <div>
-                                                    <label class="mb-1 block text-xs font-bold text-blue-100/55">User
-                                                        image</label>
-                                                    <label
-                                                        class="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/4 px-4 py-6 text-center transition hover:bg-white/8">
-                                                        @if ($this->profilePreview)
-                                                            <img src="{{ $this->profilePreview }}"
-                                                                alt="Profile preview"
-                                                                class="mb-2 h-24 w-24 border-2 border-white/20 object-cover shadow-lg"
-                                                                style="border-radius: {{ min(999, max(0, (int) $this->avatarBorderRadius)) }}px;">
-                                                            <p class="text-xs text-blue-100/55">Click to change</p>
-                                                        @else
-                                                            <span
-                                                                class="material-symbols-outlined text-4xl text-blue-100/35">person</span>
-                                                            <p class="mt-2 text-xs font-bold text-blue-100/70">Upload
-                                                                image</p>
-                                                            <p class="mt-1 text-[10px] text-blue-100/35">JPG, PNG,
-                                                                WebP. Max 2MB</p>
-                                                        @endif
-                                                        <input wire:model="profileImage" type="file"
-                                                            accept="image/*" class="hidden">
-                                                    </label>
-                                                    @if ($this->profilePreview)
-                                                        <button type="button" wire:click="removeProfile"
-                                                            class="mt-2 w-full rounded-xl border border-white/10 bg-white/4 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-white/8">Remove
-                                                            image</button>
-                                                    @endif
-                                                    @error('profileImage')
-                                                        <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                                                    @enderror
-                                                </div>
-                                            </div>
-
-                                            <div class="grid gap-4 sm:grid-cols-2">
-                                                <div>
-                                                    <label class="mb-1 block text-xs font-bold text-blue-100/55">First
-                                                        name</label>
-                                                    <input wire:model.live="firstName" type="text"
-                                                        placeholder="John"
-                                                        class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                </div>
-                                                <div>
-                                                    <label class="mb-1 block text-xs font-bold text-blue-100/55">Last
-                                                        name</label>
-                                                    <input wire:model.live="lastName" type="text"
-                                                        placeholder="Doe"
-                                                        class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                </div>
-                                                <div class="sm:col-span-2">
-                                                    <label
-                                                        class="mb-1 block text-xs font-bold text-blue-100/55">Designation</label>
-                                                    <input wire:model.live="designation" type="text"
-                                                        placeholder="Founder / Software Engineer"
-                                                        class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                </div>
-                                                <div class="sm:col-span-2">
-                                                    <label class="mb-1 block text-xs font-bold text-blue-100/55">About
-                                                        me</label>
-                                                    <textarea wire:model.live="aboutMe" rows="3" placeholder="Short intro about you..."
-                                                        class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40"></textarea>
-                                                </div>
-                                            </div>
+                                        <div>
+                                            <label class="mb-1 block text-xs font-bold text-blue-100/55">User
+                                                image</label>
+                                            <label
+                                                class="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/4 px-4 py-6 text-center transition hover:bg-white/8">
+                                                @if ($this->profilePreview)
+                                                    <img src="{{ $this->profilePreview }}" alt="Profile preview"
+                                                        class="mb-2 h-24 w-24 border-2 border-white/20 object-cover shadow-lg"
+                                                        style="border-radius: {{ min(999, max(0, (int) $this->avatarBorderRadius)) }}px;">
+                                                    <p class="text-xs text-blue-100/55">Click to change</p>
+                                                @else
+                                                    <span
+                                                        class="material-symbols-outlined text-4xl text-blue-100/35">person</span>
+                                                    <p class="mt-2 text-xs font-bold text-blue-100/70">Upload
+                                                        image</p>
+                                                    <p class="mt-1 text-[10px] text-blue-100/35">JPG, PNG,
+                                                        WebP. Max 2MB</p>
+                                                @endif
+                                                <input wire:model="profileImage" type="file" accept="image/*"
+                                                    class="hidden">
+                                            </label>
+                                            @if ($this->profilePreview)
+                                                <button type="button" wire:click="removeProfile"
+                                                    class="mt-2 w-full rounded-xl border border-white/10 bg-white/4 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-white/8">Remove
+                                                    image</button>
+                                            @endif
+                                            @error('profileImage')
+                                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
                                         </div>
                                     </div>
-                                @endif
-                            </div>
 
-                            {{-- Contact Info --}}
-                            <div class="overflow-hidden border-b border-white/10 last:border-b-0">
-                                <button type="button" wire:click="toggleBasicPanel('contact')"
-                                    class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
-                                    <span
-                                        class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->openBasicPanel === 'contact' ? 'rotate-90' : '' }}">chevron_right</span>
-                                    <span>
-                                        <span class="block text-sm font-black text-white">Contact info</span>
-                                    </span>
-                                </button>
-
-                                @if ($this->openBasicPanel === 'contact')
-                                    <div class="pb-6 pl-7">
-                                        <div class="space-y-6">
-                                            <div>
-                                                <div class="mb-3 flex items-center justify-between gap-3">
-                                                    <h3 class="text-sm font-black">Phone numbers</h3>
-                                                    <button type="button" wire:click="addPhone"
-                                                        class="rounded-xl bg-cyan-400/10 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-400/15">+
-                                                        Add phone</button>
-                                                </div>
-                                                <div class="space-y-3">
-                                                    @foreach ($this->phones as $index => $phone)
-                                                        <div
-                                                            class="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 sm:grid-cols-[130px_minmax(160px,220px)_1fr_1fr_auto]">
-                                                            <select wire:model.live="phones.{{ $index }}.type"
-                                                                class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none !bg-slate-950 !text-white">
-                                                                @foreach ($this->phoneTypes as $key => $type)
-                                                                    <option value="{{ $key }}"
-                                                                        style="background-color: #020617; color: #ffffff;">
-                                                                        {{ $type['label'] }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                            <div
-                                                                class="rounded-xl">
-                                                                <button type="button"
-                                                                    @click="openIconPicker('phones.{{ $index }}.icon', 'contact', 'Choose phone icon', '{{ $phone['icon'] ?? $phoneType['icon'] }}')"
-                                                                    class="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 text-xs font-bold text-white transition hover:border-cyan-300/40 hover:bg-cyan-400/10">
-                                                                    <span class="flex items-center gap-2">
-                                                                        <span
-                                                                            class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-400/10 text-cyan-100 ring-1 ring-cyan-300/20">
-                                                                            <span
-                                                                                class="material-symbols-outlined text-xl">{{ $phone['icon'] ?? $phoneType['icon'] }}</span>
-                                                                        </span>
-                                                                        <span>Select icon</span>
-                                                                    </span>
-                                                                </button>
-                                                            </div>
-                                                            <input wire:model.live="phones.{{ $index }}.label"
-                                                                type="text" placeholder="Label"
-                                                                class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25">
-                                                            <input wire:model.live="phones.{{ $index }}.value"
-                                                                type="tel" placeholder="Phone number"
-                                                                class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25">
-                                                            <button type="button"
-                                                                wire:click="removePhone({{ $index }})"
-                                                                class="rounded-xl border border-red-300/20 bg-red-400/10 px-3 py-2 text-xs font-bold text-red-200">Remove</button>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <div class="mb-3 flex items-center justify-between gap-3">
-                                                    <h3 class="text-sm font-black">Emails</h3>
-                                                    <button type="button" wire:click="addEmail"
-                                                        class="rounded-xl bg-cyan-400/10 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-400/15">+
-                                                        Add email</button>
-                                                </div>
-                                                <div class="space-y-3">
-                                                    @foreach ($this->emails as $index => $email)
-                                                        <div
-                                                            class="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 sm:grid-cols-[minmax(160px,220px)_1fr_1fr_auto]">
-                                                            <div
-                                                                class="rounded-xl">
-                                                                <button type="button"
-                                                                    @click="openIconPicker('emails.{{ $index }}.icon', 'contact', 'Choose email icon', '{{ $email['icon'] ?? 'mail' }}')"
-                                                                    class="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 text-xs font-bold text-white transition hover:border-cyan-300/40 hover:bg-cyan-400/10">
-                                                                    <span class="flex items-center gap-2">
-                                                                        <span
-                                                                            class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-400/10 text-cyan-100 ring-1 ring-cyan-300/20">
-                                                                            <span
-                                                                                class="material-symbols-outlined text-xl">{{ $email['icon'] ?? 'mail' }}</span>
-                                                                        </span>
-                                                                        <span>Select icon</span>
-                                                                    </span>
-                                                                </button>
-                                                            </div>
-                                                            <input wire:model.live="emails.{{ $index }}.label"
-                                                                type="text" placeholder="Label"
-                                                                class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25">
-                                                            <input wire:model.live="emails.{{ $index }}.value"
-                                                                type="email" placeholder="email@example.com"
-                                                                class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25">
-                                                            <button type="button"
-                                                                wire:click="removeEmail({{ $index }})"
-                                                                class="rounded-xl border border-red-300/20 bg-red-400/10 px-3 py-2 text-xs font-bold text-red-200">Remove</button>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            </div>
-
-                                            <div>
-                                                <div class="mb-3 flex items-center justify-between gap-3">
-                                                    <h3 class="text-sm font-black">Personal sites</h3>
-                                                    <button type="button" wire:click="addSite"
-                                                        class="rounded-xl bg-cyan-400/10 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-400/15">+
-                                                        Add site</button>
-                                                </div>
-                                                <div class="space-y-3">
-                                                    @foreach ($this->sites as $index => $site)
-                                                        <div
-                                                            class="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 sm:grid-cols-[minmax(160px,220px)_1fr_1fr_auto]">
-                                                            <div
-                                                                class="rounded-xl">
-                                                                <button type="button"
-                                                                    @click="openIconPicker('sites.{{ $index }}.icon', 'contact', 'Choose website icon', '{{ $site['icon'] ?? 'language' }}')"
-                                                                    class="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 text-xs font-bold text-white transition hover:border-cyan-300/40 hover:bg-cyan-400/10">
-                                                                    <span class="flex items-center gap-2">
-                                                                        <span
-                                                                            class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-400/10 text-cyan-100 ring-1 ring-cyan-300/20">
-                                                                            <span
-                                                                                class="material-symbols-outlined text-xl">{{ $site['icon'] ?? 'language' }}</span>
-                                                                        </span>
-                                                                        <span>Select icon</span>
-                                                                    </span>
-                                                                </button>
-                                                            </div>
-                                                            <input wire:model.live="sites.{{ $index }}.label"
-                                                                type="text" placeholder="Label"
-                                                                class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25">
-                                                            <input wire:model.live="sites.{{ $index }}.value"
-                                                                type="url" placeholder="https://example.com"
-                                                                class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25">
-                                                            <button type="button"
-                                                                wire:click="removeSite({{ $index }})"
-                                                                class="rounded-xl border border-red-300/20 bg-red-400/10 px-3 py-2 text-xs font-bold text-red-200">Remove</button>
-                                                        </div>
-                                                    @endforeach
-                                                </div>
-                                            </div>
+                                    <div class="grid gap-4 sm:grid-cols-2">
+                                        <div>
+                                            <label class="mb-1 block text-xs font-bold text-blue-100/55">First
+                                                name</label>
+                                            <input wire:model.live.debounce.300ms="firstName" type="text"
+                                                placeholder="John"
+                                                class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('firstName') border-red-300/60 bg-red-950/20 @enderror">
+                                            @error('firstName')
+                                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                        <div>
+                                            <label class="mb-1 block text-xs font-bold text-blue-100/55">Last
+                                                name</label>
+                                            <input wire:model.live.debounce.300ms="lastName" type="text"
+                                                placeholder="Doe"
+                                                class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('lastName') border-red-300/60 bg-red-950/20 @enderror">
+                                            @error('lastName')
+                                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                        <div class="sm:col-span-2">
+                                            <label
+                                                class="mb-1 block text-xs font-bold text-blue-100/55">Designation</label>
+                                            <input wire:model.live.debounce.300ms="designation" type="text"
+                                                placeholder="Founder / Software Engineer"
+                                                class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('designation') border-red-300/60 bg-red-950/20 @enderror">
+                                            @error('designation')
+                                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                        <div class="sm:col-span-2">
+                                            <label class="mb-1 block text-xs font-bold text-blue-100/55">About
+                                                me</label>
+                                            <textarea wire:model.live.debounce.300ms="aboutMe" rows="3" placeholder="Short intro about you..."
+                                                class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('aboutMe') border-red-300/60 bg-red-950/20 @enderror"></textarea>
+                                            @error('aboutMe')
+                                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
                                         </div>
                                     </div>
-                                @endif
-                            </div>
-
-                            {{-- Location --}}
-                            <div class="overflow-hidden border-b border-white/10 last:border-b-0">
-                                <button type="button" wire:click="toggleBasicPanel('location')"
-                                    class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
-                                    <span
-                                        class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->openBasicPanel === 'location' ? 'rotate-90' : '' }}">chevron_right</span>
-                                    <span>
-                                        <span class="block text-sm font-black text-white">Location</span>
-                                    </span>
-                                </button>
-
-                                @if ($this->openBasicPanel === 'location')
-                                    <div class="pb-6 pl-7">
-                                        <div
-                                            class="mb-4 grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 sm:grid-cols-[180px_1fr]">
-                                            <div>
-                                                <label class="mb-1 block text-xs font-bold text-blue-100/55">Location
-                                                    icon</label>
-                                                <div class="rounded-xl">
-                                                    <button type="button"
-                                                        @click="openIconPicker('locationIcon', 'contact', 'Choose location icon', '{{ $this->locationIcon ?: 'location_on' }}')"
-                                                        class="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 text-xs font-bold text-white transition hover:border-cyan-300/40 hover:bg-cyan-400/10">
-                                                        <span class="flex items-center gap-2">
-                                                            <span
-                                                                class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-400/10 text-cyan-100 ring-1 ring-cyan-300/20">
-                                                                <span
-                                                                    class="material-symbols-outlined text-xl">{{ $this->locationIcon ?: 'location_on' }}</span>
-                                                            </span>
-                                                            <span>Select icon</span>
-                                                        </span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label class="mb-1 block text-xs font-bold text-blue-100/55">Location
-                                                    label</label>
-                                                <input wire:model.live="locationLabel" type="text"
-                                                    placeholder="Office / Shop / Location"
-                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                            </div>
-                                        </div>
-
-                                        <div class="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                            {{-- URL --}}
-                                            <div class="overflow-hidden border-b border-white/10 last:border-b-0">
-                                                <button type="button" wire:click="$set('locationTab', 'url')"
-                                                    class="flex w-full items-center gap-3 py-4 text-left">
-                                                    <span
-                                                        class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->locationTab === 'url' ? 'rotate-90' : '' }}">chevron_right</span>
-                                                    <span class="text-sm font-black text-white">Map URL</span>
-                                                </button>
-                                                @if ($this->locationTab === 'url')
-                                                    <div class="pb-5 pl-7">
-                                                        <div class="grid gap-4 sm:grid-cols-2">
-                                                            <div class="sm:col-span-2">
-                                                                <label
-                                                                    class="mb-1 block text-xs font-bold text-blue-100/55">Google
-                                                                    Maps / location URL</label>
-                                                                <input wire:model.live="locationUrl" type="url"
-                                                                    placeholder="https://maps.google.com/..."
-                                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                                @error('locationUrl')
-                                                                    <p class="mt-1 text-xs text-red-300">
-                                                                        {{ $message }}</p>
-                                                                @enderror
-                                                            </div>
-                                                            <div class="sm:col-span-2">
-                                                                <label
-                                                                    class="mb-1 block text-xs font-bold text-blue-100/55">Display/search
-                                                                    name</label>
-                                                                <input wire:model.live="locationSearch" type="text"
-                                                                    placeholder="A.Z Apparels, Dhaka"
-                                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                @endif
-                                            </div>
-
-                                            {{-- Coordinate --}}
-                                            <div class="overflow-hidden border-b border-white/10 last:border-b-0">
-                                                <button type="button" wire:click="$set('locationTab', 'coordinate')"
-                                                    class="flex w-full items-center gap-3 py-4 text-left">
-                                                    <span
-                                                        class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->locationTab === 'coordinate' ? 'rotate-90' : '' }}">chevron_right</span>
-                                                    <span class="text-sm font-black text-white">Coordinate</span>
-                                                </button>
-                                                @if ($this->locationTab === 'coordinate')
-                                                    <div class="pb-5 pl-7">
-                                                        <div class="grid gap-4 sm:grid-cols-2">
-                                                            <div>
-                                                                <label
-                                                                    class="mb-1 block text-xs font-bold text-blue-100/55">Latitude</label>
-                                                                <input wire:model.live="latitude" type="text"
-                                                                    placeholder="23.8103"
-                                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                            </div>
-                                                            <div>
-                                                                <label
-                                                                    class="mb-1 block text-xs font-bold text-blue-100/55">Longitude</label>
-                                                                <input wire:model.live="longitude" type="text"
-                                                                    placeholder="90.4125"
-                                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                            </div>
-                                                            <div class="sm:col-span-2">
-                                                                <label
-                                                                    class="mb-1 block text-xs font-bold text-blue-100/55">Display/search
-                                                                    name</label>
-                                                                <input wire:model.live="locationSearch" type="text"
-                                                                    placeholder="Main branch / warehouse / office"
-                                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                @endif
-                                            </div>
-
-                                            {{-- Manual Address --}}
-                                            <div class="overflow-hidden border-b border-white/10 last:border-b-0">
-                                                <button type="button" wire:click="$set('locationTab', 'manual')"
-                                                    class="flex w-full items-center gap-3 py-4 text-left">
-                                                    <span
-                                                        class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->locationTab === 'manual' ? 'rotate-90' : '' }}">chevron_right</span>
-                                                    <span class="text-sm font-black text-white">Manual address</span>
-                                                </button>
-                                                @if ($this->locationTab === 'manual')
-                                                    <div class="pb-5 pl-7">
-                                                        <div class="grid gap-4 sm:grid-cols-2">
-                                                            <div class="sm:col-span-2">
-                                                                <label
-                                                                    class="mb-1 block text-xs font-bold text-blue-100/55">Street
-                                                                    address</label>
-                                                                <input wire:model.live="street" type="text"
-                                                                    placeholder="House, road, area"
-                                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                            </div>
-                                                            <div>
-                                                                <label
-                                                                    class="mb-1 block text-xs font-bold text-blue-100/55">City</label>
-                                                                <input wire:model.live="city" type="text"
-                                                                    placeholder="Dhaka"
-                                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                            </div>
-                                                            <div>
-                                                                <label
-                                                                    class="mb-1 block text-xs font-bold text-blue-100/55">State</label>
-                                                                <input wire:model.live="state" type="text"
-                                                                    placeholder="Dhaka"
-                                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                            </div>
-                                                            <div>
-                                                                <label
-                                                                    class="mb-1 block text-xs font-bold text-blue-100/55">ZIP</label>
-                                                                <input wire:model.live="zip" type="text"
-                                                                    placeholder="1207"
-                                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                            </div>
-                                                            <div>
-                                                                <label
-                                                                    class="mb-1 block text-xs font-bold text-blue-100/55">Country</label>
-                                                                <input wire:model.live="country" type="text"
-                                                                    placeholder="Bangladesh"
-                                                                    class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                @endif
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endif
+                                </div>
                             </div>
                         </div>
-                    @endif
+
+                        {{-- Contact Info --}}
+                        <div class="overflow-hidden border-b border-white/10 last:border-b-0">
+                            <button type="button" @click="toggleOpenSubPanel('contact', 'openBasicPanel', $event)"
+                                class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
+                                <span class="material-symbols-outlined text-base text-cyan-200 transition"
+                                    :class="openBasicPanel === 'contact' ? 'rotate-90' : ''">chevron_right</span>
+                                <span>
+                                    <span class="block text-sm font-black text-white">Contact info</span>
+                                </span>
+                            </button>
+
+                            <div x-show="openBasicPanel === 'contact'" x-collapse class="pb-6 pl-7">
+                                <div class="space-y-6">
+                                    <div>
+                                        <div class="mb-3 flex items-center justify-between gap-3">
+                                            <h3 class="text-sm font-black">Phone numbers</h3>
+                                            <button type="button" wire:click="addPhone"
+                                                class="rounded-xl bg-cyan-400/10 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-400/15">+
+                                                Add phone</button>
+                                        </div>
+                                        <div class="space-y-3">
+                                            @foreach ($this->phones as $index => $phone)
+                                                <div
+                                                    class="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 sm:grid-cols-[130px_minmax(160px,220px)_1fr_1fr_auto]">
+                                                    <select wire:model.live="phones.{{ $index }}.type"
+                                                        class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none !bg-slate-950 !text-white @error('phones.{{ $index }}.type') border-red-300/60 @enderror">
+                                                        @foreach ($this->phoneTypes as $key => $type)
+                                                            <option value="{{ $key }}"
+                                                                style="background-color: #020617; color: #ffffff;">
+                                                                {{ $type['label'] }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <div class="rounded-xl">
+                                                        <button type="button"
+                                                            @click="openIconPicker('phones.{{ $index }}.icon', 'contact', 'Choose phone icon', '{{ $phone['icon'] ?? ($this->phoneTypes[$phone['type'] ?? 'other']['icon'] ?? 'call') }}')"
+                                                            class="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 text-xs font-bold text-white transition hover:border-cyan-300/40 hover:bg-cyan-400/10">
+                                                            <span class="flex items-center gap-2">
+                                                                <span
+                                                                    class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-400/10 text-cyan-100 ring-1 ring-cyan-300/20">
+                                                                    <span
+                                                                        class="material-symbols-outlined text-xl">{{ $phone['icon'] ?? ($this->phoneTypes[$phone['type'] ?? 'other']['icon'] ?? 'call') }}</span>
+                                                                </span>
+                                                                <span>Select icon</span>
+                                                            </span>
+                                                        </button>
+                                                    </div>
+                                                    <input
+                                                        wire:model.live.debounce.300ms="phones.{{ $index }}.label"
+                                                        type="text" placeholder="Label"
+                                                        class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25 @error('phones.{{ $index }}.label') border-red-300/60 bg-red-950/20 @enderror">
+                                                    @error('phones.{{ $index }}.label')
+                                                        <p class="col-span-full text-xs text-red-300">{{ $message }}
+                                                        </p>
+                                                    @enderror
+                                                    <input
+                                                        wire:model.live.debounce.300ms="phones.{{ $index }}.value"
+                                                        type="tel" placeholder="Phone number"
+                                                        class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25 @error('phones.{{ $index }}.value') border-red-300/60 bg-red-950/20 @enderror">
+                                                    @error('phones.{{ $index }}.value')
+                                                        <p class="col-span-full text-xs text-red-300">{{ $message }}
+                                                        </p>
+                                                    @enderror
+                                                    <button type="button"
+                                                        wire:click="removePhone({{ $index }})"
+                                                        class="rounded-xl border border-red-300/20 bg-red-400/10 px-3 py-2 text-xs font-bold text-red-200">Remove</button>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div class="mb-3 flex items-center justify-between gap-3">
+                                            <h3 class="text-sm font-black">Emails</h3>
+                                            <button type="button" wire:click="addEmail"
+                                                class="rounded-xl bg-cyan-400/10 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-400/15">+
+                                                Add email</button>
+                                        </div>
+                                        <div class="space-y-3">
+                                            @foreach ($this->emails as $index => $email)
+                                                <div
+                                                    class="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 sm:grid-cols-[minmax(160px,220px)_1fr_1fr_auto]">
+                                                    <div class="rounded-xl">
+                                                        <button type="button"
+                                                            @click="openIconPicker('emails.{{ $index }}.icon', 'contact', 'Choose email icon', '{{ $email['icon'] ?? 'mail' }}')"
+                                                            class="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 text-xs font-bold text-white transition hover:border-cyan-300/40 hover:bg-cyan-400/10">
+                                                            <span class="flex items-center gap-2">
+                                                                <span
+                                                                    class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-400/10 text-cyan-100 ring-1 ring-cyan-300/20">
+                                                                    <span
+                                                                        class="material-symbols-outlined text-xl">{{ $email['icon'] ?? 'mail' }}</span>
+                                                                </span>
+                                                                <span>Select icon</span>
+                                                            </span>
+                                                        </button>
+                                                    </div>
+                                                    <input
+                                                        wire:model.live.debounce.300ms="emails.{{ $index }}.label"
+                                                        type="text" placeholder="Label"
+                                                        class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25 @error('emails.{{ $index }}.label') border-red-300/60 bg-red-950/20 @enderror">
+                                                    @error('emails.{{ $index }}.label')
+                                                        <p class="col-span-full text-xs text-red-300">{{ $message }}
+                                                        </p>
+                                                    @enderror
+                                                    <input
+                                                        wire:model.live.debounce.300ms="emails.{{ $index }}.value"
+                                                        type="email" placeholder="email@example.com"
+                                                        class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25 @error('emails.{{ $index }}.value') border-red-300/60 bg-red-950/20 @enderror">
+                                                    @error('emails.{{ $index }}.value')
+                                                        <p class="col-span-full text-xs text-red-300">{{ $message }}
+                                                        </p>
+                                                    @enderror
+                                                    <button type="button"
+                                                        wire:click="removeEmail({{ $index }})"
+                                                        class="rounded-xl border border-red-300/20 bg-red-400/10 px-3 py-2 text-xs font-bold text-red-200">Remove</button>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div class="mb-3 flex items-center justify-between gap-3">
+                                            <h3 class="text-sm font-black">Personal sites</h3>
+                                            <button type="button" wire:click="addSite"
+                                                class="rounded-xl bg-cyan-400/10 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-400/15">+
+                                                Add site</button>
+                                        </div>
+                                        <div class="space-y-3">
+                                            @foreach ($this->sites as $index => $site)
+                                                <div
+                                                    class="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 sm:grid-cols-[minmax(160px,220px)_1fr_1fr_auto]">
+                                                    <div class="rounded-xl">
+                                                        <button type="button"
+                                                            @click="openIconPicker('sites.{{ $index }}.icon', 'contact', 'Choose website icon', '{{ $site['icon'] ?? 'language' }}')"
+                                                            class="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 text-xs font-bold text-white transition hover:border-cyan-300/40 hover:bg-cyan-400/10">
+                                                            <span class="flex items-center gap-2">
+                                                                <span
+                                                                    class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-400/10 text-cyan-100 ring-1 ring-cyan-300/20">
+                                                                    <span
+                                                                        class="material-symbols-outlined text-xl">{{ $site['icon'] ?? 'language' }}</span>
+                                                                </span>
+                                                                <span>Select icon</span>
+                                                            </span>
+                                                        </button>
+                                                    </div>
+                                                    <input
+                                                        wire:model.live.debounce.300ms="sites.{{ $index }}.label"
+                                                        type="text" placeholder="Label"
+                                                        class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25 @error('sites.{{ $index }}.label') border-red-300/60 bg-red-950/20 @enderror">
+                                                    @error('sites.{{ $index }}.label')
+                                                        <p class="col-span-full text-xs text-red-300">{{ $message }}
+                                                        </p>
+                                                    @enderror
+                                                    <input
+                                                        wire:model.live.debounce.300ms="sites.{{ $index }}.value"
+                                                        type="url" placeholder="https://example.com"
+                                                        class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25 @error('sites.{{ $index }}.value') border-red-300/60 bg-red-950/20 @enderror">
+                                                    @error('sites.{{ $index }}.value')
+                                                        <p class="col-span-full text-xs text-red-300">{{ $message }}
+                                                        </p>
+                                                    @enderror
+                                                    <button type="button"
+                                                        wire:click="removeSite({{ $index }})"
+                                                        class="rounded-xl border border-red-300/20 bg-red-400/10 px-3 py-2 text-xs font-bold text-red-200">Remove</button>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Location --}}
+                        <div class="overflow-hidden border-b border-white/10 last:border-b-0">
+                            <button type="button" @click="toggleOpenSubPanel('location', 'openBasicPanel', $event)"
+                                class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
+                                <span class="material-symbols-outlined text-base text-cyan-200 transition"
+                                    :class="openBasicPanel === 'location' ? 'rotate-90' : ''">chevron_right</span>
+                                <span>
+                                    <span class="block text-sm font-black text-white">Location</span>
+                                </span>
+                            </button>
+
+                            <div x-show="openBasicPanel === 'location'" x-collapse class="pb-6 pl-7">
+                                <div
+                                    class="mb-4 grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-4 sm:grid-cols-[180px_1fr]">
+                                    <div>
+                                        <label class="mb-1 block text-xs font-bold text-blue-100/55">Location
+                                            icon</label>
+                                        <div class="rounded-xl">
+                                            <button type="button"
+                                                @click="openIconPicker('locationIcon', 'contact', 'Choose location icon', '{{ $this->locationIcon ?: 'location_on' }}')"
+                                                class="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 text-xs font-bold text-white transition hover:border-cyan-300/40 hover:bg-cyan-400/10">
+                                                <span class="flex items-center gap-2">
+                                                    <span
+                                                        class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-400/10 text-cyan-100 ring-1 ring-cyan-300/20">
+                                                        <span
+                                                            class="material-symbols-outlined text-xl">{{ $this->locationIcon ?: 'location_on' }}</span>
+                                                    </span>
+                                                    <span>Select icon</span>
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="mb-1 block text-xs font-bold text-blue-100/55">Location
+                                            label</label>
+                                        <input wire:model.live.debounce.300ms="locationLabel" type="text"
+                                            placeholder="Office / Shop / Location"
+                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('locationLabel') border-red-300/60 bg-red-950/20 @enderror">
+                                        @error('locationLabel')
+                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="rounded-2xl border border-white/10 bg-black/20 p-4">
+                                    {{-- URL --}}
+                                    <div class="overflow-hidden border-b border-white/10 last:border-b-0">
+                                        <button type="button" wire:click="$set('locationTab', 'url')"
+                                            class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
+                                            <span
+                                                class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->locationTab === 'url' ? 'rotate-90' : '' }}">chevron_right</span>
+                                            <span class="text-sm font-black text-white">Map URL</span>
+                                        </button>
+                                        @if ($this->locationTab === 'url')
+                                            <div class="pb-5 pl-7">
+                                                <div class="grid gap-4 sm:grid-cols-2">
+                                                    <div class="sm:col-span-2">
+                                                        <label
+                                                            class="mb-1 block text-xs font-bold text-blue-100/55">Google
+                                                            Maps / location URL</label>
+                                                        <input wire:model.live.debounce.300ms="locationUrl"
+                                                            type="url" placeholder="https://maps.google.com/..."
+                                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40">
+                                                        @error('locationUrl')
+                                                            <p class="mt-1 text-xs text-red-300">
+                                                                {{ $message }}</p>
+                                                        @enderror
+                                                    </div>
+                                                    <div class="sm:col-span-2">
+                                                        <label
+                                                            class="mb-1 block text-xs font-bold text-blue-100/55">Display/search
+                                                            name</label>
+                                                        <input wire:model.live.debounce.300ms="locationSearch"
+                                                            type="text" placeholder="A.Z Apparels, Dhaka"
+                                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('locationSearch') border-red-300/60 bg-red-950/20 @enderror">
+                                                        @error('locationSearch')
+                                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                        @enderror
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    {{-- Coordinate --}}
+                                    <div class="overflow-hidden border-b border-white/10 last:border-b-0">
+                                        <button type="button" wire:click="$set('locationTab', 'coordinate')"
+                                            class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
+                                            <span
+                                                class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->locationTab === 'coordinate' ? 'rotate-90' : '' }}">chevron_right</span>
+                                            <span class="text-sm font-black text-white">Coordinate</span>
+                                        </button>
+                                        @if ($this->locationTab === 'coordinate')
+                                            <div class="pb-5 pl-7">
+                                                <div class="grid gap-4 sm:grid-cols-2">
+                                                    <div>
+                                                        <label
+                                                            class="mb-1 block text-xs font-bold text-blue-100/55">Latitude</label>
+                                                        <input wire:model.live.debounce.300ms="latitude"
+                                                            type="text" placeholder="23.8103"
+                                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('latitude') border-red-300/60 bg-red-950/20 @enderror">
+                                                        @error('latitude')
+                                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                        @enderror
+                                                    </div>
+                                                    <div>
+                                                        <label
+                                                            class="mb-1 block text-xs font-bold text-blue-100/55">Longitude</label>
+                                                        <input wire:model.live.debounce.300ms="longitude"
+                                                            type="text" placeholder="90.4125"
+                                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('longitude') border-red-300/60 bg-red-950/20 @enderror">
+                                                        @error('longitude')
+                                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                        @enderror
+                                                    </div>
+                                                    <div class="sm:col-span-2">
+                                                        <label
+                                                            class="mb-1 block text-xs font-bold text-blue-100/55">Display/search
+                                                            name</label>
+                                                        <input wire:model.live.debounce.300ms="locationSearch"
+                                                            type="text"
+                                                            placeholder="Main branch / warehouse / office"
+                                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('locationSearch') border-red-300/60 bg-red-950/20 @enderror">
+                                                        @error('locationSearch')
+                                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                        @enderror
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    {{-- Manual Address --}}
+                                    <div class="overflow-hidden border-b border-white/10 last:border-b-0">
+                                        <button type="button" wire:click="$set('locationTab', 'manual')"
+                                            class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
+                                            <span
+                                                class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->locationTab === 'manual' ? 'rotate-90' : '' }}">chevron_right</span>
+                                            <span class="text-sm font-black text-white">Manual address</span>
+                                        </button>
+                                        @if ($this->locationTab === 'manual')
+                                            <div class="pb-5 pl-7">
+                                                <div class="grid gap-4 sm:grid-cols-2">
+                                                    <div class="sm:col-span-2">
+                                                        <label
+                                                            class="mb-1 block text-xs font-bold text-blue-100/55">Street
+                                                            address</label>
+                                                        <input wire:model.live.debounce.300ms="street" type="text"
+                                                            placeholder="House, road, area"
+                                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('street') border-red-300/60 bg-red-950/20 @enderror">
+                                                        @error('street')
+                                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                        @enderror
+                                                    </div>
+                                                    <div>
+                                                        <label
+                                                            class="mb-1 block text-xs font-bold text-blue-100/55">City</label>
+                                                        <input wire:model.live.debounce.300ms="city" type="text"
+                                                            placeholder="Dhaka"
+                                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('city') border-red-300/60 bg-red-950/20 @enderror">
+                                                        @error('city')
+                                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                        @enderror
+                                                    </div>
+                                                    <div>
+                                                        <label
+                                                            class="mb-1 block text-xs font-bold text-blue-100/55">State</label>
+                                                        <input wire:model.live.debounce.300ms="state" type="text"
+                                                            placeholder="Dhaka"
+                                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('state') border-red-300/60 bg-red-950/20 @enderror">
+                                                        @error('state')
+                                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                        @enderror
+                                                    </div>
+                                                    <div>
+                                                        <label
+                                                            class="mb-1 block text-xs font-bold text-blue-100/55">ZIP</label>
+                                                        <input wire:model.live.debounce.300ms="zip" type="text"
+                                                            placeholder="1207"
+                                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('zip') border-red-300/60 bg-red-950/20 @enderror">
+                                                        @error('zip')
+                                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                        @enderror
+                                                    </div>
+                                                    <div>
+                                                        <label
+                                                            class="mb-1 block text-xs font-bold text-blue-100/55">Country</label>
+                                                        <input wire:model.live.debounce.300ms="country" type="text"
+                                                            placeholder="Bangladesh"
+                                                            class="w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-sm text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('country') border-red-300/60 bg-red-950/20 @enderror">
+                                                        @error('country')
+                                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                        @enderror
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {{-- 3. Content --}}
                 <div
                     class="overflow-hidden rounded-3xl border border-white/10 bg-white/6 shadow-xl shadow-cyan-950/10 backdrop-blur-xl">
-                    <button type="button" wire:click="toggleSection('content')"
+                    <button type="button" @click="toggleOpenPanel('content', $event)"
                         class="flex w-full cursor-pointer items-center justify-between gap-4 p-4 text-left sm:p-5">
                         <div class="flex items-center gap-3">
                             <div
@@ -3115,166 +3159,164 @@ new #[Title('VCard Generator')] class extends Component {
                                 <p class="text-xs text-blue-100/45">Companies and professional roles.</p>
                             </div>
                         </div>
-                        <span
-                            class="material-symbols-outlined transition {{ $this->openSection === 'content' ? 'rotate-180' : '' }}">expand_more</span>
+                        <span class="material-symbols-outlined transition"
+                            :class="openSection === 'content' ? 'rotate-180' : ''">expand_more</span>
                     </button>
 
-                    @if ($this->openSection === 'content')
-                        <div class="border-t border-white/10 p-4 sm:p-5">
-                            {{-- Companies --}}
-                            <div class="overflow-hidden border-b border-white/10 last:border-b-0">
-                                <button type="button" wire:click="toggleContentPanel('companies')"
-                                    class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
-                                    <span
-                                        class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->openContentPanel === 'companies' ? 'rotate-90' : '' }}">chevron_right</span>
-                                    <span>
-                                        <span class="block text-sm font-black text-white">Companies</span>
-                                    </span>
-                                </button>
+                    <div x-show="openSection === 'content'" x-collapse class="border-t border-white/10 p-4 sm:p-5">
+                        {{-- Companies --}}
+                        <div class="overflow-hidden border-b border-white/10 last:border-b-0">
+                            <button type="button"
+                                @click="toggleOpenSubPanel('companies', 'openContentPanel', $event)"
+                                class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
+                                <span class="material-symbols-outlined text-base text-cyan-200 transition"
+                                    :class="openContentPanel === 'companies' ? 'rotate-90' : ''">chevron_right</span>
+                                <span>
+                                    <span class="block text-sm font-black text-white">Companies</span>
+                                </span>
+                            </button>
 
-                                @if ($this->openContentPanel === 'companies')
-                                    <div class="pb-6 pl-7">
-                                        <div class="mb-3 flex items-center justify-between gap-3">
-                                            <h3 class="text-sm font-black"></h3>
-                                            <button type="button" wire:click="addCompany"
-                                                class="rounded-xl bg-cyan-400/10 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-400/15">+
-                                                Add company</button>
-                                        </div>
-                                        <div class="space-y-3">
-                                            @foreach ($this->companies as $index => $company)
-                                                <div
-                                                    class="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 sm:grid-cols-[minmax(160px,220px)_1fr_1fr_auto]">
-                                                    <div class="rounded-xl">
-                                                        <button type="button"
-                                                            @click="openIconPicker('companies.{{ $index }}.icon', 'contact', 'Choose company icon', '{{ $company['icon'] ?? 'business_center' }}')"
-                                                            class="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 text-xs font-bold text-white transition hover:border-cyan-300/40 hover:bg-cyan-400/10">
-                                                            <span class="flex items-center gap-2">
-                                                                <span
-                                                                    class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-400/10 text-cyan-100 ring-1 ring-cyan-300/20">
-                                                                    <span
-                                                                        class="material-symbols-outlined text-xl">{{ $company['icon'] ?? 'business_center' }}</span>
-                                                                </span>
-                                                                <span>Select icon</span>
-                                                            </span>
-                                                        </button>
-                                                    </div>
-                                                    <input
-                                                        wire:model.live="companies.{{ $index }}.company_name"
-                                                        type="text" placeholder="Company name"
-                                                        class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25">
-                                                    <input wire:model.live="companies.{{ $index }}.profession"
-                                                        type="text" placeholder="Profession / role"
-                                                        class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25">
-                                                    <button type="button"
-                                                        wire:click="removeCompany({{ $index }})"
-                                                        title="Remove company" aria-label="Remove company"
-                                                        class="grid h-10 w-10 place-items-center rounded-xl border border-red-300/20 bg-red-400/10 text-red-200 transition hover:bg-red-400/15">
-                                                        <span class="material-symbols-outlined text-lg">delete</span>
-                                                    </button>
-                                                </div>
-                                            @endforeach
-                                        </div>
-                                    </div>
-                                @endif
-                            </div>
-
-                            {{-- Loading Screen --}}
-                            <div class="overflow-hidden border-b border-white/10 last:border-b-0">
-                                <button type="button" wire:click="toggleContentPanel('loading')"
-                                    class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
-                                    <span
-                                        class="material-symbols-outlined text-base text-cyan-200 transition {{ $this->openContentPanel === 'loading' ? 'rotate-90' : '' }}">chevron_right</span>
-                                    <span>
-                                        <span class="block text-sm font-black text-white">Loading screen</span>
-                                        <span class="mt-0.5 block text-[11px] font-semibold text-blue-100/40">Add a
-                                            loading image and set loading time before the card opens.</span>
-                                    </span>
-                                </button>
-
-                                @if ($this->openContentPanel === 'loading')
-                                    <div class="pb-6 pl-7">
-                                        <div class="grid gap-4 lg:grid-cols-[240px_1fr]">
-                                            <div>
-                                                <label class="mb-1 block text-xs font-bold text-blue-100/55">Loading
-                                                    image</label>
-                                                <label
-                                                    class="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/4 px-4 py-6 text-center transition hover:bg-white/8">
-                                                    @if ($this->loadingImagePreview)
-                                                        <img src="{{ $this->loadingImagePreview }}"
-                                                            alt="Loading image preview"
-                                                            class="mb-2 h-24 w-24 rounded-2xl object-cover shadow-lg">
-                                                        <p class="text-xs text-blue-100/55">Click to change loading
-                                                            image</p>
-                                                    @else
+                            <div x-show="openContentPanel === 'companies'" x-collapse class="pb-6 pl-7">
+                                <div class="mb-3 flex items-center justify-between gap-3">
+                                    <h3 class="text-sm font-black"></h3>
+                                    <button type="button" wire:click="addCompany"
+                                        class="rounded-xl bg-cyan-400/10 px-3 py-2 text-xs font-black text-cyan-100 hover:bg-cyan-400/15">+
+                                        Add company</button>
+                                </div>
+                                <div class="space-y-3">
+                                    @foreach ($this->companies as $index => $company)
+                                        <div
+                                            class="grid gap-3 rounded-2xl border border-white/10 bg-black/20 p-3 sm:grid-cols-[minmax(160px,220px)_1fr_1fr_auto]">
+                                            <div class="rounded-xl">
+                                                <button type="button"
+                                                    @click="openIconPicker('companies.{{ $index }}.icon', 'contact', 'Choose company icon', '{{ $company['icon'] ?? 'business_center' }}')"
+                                                    class="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 text-xs font-bold text-white transition hover:border-cyan-300/40 hover:bg-cyan-400/10">
+                                                    <span class="flex items-center gap-2">
                                                         <span
-                                                            class="material-symbols-outlined text-4xl text-blue-100/35">hourglass_top</span>
-                                                        <p class="mt-2 text-xs font-bold text-blue-100/70">Upload
-                                                            loading image</p>
-                                                        <p class="mt-1 text-[10px] text-blue-100/35">JPG, PNG, WebP or
-                                                            animated GIF. Max 2MB</p>
-                                                    @endif
-                                                    <input wire:model="loadingImage" type="file"
-                                                        accept="image/*,.gif,image/gif" class="hidden">
-                                                </label>
-                                                @if ($this->loadingImagePreview)
-                                                    <button type="button" wire:click="removeLoadingImage"
-                                                        class="mt-2 w-full rounded-xl border border-white/10 bg-white/4 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-white/8">Remove
-                                                        loading image</button>
-                                                @endif
-                                                @error('loadingImage')
-                                                    <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                                                @enderror
-                                            </div>
-
-                                            <div class="space-y-4 rounded-2xl border border-white/10 bg-black/20 p-4">
-                                                <label
-                                                    class="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
-                                                    <span>
-                                                        <span class="block text-xs font-black text-blue-100/70">Enable
-                                                            loading screen</span>
-                                                        <span class="mt-0.5 block text-[10px] text-blue-100/35">Shows
-                                                            before the vCard preview/card opens.</span>
+                                                            class="grid h-8 w-8 place-items-center rounded-lg bg-cyan-400/10 text-cyan-100 ring-1 ring-cyan-300/20">
+                                                            <span
+                                                                class="material-symbols-outlined text-xl">{{ $company['icon'] ?? 'business_center' }}</span>
+                                                        </span>
+                                                        <span>Select icon</span>
                                                     </span>
-                                                    <input wire:model.live="loadingScreenEnabled" type="checkbox"
-                                                        class="peer sr-only">
-                                                    <span
-                                                        class="relative h-6 w-11 rounded-full bg-white/10 transition peer-checked:bg-cyan-400/80 after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition after:content-[''] peer-checked:after:translate-x-5"></span>
-                                                </label>
-
-                                                <div>
-                                                    <label
-                                                        class="mb-1 flex items-center justify-between text-xs font-bold text-blue-100/55">
-                                                        <span>Loading time</span>
-                                                        <span>{{ $this->loadingTime }}s</span>
-                                                    </label>
-                                                    <input wire:model.live="loadingTime" type="range"
-                                                        min="1" max="10" step="1"
-                                                        class="w-full accent-cyan-400">
-                                                    @error('loadingTime')
-                                                        <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                                                    @enderror
-                                                </div>
-
-                                                <div
-                                                    class="rounded-2xl border border-cyan-300/15 bg-cyan-400/10 p-4 text-xs leading-5 text-cyan-100">
-                                                    The preview will replay the loading screen with a live countdown.
-                                                    Animated GIF loading images are supported.
-                                                </div>
+                                                </button>
                                             </div>
+                                            <input
+                                                wire:model.live.debounce.300ms="companies.{{ $index }}.company_name"
+                                                type="text" placeholder="Company name"
+                                                class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25 @error('companies.{{ $index }}.company_name') border-red-300/60 bg-red-950/20 @enderror">
+                                            @error('companies.{{ $index }}.company_name')
+                                                <p class="col-span-full text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
+                                            <input
+                                                wire:model.live.debounce.300ms="companies.{{ $index }}.profession"
+                                                type="text" placeholder="Profession / role"
+                                                class="rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-xs text-white outline-none placeholder:text-blue-100/25 @error('companies.{{ $index }}.profession') border-red-300/60 bg-red-950/20 @enderror">
+                                            @error('companies.{{ $index }}.profession')
+                                                <p class="col-span-full text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
+                                            <button type="button" wire:click="removeCompany({{ $index }})"
+                                                title="Remove company" aria-label="Remove company"
+                                                class="grid h-10 w-10 place-items-center rounded-xl border border-red-300/20 bg-red-400/10 text-red-200 transition hover:bg-red-400/15">
+                                                <span class="material-symbols-outlined text-lg">delete</span>
+                                            </button>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Loading Screen --}}
+                        <div class="overflow-hidden border-b border-white/10 last:border-b-0">
+                            <button type="button" @click="toggleOpenSubPanel('loading', 'openContentPanel', $event)"
+                                class="flex w-full items-center gap-3 py-4 text-left cursor-pointer">
+                                <span class="material-symbols-outlined text-base text-cyan-200 transition"
+                                    :class="openContentPanel === 'loading' ? 'rotate-90' : ''">chevron_right</span>
+                                <span>
+                                    <span class="block text-sm font-black text-white">Loading screen</span>
+                                </span>
+                            </button>
+
+                            <div x-show="openContentPanel === 'loading'" x-collapse class="pb-6 pl-7">
+                                <div class="grid gap-4 lg:grid-cols-[240px_1fr]">
+                                    <div>
+                                        <label class="mb-1 block text-xs font-bold text-blue-100/55">Loading
+                                            image</label>
+                                        <label
+                                            class="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/15 bg-white/4 px-4 py-6 text-center transition hover:bg-white/8">
+                                            @if ($this->loadingImagePreview)
+                                                <img src="{{ $this->loadingImagePreview }}"
+                                                    alt="Loading image preview"
+                                                    class="mb-2 h-24 w-24 rounded-2xl object-cover shadow-lg">
+                                                <p class="text-xs text-blue-100/55">Click to change loading
+                                                    image</p>
+                                            @else
+                                                <span
+                                                    class="material-symbols-outlined text-4xl text-blue-100/35">hourglass_top</span>
+                                                <p class="mt-2 text-xs font-bold text-blue-100/70">Upload
+                                                    loading image</p>
+                                                <p class="mt-1 text-[10px] text-blue-100/35">JPG, PNG, WebP or
+                                                    animated GIF. Max 2MB</p>
+                                            @endif
+                                            <input wire:model="loadingImage" type="file"
+                                                accept="image/*,.gif,image/gif" class="hidden">
+                                        </label>
+                                        @if ($this->loadingImagePreview)
+                                            <button type="button" wire:click="removeLoadingImage"
+                                                class="mt-2 w-full rounded-xl border border-white/10 bg-white/4 px-3 py-1.5 text-xs font-semibold text-red-300 transition hover:bg-white/8">Remove
+                                                loading image</button>
+                                        @endif
+                                        @error('loadingImage')
+                                            <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                        @enderror
+                                    </div>
+
+                                    <div class="space-y-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+                                        <label
+                                            class="flex items-center justify-between rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+                                            <span>
+                                                <span class="block text-xs font-black text-blue-100/70">Enable
+                                                    loading screen</span>
+                                                <span class="mt-0.5 block text-[10px] text-blue-100/35">Shows
+                                                    before the vCard preview/card opens.</span>
+                                            </span>
+                                            <input wire:model.live="loadingScreenEnabled" type="checkbox"
+                                                class="peer sr-only">
+                                            <span
+                                                class="relative h-6 w-11 rounded-full bg-white/10 transition peer-checked:bg-cyan-400/80 after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition after:content-[''] peer-checked:after:translate-x-5"></span>
+                                        </label>
+
+                                        <div>
+                                            <label
+                                                class="mb-1 flex items-center justify-between text-xs font-bold text-blue-100/55">
+                                                <span>Loading time</span>
+                                                <span>{{ $this->loadingTime }}s</span>
+                                            </label>
+                                            <input wire:model.live="loadingTime" type="range" min="1"
+                                                max="10" step="1" class="w-full accent-cyan-400">
+                                            @error('loadingTime')
+                                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div
+                                            class="rounded-2xl border border-cyan-300/15 bg-cyan-400/10 p-4 text-xs leading-5 text-cyan-100">
+                                            The preview will replay the loading screen with a live countdown.
+                                            Animated GIF loading images are supported.
                                         </div>
                                     </div>
-                                @endif
+                                </div>
                             </div>
-
                         </div>
-                    @endif
+
+                    </div>
                 </div>
 
 
                 {{-- 4. Social Network --}}
                 <div
                     class="overflow-hidden rounded-3xl border border-white/10 bg-white/6 shadow-xl shadow-cyan-950/10 backdrop-blur-xl">
-                    <button type="button" wire:click="toggleSection('social')"
+                    <button type="button" @click="toggleOpenPanel('social', $event)"
                         class="flex w-full cursor-pointer items-center justify-between gap-4 p-4 text-left sm:p-5">
                         <div class="flex items-center gap-3">
                             <div
@@ -3287,1175 +3329,1204 @@ new #[Title('VCard Generator')] class extends Component {
                                 </p>
                             </div>
                         </div>
-                        <span
-                            class="material-symbols-outlined transition {{ $this->openSection === 'social' ? 'rotate-180' : '' }}">expand_more</span>
+                        <span class="material-symbols-outlined transition"
+                            :class="openSection === 'social' ? 'rotate-180' : ''">expand_more</span>
                     </button>
 
-                    @if ($this->openSection === 'social')
-                        <div class="border-t border-white/10 p-4 sm:p-5">
-                            <div class="mb-5 rounded-3xl border border-white/10 bg-black/20 p-4">
-                                <div class="flex flex-col gap-4">
-                                    <div>
-                                        <p class="text-xs font-black uppercase tracking-wider text-blue-100/60">Social
-                                            preview style</p>
-                                        <p class="mt-1 text-[11px] text-blue-100/35">Choose icon-only socials, icon
-                                            with names, or full contact-card style like phone/email.</p>
-                                    </div>
-
-                                    <div class="grid gap-3 sm:grid-cols-2">
-                                        <label
-                                            class="inline-flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
-                                            <span>
-                                                <span class="block text-xs font-black text-blue-100/70">Show
-                                                    names</span>
-                                                <span class="mt-0.5 block text-[10px] text-blue-100/35">Icon + social
-                                                    name pill</span>
-                                            </span>
-                                            <input wire:model.live="showSocialName" type="checkbox"
-                                                class="peer sr-only">
-                                            <span
-                                                class="relative h-6 w-11 rounded-full bg-white/10 transition peer-checked:bg-cyan-400/80 after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition after:content-[''] peer-checked:after:translate-x-5"></span>
-                                        </label>
-
-                                        <label
-                                            class="inline-flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
-                                            <span>
-                                                <span class="block text-xs font-black text-blue-100/70">Contact card
-                                                    style</span>
-                                                <span class="mt-0.5 block text-[10px] text-blue-100/35">Show socials
-                                                    like phone/email cards</span>
-                                            </span>
-                                            <input wire:model.live="showSocialAsCards" type="checkbox"
-                                                class="peer sr-only">
-                                            <span
-                                                class="relative h-6 w-11 rounded-full bg-white/10 transition peer-checked:bg-cyan-400/80 after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition after:content-[''] peer-checked:after:translate-x-5"></span>
-                                        </label>
-                                    </div>
+                    <div x-show="openSection === 'social'" x-collapse class="border-t border-white/10 p-4 sm:p-5">
+                        <div class="mb-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+                            <div class="flex flex-col gap-4">
+                                <div>
+                                    <p class="text-xs font-black uppercase tracking-wider text-blue-100/60">Social
+                                        preview style</p>
+                                    <p class="mt-1 text-[11px] text-blue-100/35">Choose icon-only socials, icon
+                                        with names, or full contact-card style like phone/email.</p>
                                 </div>
-                            </div>
 
-                            @if (count($this->socialLinks))
-                                <div class="mb-5 space-y-3 rounded-3xl border border-white/10 bg-black/20 p-3">
-                                    <div class="flex items-center justify-between gap-3 px-1">
-                                        <div>
-                                            <p class="text-xs font-black uppercase tracking-wider text-blue-100/60">
-                                                Added social links</p>
-                                            <p class="mt-1 text-[11px] text-blue-100/35">Paste profile URLs here. If a
-                                                social icon is added, its URL is required.</p>
-                                        </div>
-                                    </div>
-
-                                    @foreach ($this->socialLinks as $platform => $url)
-                                        @php
-                                            $social = $this->socialOptions[$platform] ?? [
-                                                'label' => ucfirst($platform),
-                                                'icon_slug' => 'linktree',
-                                                'color' => '#ffffff',
-                                            ];
-                                        @endphp
-                                        <div
-                                            class="grid gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-3 sm:grid-cols-[minmax(160px,220px)_1fr_auto]">
-                                            <button type="button"
-                                                @click="openIconPicker('socialCustomIcons.{{ $platform }}', 'social', 'Choose {{ $social['label'] }} icon', '{{ $this->socialCustomIcons[$platform] ?? ('brand:' . $platform) }}')"
-                                                class="flex h-11 w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 text-xs font-bold text-white transition hover:border-cyan-300/40 hover:bg-cyan-400/10">
-                                                <span class="flex min-w-0 items-center gap-2">
-                                                    <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white shadow-sm">
-                                                        @if ($this->socialUsesBrandIcon($platform))
-                                                            @php $selectedBrand = $this->socialDisplayBrand($platform); @endphp
-                                                            <img src="{{ $this->socialIconUrl($selectedBrand) }}"
-                                                                alt="{{ $this->socialOptions[$selectedBrand]['label'] ?? ucfirst($selectedBrand) }} icon"
-                                                                class="h-5 w-5 object-contain" loading="lazy">
-                                                        @else
-                                                            <span class="material-symbols-outlined text-xl" style="color: {{ $this->accentColor }};">{{ $this->socialCustomIcon($platform) }}</span>
-                                                        @endif
-                                                    </span>
-                                                    <span class="truncate">{{ $this->socialUsesBrandIcon($platform) ? $this->socialDisplayLabel($platform) : 'Custom icon' }}</span>
-                                                </span>
-                                            </button>
-                                            <div class="min-w-0">
-                                                <input wire:model.live="socialLinks.{{ $platform }}"
-                                                    type="url"
-                                                    placeholder="Paste {{ $social['label'] }} profile URL"
-                                                    aria-label="{{ $social['label'] }} profile URL"
-                                                    class="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-2.5 text-xs text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('socialLinks.' . $platform) border-red-300/60 bg-red-950/20 focus:border-red-300/70 @enderror">
-                                                @error('socialLinks.' . $platform)
-                                                    <p class="mt-1 text-[11px] font-semibold text-red-300">
-                                                        {{ $message }}</p>
-                                                @enderror
-                                            </div>
-                                            <button type="button" wire:click="removeSocial('{{ $platform }}')"
-                                                title="Remove {{ $social['label'] }}"
-                                                aria-label="Remove {{ $social['label'] }}"
-                                                class="grid h-11 w-11 place-items-center rounded-xl border border-red-300/20 bg-red-400/10 text-red-200 transition hover:bg-red-400/15">
-                                                <span class="material-symbols-outlined text-lg">delete</span>
-                                            </button>
-                                        </div>
-                                    @endforeach
-                                </div>
-                            @endif
-
-                            <label
-                                class="mb-3 block text-xs font-black uppercase tracking-wider text-blue-100/55">Choose
-                                social network</label>
-                            <div class="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
-                                @foreach ($this->socialOptions as $platform => $social)
-                                    <button type="button" wire:click="addSocial('{{ $platform }}')"
-                                        title="{{ $social['label'] }}" aria-label="Add {{ $social['label'] }}"
-                                        class="group grid h-16 place-items-center rounded-2xl border p-2 transition hover:scale-[1.03] {{ array_key_exists($platform, $this->socialLinks) ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100' : 'border-white/10 bg-white/4 text-blue-100/60 hover:bg-white/8' }}">
-                                        <span
-                                            class="grid h-10 w-10 place-items-center rounded-2xl bg-white shadow-sm ring-1 ring-white/20 transition group-hover:scale-105">
-                                            <img src="{{ $this->socialIconUrl($platform) }}"
-                                                alt="{{ $social['label'] }} icon" class="h-5 w-5 object-contain"
-                                                loading="lazy">
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <label
+                                        class="inline-flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+                                        <span>
+                                            <span class="block text-xs font-black text-blue-100/70">Show
+                                                names</span>
+                                            <span class="mt-0.5 block text-[10px] text-blue-100/35">Icon + social
+                                                name pill</span>
                                         </span>
-                                    </button>
-                                @endforeach
+                                        <input wire:model.live="showSocialName" type="checkbox" class="peer sr-only">
+                                        <span
+                                            class="relative h-6 w-11 rounded-full bg-white/10 transition peer-checked:bg-cyan-400/80 after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition after:content-[''] peer-checked:after:translate-x-5"></span>
+                                    </label>
+
+                                    <label
+                                        class="inline-flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3">
+                                        <span>
+                                            <span class="block text-xs font-black text-blue-100/70">Contact card
+                                                style</span>
+                                            <span class="mt-0.5 block text-[10px] text-blue-100/35">Show socials
+                                                like phone/email cards</span>
+                                        </span>
+                                        <input wire:model.live="showSocialAsCards" type="checkbox"
+                                            class="peer sr-only">
+                                        <span
+                                            class="relative h-6 w-11 rounded-full bg-white/10 transition peer-checked:bg-cyan-400/80 after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:shadow after:transition after:content-[''] peer-checked:after:translate-x-5"></span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
-                    @endif
+
+                        @if (count($this->socialLinks))
+                            <div class="mb-5 space-y-3 rounded-3xl border border-white/10 bg-black/20 p-3">
+                                <div class="flex items-center justify-between gap-3 px-1">
+                                    <div>
+                                        <p class="text-xs font-black uppercase tracking-wider text-blue-100/60">
+                                            Added social links</p>
+                                        <p class="mt-1 text-[11px] text-blue-100/35">Paste profile URLs here. If a
+                                            social icon is added, its URL is required.</p>
+                                    </div>
+                                </div>
+
+                                @foreach ($this->socialLinks as $platform => $url)
+                                    @php
+                                        $social = $this->socialOptions[$platform] ?? [
+                                            'label' => ucfirst($platform),
+                                            'icon_slug' => 'linktree',
+                                            'color' => '#ffffff',
+                                        ];
+                                    @endphp
+                                    <div
+                                        class="grid gap-3 rounded-2xl border border-white/10 bg-slate-950/60 p-3 sm:grid-cols-[minmax(160px,220px)_1fr_auto]">
+                                        <button type="button"
+                                            @click="openIconPicker('socialCustomIcons.{{ $platform }}', 'social', 'Choose {{ $social['label'] }} icon', '{{ $this->socialCustomIcons[$platform] ?? 'brand:' . $platform }}')"
+                                            class="flex h-11 w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950 px-3 text-xs font-bold text-white transition hover:border-cyan-300/40 hover:bg-cyan-400/10">
+                                            <span class="flex min-w-0 items-center gap-2">
+                                                <span
+                                                    class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white shadow-sm">
+                                                    @if ($this->socialUsesBrandIcon($platform))
+                                                        @php $selectedBrand = $this->socialDisplayBrand($platform); @endphp
+                                                        <img src="{{ $this->socialIconUrl($selectedBrand) }}"
+                                                            alt="{{ $this->socialOptions[$selectedBrand]['label'] ?? ucfirst($selectedBrand) }} icon"
+                                                            class="h-5 w-5 object-contain" loading="lazy">
+                                                    @else
+                                                        <span class="material-symbols-outlined text-xl"
+                                                            style="color: {{ $this->accentColor }};">{{ $this->socialCustomIcon($platform) }}</span>
+                                                    @endif
+                                                </span>
+                                                <span
+                                                    class="truncate">{{ $this->socialUsesBrandIcon($platform) ? $this->socialDisplayLabel($platform) : 'Custom icon' }}</span>
+                                            </span>
+                                        </button>
+                                        <div class="min-w-0">
+                                            <input wire:model.live.debounce.300ms="socialLinks.{{ $platform }}"
+                                                type="url"
+                                                placeholder="Paste {{ $social['label'] }} profile URL"
+                                                aria-label="{{ $social['label'] }} profile URL"
+                                                class="w-full rounded-xl border border-white/10 bg-black/35 px-3 py-2.5 text-xs text-white outline-none placeholder:text-blue-100/25 focus:border-cyan-300/40 @error('socialLinks.' . $platform) border-red-300/60 bg-red-950/20 focus:border-red-300/70 @enderror">
+                                            @error('socialLinks.' . $platform)
+                                                <p class="mt-1 text-[11px] font-semibold text-red-300">
+                                                    {{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                        <button type="button" wire:click="removeSocial('{{ $platform }}')"
+                                            title="Remove {{ $social['label'] }}"
+                                            aria-label="Remove {{ $social['label'] }}"
+                                            class="grid h-11 w-11 place-items-center rounded-xl border border-red-300/20 bg-red-400/10 text-red-200 transition hover:bg-red-400/15">
+                                            <span class="material-symbols-outlined text-lg">delete</span>
+                                        </button>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+
+                        <label class="mb-3 block text-xs font-black uppercase tracking-wider text-blue-100/55">Choose
+                            social network</label>
+                        <div class="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
+                            @foreach ($this->socialOptions as $platform => $social)
+                                <button type="button" wire:click="addSocial('{{ $platform }}')"
+                                    title="{{ $social['label'] }}" aria-label="Add {{ $social['label'] }}"
+                                    class="group grid h-16 place-items-center rounded-2xl border p-2 transition hover:scale-[1.03] {{ array_key_exists($platform, $this->socialLinks) ? 'border-cyan-400 bg-cyan-400/10 text-cyan-100' : 'border-white/10 bg-white/4 text-blue-100/60 hover:bg-white/8' }}">
+                                    <span
+                                        class="grid h-10 w-10 place-items-center rounded-2xl bg-white shadow-sm ring-1 ring-white/20 transition group-hover:scale-105">
+                                        <img src="{{ $this->socialIconUrl($platform) }}"
+                                            alt="{{ $social['label'] }} icon" class="h-5 w-5 object-contain"
+                                            loading="lazy">
+                                    </span>
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
                 </div>
             </div>
 
             {{-- Preview and QR --}}
-            <div class="min-w-0 lg:sticky lg:top-24 lg:self-start">
+            <aside class="min-w-0 lg:sticky lg:top-24 lg:self-start">
                 <div
-                    class="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl">
-                    <div class="border-b border-white/10 p-4 sm:p-5">
-                        <div class="flex items-center justify-between gap-4">
-                            <div>
-                                <h2 class="text-base font-black sm:text-lg">Live preview</h2>
-                                <p class="mt-1 text-xs text-blue-100/45">Mobile digital card preview.</p>
+                        class="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/6 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl">
+                        <div class="border-b border-white/10 p-4 sm:p-5">
+                            <div class="flex items-center justify-between gap-4">
+                                <div>
+                                    <h2 class="text-base font-black sm:text-lg">Live preview</h2>
+                                    <p class="mt-1 text-xs text-blue-100/45">Mobile digital card preview.</p>
+                                </div>
+                                <span
+                                    class="rounded-full {{ $this->isPremium ? 'bg-emerald-400/10 text-emerald-200' : 'bg-amber-400/10 text-amber-200' }} px-3 py-1.5 text-xs font-black">
+                                    {{ $this->isPremium ? 'Premium' : 'Free' }}
+                                </span>
                             </div>
-                            <span
-                                class="rounded-full {{ $this->isPremium ? 'bg-emerald-400/10 text-emerald-200' : 'bg-amber-400/10 text-amber-200' }} px-3 py-1.5 text-xs font-black">
-                                {{ $this->isPremium ? 'Premium' : 'Free' }}
-                            </span>
                         </div>
-                    </div>
 
-                    <div class="p-4 sm:p-5">
-                        <div
-                            class="grid min-h-[660px] items-start justify-items-center rounded-3xl bg-slate-950/50 p-3 sm:p-5">
-                            @php
-                                $activeTemplate =
-                                    $this->templates[$this->template] ?? $this->templates['modern-banner-center'];
-                                $templateSupportsBanner = (bool) ($activeTemplate['has_banner'] ?? true);
-                                $templateUsesProfileAsBanner =
-                                    (bool) ($activeTemplate['use_profile_as_banner'] ?? false);
-                                $templateHasBanner = $templateSupportsBanner;
-                                $avatarPosition = $activeTemplate['avatar_position'] ?? 'center-over-banner';
-                                $templateEffect = $activeTemplate['effect'] ?? 'normal';
-                                $isWaterGlassPreview = $templateEffect === 'water-glass';
-                                $isGlassmorphismPreview = $templateEffect === 'glassmorphism';
-                                $isGlassPreview =
-                                    $this->fieldShadow === 'glass' ||
-                                    in_array($templateEffect, ['glass', 'water-glass', 'glassmorphism'], true);
-                                $normalizeHexColor = function (string $color): string {
-                                    $color = trim($color);
-                                    if (!preg_match('/^#?[0-9a-fA-F]{6}$/', $color)) {
-                                        return '#ffffff';
+                        <div class="p-4 sm:p-5">
+                            <div
+                                class="grid min-h-[660px] items-start justify-items-center rounded-3xl bg-slate-950/50 p-3 sm:p-5">
+                                @php
+                                    $activeTemplate =
+                                        $this->templates[$this->template] ?? $this->templates['modern-banner-center'];
+                                    $templateSupportsBanner = (bool) ($activeTemplate['has_banner'] ?? true);
+                                    $templateUsesProfileAsBanner =
+                                        (bool) ($activeTemplate['use_profile_as_banner'] ?? false);
+                                    $templateHasBanner = $templateSupportsBanner;
+                                    $avatarPosition = $activeTemplate['avatar_position'] ?? 'center-over-banner';
+                                    $templateEffect = $activeTemplate['effect'] ?? 'normal';
+                                    $isWaterGlassPreview = $templateEffect === 'water-glass';
+                                    $isGlassmorphismPreview = $templateEffect === 'glassmorphism';
+                                    $isGlassPreview =
+                                        $this->fieldShadow === 'glass' ||
+                                        in_array($templateEffect, ['glass', 'water-glass', 'glassmorphism'], true);
+                                    $normalizeHexColor = function (string $color): string {
+                                        $color = trim($color);
+                                        if (!preg_match('/^#?[0-9a-fA-F]{6}$/', $color)) {
+                                            return '#ffffff';
+                                        }
+
+                                        return str_starts_with($color, '#') ? $color : '#' . $color;
+                                    };
+                                    $isDarkHexColor = function (string $color) use ($normalizeHexColor): bool {
+                                        $hex = ltrim($normalizeHexColor($color), '#');
+                                        $r = hexdec(substr($hex, 0, 2));
+                                        $g = hexdec(substr($hex, 2, 2));
+                                        $b = hexdec(substr($hex, 4, 2));
+
+                                        return ($r * 299 + $g * 587 + $b * 114) / 1000 < 145;
+                                    };
+                                    $previewCardBg = $normalizeHexColor($this->cardBg);
+                                    $previewIsDarkCard = $isGlassPreview || $isDarkHexColor($previewCardBg);
+                                    $previewText = $isGlassPreview ? '#ffffff' : $normalizeHexColor($this->textColor);
+                                    $previewMuted = $previewIsDarkCard ? 'rgba(255,255,255,0.72)' : '#64748b';
+                                    $previewFieldBg = $previewIsDarkCard ? 'rgba(255,255,255,0.07)' : '#ffffff';
+                                    $previewFieldBorderColor = $previewIsDarkCard
+                                        ? 'rgba(255,255,255,0.14)'
+                                        : $this->fieldBorderColor;
+                                    $previewTopButtonBg = $previewIsDarkCard ? 'rgba(255,255,255,0.10)' : '#ffffff';
+                                    $previewTopButtonRing = $previewIsDarkCard ? 'rgba(255,255,255,0.16)' : '#e2e8f0';
+                                    $avatarRadiusValue = min(56, max(0, (int) $this->avatarBorderRadius));
+                                    $avatarRadius = $avatarRadiusValue >= 56 ? '999px' : $avatarRadiusValue . 'px';
+                                    $floatingButtonRadiusValue = min(
+                                        56,
+                                        max(0, (int) $this->floatingButtonBorderRadius),
+                                    );
+                                    $floatingButtonRadius =
+                                        $floatingButtonRadiusValue >= 56 ? '999px' : $floatingButtonRadiusValue . 'px';
+                                    $avatarRingRadius = $avatarRadius;
+                                    $avatarRingStyle = $this->avatarRingEnabled
+                                        ? 'border: ' .
+                                            (int) $this->avatarRingWidth .
+                                            'px solid ' .
+                                            $this->avatarRingColor .
+                                            '; border-radius: ' .
+                                            $avatarRingRadius .
+                                            '; box-shadow: 0 18px 40px rgba(15,23,42,0.22);'
+                                        : 'border: 0 solid transparent; box-shadow: 0 18px 40px rgba(15,23,42,0.18);';
+                                    $floatingButtonPlacementClass = match ($this->floatingButtonPlacement) {
+                                        'top-left' => 'top-6 left-6',
+                                        'top-right' => 'top-6 right-6',
+                                        'bottom-left' => 'bottom-6 left-6',
+                                        default => 'bottom-6 right-6',
+                                    };
+                                    $floatingButtonRingRadius = match ($this->floatingButtonRingShape) {
+                                        'square' => '0px',
+                                        'rounded' => '18px',
+                                        default => '999px',
+                                    };
+                                    $floatingButtonRingStyle = $this->floatingButtonRingEnabled
+                                        ? 'box-shadow: 0 24px 60px rgba(15,23,42,0.30), 0 0 0 ' .
+                                            (int) $this->floatingButtonRingWidth .
+                                            'px ' .
+                                            $this->floatingButtonRingColor .
+                                            ';'
+                                        : 'box-shadow: 0 24px 60px rgba(15,23,42,0.30);';
+                                    $dragLabelStyle = $isGlassPreview
+                                        ? 'background: rgba(34,211,238,0.18); color: #cffafe; border: 1px solid rgba(103,232,249,0.28);'
+                                        : 'background: rgba(14,116,144,0.12); color: #0e7490; border: 1px solid rgba(14,116,144,0.22);';
+                                    $fieldCardClass = 'flex items-center gap-3 border px-3 py-3 transition';
+                                    $fieldCardShadowClass = match ($this->fieldShadow) {
+                                        'none' => '',
+                                        'medium' => 'shadow-lg shadow-slate-900/10',
+                                        'glass' => 'backdrop-blur-2xl shadow-[0_18px_45px_rgba(15,23,42,0.22)]',
+                                        default => 'shadow-sm',
+                                    };
+                                    if ($isGlassPreview && $this->fieldShadow !== 'glass') {
+                                        $fieldCardShadowClass =
+                                            'backdrop-blur-2xl shadow-[0_18px_45px_rgba(15,23,42,0.22)]';
+                                    }
+                                    $fieldCardClass .= ' ' . $fieldCardShadowClass;
+                                    $fieldCardStyle = $isGlassPreview
+                                        ? 'border-color: ' .
+                                            ($this->fieldBorderStyle === 'none'
+                                                ? 'transparent'
+                                                : ($isWaterGlassPreview
+                                                    ? 'rgba(255,255,255,0.42)'
+                                                    : 'rgba(255,255,255,0.34)')) .
+                                            '; border-style: ' .
+                                            $this->fieldBorderStyle .
+                                            '; border-width: ' .
+                                            ($this->fieldBorderStyle === 'none' ? 0 : (int) $this->fieldBorderWidth) .
+                                            'px; border-radius: ' .
+                                            (int) $this->fieldBorderRadius .
+                                            'px;' .
+                                            ' background: ' .
+                                            ($isWaterGlassPreview
+                                                ? 'linear-gradient(135deg, rgba(255,255,255,0.36), rgba(255,255,255,0.12) 45%, rgba(103,232,249,0.10))'
+                                                : 'linear-gradient(135deg, rgba(255,255,255,0.24), rgba(255,255,255,0.09))') .
+                                            ';' .
+                                            ' box-shadow: inset 0 1px 0 rgba(255,255,255,0.42), inset 0 -1px 0 rgba(255,255,255,0.10), 0 18px 45px rgba(15,23,42,0.22);' .
+                                            ' -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%);'
+                                        : 'border-color: ' .
+                                            ($this->fieldBorderStyle === 'none'
+                                                ? 'transparent'
+                                                : $previewFieldBorderColor) .
+                                            '; border-style: ' .
+                                            $this->fieldBorderStyle .
+                                            '; border-width: ' .
+                                            ($this->fieldBorderStyle === 'none' ? 0 : (int) $this->fieldBorderWidth) .
+                                            'px; border-radius: ' .
+                                            (int) $this->fieldBorderRadius .
+                                            'px; background: ' .
+                                            $previewFieldBg .
+                                            ';';
+                                    $glassIconStyle = $isGlassPreview
+                                        ? 'background: rgba(255,255,255,0.18); color: #ffffff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.24);'
+                                        : 'background: ' .
+                                            ($previewIsDarkCard
+                                                ? 'rgba(255,255,255,0.10)'
+                                                : $this->accentColor . '18') .
+                                            '; color: ' .
+                                            $this->accentColor;
+
+                                    $bannerImage = $this->bannerPreview;
+                                    $userImage = $this->profilePreview;
+                                    $previewBannerImage =
+                                        $templateUsesProfileAsBanner && filled($userImage) ? $userImage : $bannerImage;
+                                    $templateHasBanner = $templateSupportsBanner;
+                                    $showHeaderAvatar = !($templateUsesProfileAsBanner && filled($userImage));
+                                    $previewPhones = collect($this->phones)
+                                        ->filter(fn($item) => filled($item['value'] ?? ''))
+                                        ->values();
+                                    $previewEmails = collect($this->emails)
+                                        ->filter(fn($item) => filled($item['value'] ?? ''))
+                                        ->values();
+                                    $previewSites = collect($this->sites)
+                                        ->filter(fn($item) => filled($item['value'] ?? ''))
+                                        ->values();
+                                    $previewCompanies = collect($this->companies)
+                                        ->filter(
+                                            fn($item) => filled($item['company_name'] ?? '') ||
+                                                filled($item['profession'] ?? ''),
+                                        )
+                                        ->values();
+                                    $firstPhone = $previewPhones->first();
+                                    $firstEmail = $previewEmails->first();
+                                    $locationAddressLine = trim(
+                                        implode(
+                                            ', ',
+                                            array_filter([
+                                                $this->street,
+                                                $this->city,
+                                                $this->state,
+                                                $this->zip,
+                                                $this->country,
+                                            ]),
+                                        ),
+                                    );
+                                    $coordinatesLine = trim(
+                                        $this->latitude .
+                                            ($this->latitude && $this->longitude ? ', ' : '') .
+                                            $this->longitude,
+                                    );
+                                    $activeLocationTab = in_array(
+                                        $this->locationTab,
+                                        ['url', 'coordinate', 'manual'],
+                                        true,
+                                    )
+                                        ? $this->locationTab
+                                        : 'url';
+
+                                    if ($activeLocationTab === 'url') {
+                                        $locationHref =
+                                            $this->locationUrl ?:
+                                            ($this->locationSearch
+                                                ? 'https://www.google.com/maps/search/?api=1&query=' .
+                                                    urlencode($this->locationSearch)
+                                                : '');
+                                        $locationDisplay = $this->locationUrl ? 'Show on map' : $this->locationSearch;
+                                        $locationSubText = $this->locationSearch;
+                                    } elseif ($activeLocationTab === 'coordinate') {
+                                        $locationHref = $coordinatesLine
+                                            ? 'https://www.google.com/maps/search/?api=1&query=' .
+                                                urlencode($coordinatesLine)
+                                            : '';
+                                        $locationDisplay = $coordinatesLine ? 'Show on map' : $this->locationSearch;
+                                        $locationSubText = $this->locationSearch;
+                                    } else {
+                                        $locationHref = $locationAddressLine
+                                            ? 'https://www.google.com/maps/search/?api=1&query=' .
+                                                urlencode($locationAddressLine)
+                                            : '';
+                                        $locationDisplay = $locationAddressLine;
+                                        $locationSubText = '';
                                     }
 
-                                    return str_starts_with($color, '#') ? $color : '#' . $color;
-                                };
-                                $isDarkHexColor = function (string $color) use ($normalizeHexColor): bool {
-                                    $hex = ltrim($normalizeHexColor($color), '#');
-                                    $r = hexdec(substr($hex, 0, 2));
-                                    $g = hexdec(substr($hex, 2, 2));
-                                    $b = hexdec(substr($hex, 4, 2));
+                                    $locationDisplay = trim((string) $locationDisplay);
+                                    $locationSubText = trim((string) $locationSubText);
+                                    $hasPreviewContactCards =
+                                        $previewPhones->isNotEmpty() ||
+                                        $previewEmails->isNotEmpty() ||
+                                        $previewSites->isNotEmpty();
+                                    $hasPreviewLocationCard = filled($locationDisplay);
+                                    $hasPreviewCompanyCards = $previewCompanies->isNotEmpty();
+                                    $hasPreviewSocialCards = count(array_filter($this->socialLinks)) > 0;
+                                    $hasPreviewInfoCards =
+                                        $hasPreviewContactCards ||
+                                        $hasPreviewLocationCard ||
+                                        $hasPreviewCompanyCards ||
+                                        $hasPreviewSocialCards;
+                                    $previewContactSectionOrder = $this->normalizePreviewSectionOrder();
+                                    $previewOrderMap = array_flip($previewContactSectionOrder);
+                                    $previewSectionStyle = fn(string $section) => 'order: ' .
+                                        (($previewOrderMap[$section] ?? 99) + 1) .
+                                        ';';
+                                @endphp
 
-                                    return ($r * 299 + $g * 587 + $b * 114) / 1000 < 145;
-                                };
-                                $previewCardBg = $normalizeHexColor($this->cardBg);
-                                $previewIsDarkCard = $isGlassPreview || $isDarkHexColor($previewCardBg);
-                                $previewText = $isGlassPreview ? '#ffffff' : $normalizeHexColor($this->textColor);
-                                $previewMuted = $previewIsDarkCard ? 'rgba(255,255,255,0.72)' : '#64748b';
-                                $previewFieldBg = $previewIsDarkCard ? 'rgba(255,255,255,0.07)' : '#ffffff';
-                                $previewFieldBorderColor = $previewIsDarkCard
-                                    ? 'rgba(255,255,255,0.14)'
-                                    : $this->fieldBorderColor;
-                                $previewTopButtonBg = $previewIsDarkCard ? 'rgba(255,255,255,0.10)' : '#ffffff';
-                                $previewTopButtonRing = $previewIsDarkCard ? 'rgba(255,255,255,0.16)' : '#e2e8f0';
-                                $avatarRadiusValue = min(56, max(0, (int) $this->avatarBorderRadius));
-                                $avatarRadius = $avatarRadiusValue >= 56 ? '999px' : $avatarRadiusValue . 'px';
-                                $floatingButtonRadiusValue = min(56, max(0, (int) $this->floatingButtonBorderRadius));
-                                $floatingButtonRadius =
-                                    $floatingButtonRadiusValue >= 56 ? '999px' : $floatingButtonRadiusValue . 'px';
-                                $avatarRingRadius = $avatarRadius;
-                                $avatarRingStyle = $this->avatarRingEnabled
-                                    ? 'border: ' .
-                                    (int) $this->avatarRingWidth .
-                                    'px solid ' .
-                                    $this->avatarRingColor .
-                                    '; border-radius: ' .
-                                    $avatarRingRadius .
-                                    '; box-shadow: 0 18px 40px rgba(15,23,42,0.22);'
-                                    : 'border: 0 solid transparent; box-shadow: 0 18px 40px rgba(15,23,42,0.18);';
-                                $floatingButtonPlacementClass = match ($this->floatingButtonPlacement) {
-                                    'top-left' => 'top-6 left-6',
-                                    'top-right' => 'top-6 right-6',
-                                    'bottom-left' => 'bottom-6 left-6',
-                                    default => 'bottom-6 right-6',
-                                };
-                                $floatingButtonRingRadius = match ($this->floatingButtonRingShape) {
-                                    'square' => '0px',
-                                    'rounded' => '18px',
-                                    default => '999px',
-                                };
-                                $floatingButtonRingStyle = $this->floatingButtonRingEnabled
-                                    ? 'box-shadow: 0 24px 60px rgba(15,23,42,0.30), 0 0 0 ' .
-                                    (int) $this->floatingButtonRingWidth .
-                                    'px ' .
-                                    $this->floatingButtonRingColor .
-                                    ';'
-                                    : 'box-shadow: 0 24px 60px rgba(15,23,42,0.30);';
-                                $dragLabelStyle = $isGlassPreview
-                                    ? 'background: rgba(34,211,238,0.18); color: #cffafe; border: 1px solid rgba(103,232,249,0.28);'
-                                    : 'background: rgba(14,116,144,0.12); color: #0e7490; border: 1px solid rgba(14,116,144,0.22);';
-                                $fieldCardClass = 'flex items-center gap-3 border px-3 py-3 transition';
-                                $fieldCardShadowClass = match ($this->fieldShadow) {
-                                    'none' => '',
-                                    'medium' => 'shadow-lg shadow-slate-900/10',
-                                    'glass' => 'backdrop-blur-2xl shadow-[0_18px_45px_rgba(15,23,42,0.22)]',
-                                    default => 'shadow-sm',
-                                };
-                                if ($isGlassPreview && $this->fieldShadow !== 'glass') {
-                                    $fieldCardShadowClass =
-                                        'backdrop-blur-2xl shadow-[0_18px_45px_rgba(15,23,42,0.22)]';
-                                }
-                                $fieldCardClass .= ' ' . $fieldCardShadowClass;
-                                $fieldCardStyle = $isGlassPreview
-                                    ? 'border-color: ' .
-                                    ($this->fieldBorderStyle === 'none'
-                                        ? 'transparent'
-                                        : ($isWaterGlassPreview
-                                            ? 'rgba(255,255,255,0.42)'
-                                            : 'rgba(255,255,255,0.34)')) .
-                                    '; border-style: ' .
-                                    $this->fieldBorderStyle .
-                                    '; border-width: ' .
-                                    ($this->fieldBorderStyle === 'none' ? 0 : (int) $this->fieldBorderWidth) .
-                                    'px; border-radius: ' .
-                                    (int) $this->fieldBorderRadius .
-                                    'px;' .
-                                    ' background: ' .
-                                    ($isWaterGlassPreview
-                                        ? 'linear-gradient(135deg, rgba(255,255,255,0.36), rgba(255,255,255,0.12) 45%, rgba(103,232,249,0.10))'
-                                        : 'linear-gradient(135deg, rgba(255,255,255,0.24), rgba(255,255,255,0.09))') .
-                                    ';' .
-                                    ' box-shadow: inset 0 1px 0 rgba(255,255,255,0.42), inset 0 -1px 0 rgba(255,255,255,0.10), 0 18px 45px rgba(15,23,42,0.22);' .
-                                    ' -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%);'
-                                    : 'border-color: ' .
-                                    ($this->fieldBorderStyle === 'none'
-                                        ? 'transparent'
-                                        : $previewFieldBorderColor) .
-                                    '; border-style: ' .
-                                    $this->fieldBorderStyle .
-                                    '; border-width: ' .
-                                    ($this->fieldBorderStyle === 'none' ? 0 : (int) $this->fieldBorderWidth) .
-                                    'px; border-radius: ' .
-                                    (int) $this->fieldBorderRadius .
-                                    'px; background: ' .
-                                    $previewFieldBg .
-                                    ';';
-                                $glassIconStyle = $isGlassPreview
-                                    ? 'background: rgba(255,255,255,0.18); color: #ffffff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.24);'
-                                    : 'background: ' .
-                                    ($previewIsDarkCard ? 'rgba(255,255,255,0.10)' : $this->accentColor . '18') .
-                                    '; color: ' .
-                                    $this->accentColor;
+                                <div class="w-full max-w-[350px]">
+                                    <div
+                                        class="relative mx-auto rounded-[2.35rem] border border-white/15 bg-white/10 p-2 shadow-2xl shadow-cyan-950/20 ring-1 ring-white/15 backdrop-blur-2xl">
 
-                                $bannerImage = $this->bannerPreview;
-                                $userImage = $this->profilePreview;
-                                $previewBannerImage =
-                                    $templateUsesProfileAsBanner && filled($userImage) ? $userImage : $bannerImage;
-                                $templateHasBanner = $templateSupportsBanner;
-                                $showHeaderAvatar = !($templateUsesProfileAsBanner && filled($userImage));
-                                $previewPhones = collect($this->phones)
-                                    ->filter(fn($item) => filled($item['value'] ?? ''))
-                                    ->values();
-                                $previewEmails = collect($this->emails)
-                                    ->filter(fn($item) => filled($item['value'] ?? ''))
-                                    ->values();
-                                $previewSites = collect($this->sites)
-                                    ->filter(fn($item) => filled($item['value'] ?? ''))
-                                    ->values();
-                                $previewCompanies = collect($this->companies)
-                                    ->filter(
-                                        fn($item) => filled($item['company_name'] ?? '') ||
-                                        filled($item['profession'] ?? ''),
-                                    )
-                                    ->values();
-                                $firstPhone = $previewPhones->first();
-                                $firstEmail = $previewEmails->first();
-                                $locationAddressLine = trim(
-                                    implode(
-                                        ', ',
-                                        array_filter([
-                                            $this->street,
-                                            $this->city,
-                                            $this->state,
-                                            $this->zip,
-                                            $this->country,
-                                        ]),
-                                    ),
-                                );
-                                $coordinatesLine = trim(
-                                    $this->latitude .
-                                    ($this->latitude && $this->longitude ? ', ' : '') .
-                                    $this->longitude,
-                                );
-                                $activeLocationTab = in_array($this->locationTab, ['url', 'coordinate', 'manual'], true)
-                                    ? $this->locationTab
-                                    : 'url';
-
-                                if ($activeLocationTab === 'url') {
-                                    $locationHref =
-                                        $this->locationUrl ?:
-                                        ($this->locationSearch
-                                            ? 'https://www.google.com/maps/search/?api=1&query=' .
-                                            urlencode($this->locationSearch)
-                                            : '');
-                                    $locationDisplay = $this->locationUrl ? 'Show on map' : $this->locationSearch;
-                                    $locationSubText = $this->locationSearch;
-                                } elseif ($activeLocationTab === 'coordinate') {
-                                    $locationHref = $coordinatesLine
-                                        ? 'https://www.google.com/maps/search/?api=1&query=' .
-                                        urlencode($coordinatesLine)
-                                        : '';
-                                    $locationDisplay = $coordinatesLine ? 'Show on map' : $this->locationSearch;
-                                    $locationSubText = $this->locationSearch;
-                                } else {
-                                    $locationHref = $locationAddressLine
-                                        ? 'https://www.google.com/maps/search/?api=1&query=' .
-                                        urlencode($locationAddressLine)
-                                        : '';
-                                    $locationDisplay = $locationAddressLine;
-                                    $locationSubText = '';
-                                }
-
-                                $locationDisplay = trim((string) $locationDisplay);
-                                $locationSubText = trim((string) $locationSubText);
-                                $hasPreviewContactCards =
-                                    $previewPhones->isNotEmpty() ||
-                                    $previewEmails->isNotEmpty() ||
-                                    $previewSites->isNotEmpty();
-                                $hasPreviewLocationCard = filled($locationDisplay);
-                                $hasPreviewCompanyCards = $previewCompanies->isNotEmpty();
-                                $hasPreviewSocialCards = count(array_filter($this->socialLinks)) > 0;
-                                $hasPreviewInfoCards =
-                                    $hasPreviewContactCards ||
-                                    $hasPreviewLocationCard ||
-                                    $hasPreviewCompanyCards ||
-                                    $hasPreviewSocialCards;
-                                $previewContactSectionOrder = $this->normalizePreviewSectionOrder();
-                                $previewOrderMap = array_flip($previewContactSectionOrder);
-                                $previewSectionStyle = fn(string $section) => 'order: ' .
-                                    (($previewOrderMap[$section] ?? 99) + 1) .
-                                    ';';
-                            @endphp
-
-                            <div class="w-full max-w-[350px]">
-                                <div
-                                    class="relative mx-auto rounded-[2.35rem] border border-white/15 bg-white/10 p-2 shadow-2xl shadow-cyan-950/20 ring-1 ring-white/15 backdrop-blur-2xl">
-
-                                    <div wire:key="preview-loading-{{ $this->loadingScreenEnabled ? 'on' : 'off' }}-{{ $this->loadingTime }}-{{ md5((string) $this->loadingImagePreview) }}"
-                                        x-data="{
-                                            showLoader: @js($this->loadingScreenEnabled),
-                                            countDown: {{ max(1, min(10, (int) $this->loadingTime)) }},
-                                            totalTime: {{ max(1, min(10, (int) $this->loadingTime)) }},
-                                            countTimer: null,
-                                            closeTimer: null,
-                                            init() {
-                                                this.restartLoader();
-                                            },
-                                            restartLoader() {
-                                                clearInterval(this.countTimer);
-                                                clearTimeout(this.closeTimer);
-                                                this.countDown = this.totalTime;
-                                        
-                                                if (!this.showLoader) return;
-                                        
-                                                this.countTimer = setInterval(() => {
-                                                    if (this.countDown > 1) {
-                                                        this.countDown--;
-                                                    }
-                                                }, 1000);
-                                        
-                                                this.closeTimer = setTimeout(() => {
-                                                    this.showLoader = false;
+                                        <div wire:key="preview-loading-{{ $this->loadingScreenEnabled ? 'on' : 'off' }}-{{ $this->loadingTime }}-{{ md5((string) $this->loadingImagePreview) }}"
+                                            x-data="{
+                                                showLoader: @js($this->loadingScreenEnabled),
+                                                countDown: {{ max(1, min(10, (int) $this->loadingTime)) }},
+                                                totalTime: {{ max(1, min(10, (int) $this->loadingTime)) }},
+                                                countTimer: null,
+                                                closeTimer: null,
+                                                init() {
+                                                    this.restartLoader();
+                                                },
+                                                restartLoader() {
                                                     clearInterval(this.countTimer);
-                                                    this.countDown = 0;
-                                                }, this.totalTime * 1000);
-                                            }
-                                        }"
-                                        class="relative max-h-[620px] overflow-y-auto rounded-[1.9rem] {{ $isGlassPreview ? 'bg-white/10 ring-1 ring-white/25 backdrop-blur-2xl' : '' }} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-                                        style="font-family: '{{ $this->fontFamily }}', sans-serif; {{ $isWaterGlassPreview ? 'background: radial-gradient(circle at 18% 0%, rgba(125,211,252,0.50), transparent 34%), radial-gradient(circle at 90% 16%, rgba(34,211,238,0.30), transparent 30%), linear-gradient(160deg, rgba(8,47,73,0.96), rgba(15,23,42,0.90));' : ($isGlassPreview ? 'background: radial-gradient(circle at 20% 0%, rgba(56,189,248,0.30), transparent 34%), radial-gradient(circle at 90% 12%, rgba(167,139,250,0.32), transparent 30%), linear-gradient(160deg, rgba(15,23,42,0.96), rgba(30,41,59,0.90));' : 'background: ' . $previewCardBg . ';') }}">
-                                        @if ($this->loadingScreenEnabled)
-                                            <div x-show="showLoader" x-transition.opacity.duration.300ms
-                                                class="absolute inset-0 z-[60] grid place-items-center overflow-hidden rounded-[1.9rem] px-8 text-center backdrop-blur-xl"
-                                                style="background: linear-gradient(160deg, rgba(2,6,23,0.88), rgba(15,23,42,0.82));">
-                                                <div class="relative w-full max-w-[230px]">
-                                                    @if ($this->loadingImagePreview)
-                                                        <img src="{{ $this->loadingImagePreview }}"
-                                                            alt="Loading image"
-                                                            class="mx-auto h-24 w-24 rounded-3xl object-cover shadow-2xl shadow-cyan-950/35 ring-1 ring-white/15"
-                                                            style="animation: vcardLoadingPulse 1.8s ease-in-out infinite;">
+                                                    clearTimeout(this.closeTimer);
+                                                    this.countDown = this.totalTime;
+                                            
+                                                    if (!this.showLoader) return;
+                                            
+                                                    this.countTimer = setInterval(() => {
+                                                        if (this.countDown > 1) {
+                                                            this.countDown--;
+                                                        }
+                                                    }, 1000);
+                                            
+                                                    this.closeTimer = setTimeout(() => {
+                                                        this.showLoader = false;
+                                                        clearInterval(this.countTimer);
+                                                        this.countDown = 0;
+                                                    }, this.totalTime * 1000);
+                                                }
+                                            }"
+                                            class="relative max-h-[620px] overflow-y-auto rounded-[1.9rem] {{ $isGlassPreview ? 'bg-white/10 ring-1 ring-white/25 backdrop-blur-2xl' : '' }} [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                                            style="font-family: '{{ $this->fontFamily }}', sans-serif; {{ $isWaterGlassPreview ? 'background: radial-gradient(circle at 18% 0%, rgba(125,211,252,0.50), transparent 34%), radial-gradient(circle at 90% 16%, rgba(34,211,238,0.30), transparent 30%), linear-gradient(160deg, rgba(8,47,73,0.96), rgba(15,23,42,0.90));' : ($isGlassPreview ? 'background: radial-gradient(circle at 20% 0%, rgba(56,189,248,0.30), transparent 34%), radial-gradient(circle at 90% 12%, rgba(167,139,250,0.32), transparent 30%), linear-gradient(160deg, rgba(15,23,42,0.96), rgba(30,41,59,0.90));' : 'background: ' . $previewCardBg . ';') }}">
+                                            @if ($this->loadingScreenEnabled)
+                                                <div x-show="showLoader" x-transition.opacity.duration.300ms
+                                                    class="absolute inset-0 z-[60] grid place-items-center overflow-hidden rounded-[1.9rem] px-8 text-center backdrop-blur-xl"
+                                                    style="background: linear-gradient(160deg, rgba(2,6,23,0.88), rgba(15,23,42,0.82));">
+                                                    <div class="relative w-full max-w-[230px]">
+                                                        @if ($this->loadingImagePreview)
+                                                            <img src="{{ $this->loadingImagePreview }}"
+                                                                alt="Loading image"
+                                                                class="mx-auto h-24 w-24 rounded-3xl object-cover shadow-2xl shadow-cyan-950/35 ring-1 ring-white/15"
+                                                                style="animation: vcardLoadingPulse 1.8s ease-in-out infinite;">
+                                                        @else
+                                                            <div class="mx-auto h-16 w-16 rounded-full border-4 border-white/15 border-t-cyan-200"
+                                                                style="animation: vcardLoadingSpin .9s linear infinite;">
+                                                            </div>
+                                                        @endif
+
+                                                        <div
+                                                            class="mt-6 text-4xl font-black leading-none text-white drop-shadow-lg">
+                                                            <span x-text="countDown"></span>
+                                                        </div>
+
+                                                        <div
+                                                            class="mx-auto mt-5 h-2 w-full overflow-hidden rounded-full bg-white/15 ring-1 ring-white/10">
+                                                            <div class="h-full rounded-full bg-linear-to-r from-cyan-300 via-blue-300 to-fuchsia-300 shadow-[0_0_22px_rgba(103,232,249,0.45)]"
+                                                                style="animation: vcardLoadingBar {{ max(1, min(10, (int) $this->loadingTime)) }}s linear forwards;">
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endif
+
+                                            @if ($isGlassPreview)
+                                                <div
+                                                    class="pointer-events-none absolute -left-16 top-28 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl">
+                                                </div>
+                                                <div
+                                                    class="pointer-events-none absolute -right-20 top-64 h-48 w-48 rounded-full bg-fuchsia-300/20 blur-3xl">
+                                                </div>
+                                                <div
+                                                    class="pointer-events-none absolute inset-0 rounded-[1.9rem] ring-1 ring-white/10">
+                                                </div>
+
+                                                @if ($isWaterGlassPreview)
+                                                    <div class="pointer-events-none absolute inset-0 z-[1] rounded-[1.9rem]"
+                                                        style="background: linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.12) 22%, rgba(255,255,255,0.04) 46%, rgba(8,47,73,0.22) 74%, rgba(15,23,42,0.62) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.42), inset 0 -80px 120px rgba(15,23,42,0.36);">
+                                                    </div>
+                                                    <div
+                                                        class="pointer-events-none absolute left-6 right-6 top-4 z-[2] h-24 rounded-full bg-white/18 blur-2xl">
+                                                    </div>
+                                                @endif
+                                            @endif
+                                            {{-- Template Header / Banner / User Image --}}
+                                            @if ($templateHasBanner)
+                                                <div class="relative h-52 overflow-hidden rounded-t-[1.9rem]"
+                                                    style="background: linear-gradient(135deg, {{ $this->accentColor }}, #f8fafc);">
+
+                                                    @if ($previewBannerImage)
+                                                        <img src="{{ $previewBannerImage }}" alt="Card banner"
+                                                            class="absolute inset-0 h-full w-full object-cover">
+                                                    @endif
+
+                                                    <div
+                                                        class="absolute inset-0 {{ $isWaterGlassPreview ? 'bg-linear-to-b from-white/10 via-cyan-100/5 to-slate-950/80' : ($isGlassPreview ? 'bg-linear-to-b from-black/10 via-transparent to-slate-950/70' : 'bg-linear-to-b from-black/5 via-transparent to-white') }}">
+                                                    </div>
+
+                                                    @if ($showHeaderAvatar && $avatarPosition === 'center-over-banner')
+                                                        <div
+                                                            class="absolute inset-x-0 bottom-5 z-10 flex justify-center">
+                                                            @if ($userImage)
+                                                                <img src="{{ $userImage }}" alt="User image"
+                                                                    class="h-24 w-24 border-4 border-white object-cover shadow-xl"
+                                                                    style="{{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
+                                                            @else
+                                                                <div class="grid h-24 w-24 place-items-center border-4 border-white text-2xl font-black text-white shadow-xl"
+                                                                    style="background: {{ $this->accentColor }}; {{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
+                                                                    {{ $this->getInitials() }}
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    @elseif ($showHeaderAvatar && $avatarPosition === 'left-over-banner')
+                                                        <div class="absolute bottom-5 left-5 z-10">
+                                                            @if ($userImage)
+                                                                <img src="{{ $userImage }}" alt="User image"
+                                                                    class="h-24 w-24 border-4 border-white object-cover shadow-xl"
+                                                                    style="{{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
+                                                            @else
+                                                                <div class="grid h-24 w-24 place-items-center border-4 border-white text-2xl font-black text-white shadow-xl"
+                                                                    style="background: {{ $this->accentColor }}; {{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
+                                                                    {{ $this->getInitials() }}
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    @elseif ($showHeaderAvatar && $avatarPosition === 'banner-profile-cover')
+                                                        <div
+                                                            class="absolute inset-0 z-10 flex items-center justify-center">
+                                                            <div class="grid h-28 w-28 place-items-center border-4 border-white/90 text-3xl font-black text-white shadow-2xl ring-8 ring-white/10"
+                                                                style="background: {{ $this->accentColor }}; {{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
+                                                                {{ $this->getInitials() }}
+                                                            </div>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @else
+                                                <div class="relative rounded-t-[1.9rem] px-5 pt-6 {{ $isGlassPreview ? 'bg-transparent' : '' }}"
+                                                    style="{{ $isGlassPreview ? '' : 'background: ' . $previewCardBg . ';' }}">
+                                                    @if ($avatarPosition === 'top-center')
+                                                        <div class="flex justify-center">
+                                                            @if ($userImage)
+                                                                <img src="{{ $userImage }}" alt="User image"
+                                                                    class="h-28 w-28 border-4 border-white object-cover shadow-xl ring-1 ring-slate-200"
+                                                                    style="{{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
+                                                            @else
+                                                                <div class="grid h-28 w-28 place-items-center border-4 border-white text-3xl font-black text-white shadow-xl ring-1 ring-slate-200"
+                                                                    style="background: {{ $this->accentColor }}; {{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
+                                                                    {{ $this->getInitials() }}
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    @elseif ($avatarPosition === 'left-inline')
+                                                        <div class="flex items-center gap-4">
+                                                            @if ($userImage)
+                                                                <img src="{{ $userImage }}" alt="User image"
+                                                                    class="h-20 w-20 object-cover shadow-lg ring-1 ring-slate-200"
+                                                                    style="{{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
+                                                            @else
+                                                                <div class="grid h-20 w-20 place-items-center text-2xl font-black text-white shadow-lg ring-1 ring-slate-200"
+                                                                    style="background: {{ $this->accentColor }}; {{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
+                                                                    {{ $this->getInitials() }}
+                                                                </div>
+                                                            @endif
+
+                                                            <div class="min-w-0">
+                                                                <p
+                                                                    class="text-xs font-black uppercase tracking-wider text-slate-400">
+                                                                    Digital Card</p>
+                                                                <p class="truncate text-sm font-bold text-slate-700">
+                                                                    {{ $this->designation ?: 'Your designation' }}</p>
+                                                            </div>
+                                                        </div>
+                                                    @elseif ($avatarPosition === 'square-top')
+                                                        <div class="flex justify-center">
+                                                            @if ($userImage)
+                                                                <img src="{{ $userImage }}" alt="User image"
+                                                                    class="h-28 w-28 object-cover shadow-xl ring-1 ring-slate-200"
+                                                                    style="{{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
+                                                            @else
+                                                                <div class="grid h-28 w-28 place-items-center text-3xl font-black text-white shadow-xl ring-1 ring-slate-200"
+                                                                    style="background: {{ $this->accentColor }}; {{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
+                                                                    {{ $this->getInitials() }}
+                                                                </div>
+                                                            @endif
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
+
+                                            <div
+                                                class="relative z-20 flex flex-col px-5 pb-12 {{ $templateHasBanner ? 'pt-4' : 'pt-5' }}">
+                                                <div>
+                                                    <h3 class="text-[22px] font-black leading-tight"
+                                                        style="color: {{ $previewText }}">
+                                                        {{ $this->getFullName() }}
+                                                    </h3>
+
+                                                    @if ($this->designation)
+                                                        <p class="mt-1 text-xs font-semibold"
+                                                            style="color: {{ $previewMuted }}">
+                                                            {{ $this->designation }}
+                                                        </p>
+                                                    @endif
+
+                                                    @if ($this->aboutMe)
+                                                        <p class="mt-4 text-sm leading-6"
+                                                            style="color: {{ $previewMuted }}">{{ $this->aboutMe }}
+                                                        </p>
                                                     @else
-                                                        <div class="mx-auto h-16 w-16 rounded-full border-4 border-white/15 border-t-cyan-200"
-                                                            style="animation: vcardLoadingSpin .9s linear infinite;">
-                                                        </div>
-                                                    @endif
-
-                                                    <div
-                                                        class="mt-6 text-4xl font-black leading-none text-white drop-shadow-lg">
-                                                        <span x-text="countDown"></span>
-                                                    </div>
-
-                                                    <div
-                                                        class="mx-auto mt-5 h-2 w-full overflow-hidden rounded-full bg-white/15 ring-1 ring-white/10">
-                                                        <div class="h-full rounded-full bg-linear-to-r from-cyan-300 via-blue-300 to-fuchsia-300 shadow-[0_0_22px_rgba(103,232,249,0.45)]"
-                                                            style="animation: vcardLoadingBar {{ max(1, min(10, (int) $this->loadingTime)) }}s linear forwards;">
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        @endif
-
-                                        @if ($isGlassPreview)
-                                            <div
-                                                class="pointer-events-none absolute -left-16 top-28 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl">
-                                            </div>
-                                            <div
-                                                class="pointer-events-none absolute -right-20 top-64 h-48 w-48 rounded-full bg-fuchsia-300/20 blur-3xl">
-                                            </div>
-                                            <div
-                                                class="pointer-events-none absolute inset-0 rounded-[1.9rem] ring-1 ring-white/10">
-                                            </div>
-
-                                            @if ($isWaterGlassPreview)
-                                                <div class="pointer-events-none absolute inset-0 z-[1] rounded-[1.9rem]"
-                                                    style="background: linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.12) 22%, rgba(255,255,255,0.04) 46%, rgba(8,47,73,0.22) 74%, rgba(15,23,42,0.62) 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.42), inset 0 -80px 120px rgba(15,23,42,0.36);">
-                                                </div>
-                                                <div
-                                                    class="pointer-events-none absolute left-6 right-6 top-4 z-[2] h-24 rounded-full bg-white/18 blur-2xl">
-                                                </div>
-                                            @endif
-                                        @endif
-                                        {{-- Template Header / Banner / User Image --}}
-                                        @if ($templateHasBanner)
-                                            <div class="relative h-52 overflow-hidden rounded-t-[1.9rem]"
-                                                style="background: linear-gradient(135deg, {{ $this->accentColor }}, #f8fafc);">
-
-                                                @if ($previewBannerImage)
-                                                    <img src="{{ $previewBannerImage }}" alt="Card banner"
-                                                        class="absolute inset-0 h-full w-full object-cover">
-                                                @endif
-
-                                                <div
-                                                    class="absolute inset-0 {{ $isWaterGlassPreview ? 'bg-linear-to-b from-white/10 via-cyan-100/5 to-slate-950/80' : ($isGlassPreview ? 'bg-linear-to-b from-black/10 via-transparent to-slate-950/70' : 'bg-linear-to-b from-black/5 via-transparent to-white') }}">
-                                                </div>
-
-                                                @if ($showHeaderAvatar && $avatarPosition === 'center-over-banner')
-                                                    <div class="absolute inset-x-0 bottom-5 z-10 flex justify-center">
-                                                        @if ($userImage)
-                                                            <img src="{{ $userImage }}" alt="User image"
-                                                                class="h-24 w-24 border-4 border-white object-cover shadow-xl"
-                                                                style="{{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
-                                                        @else
-                                                            <div class="grid h-24 w-24 place-items-center border-4 border-white text-2xl font-black text-white shadow-xl"
-                                                                style="background: {{ $this->accentColor }}; {{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
-                                                                {{ $this->getInitials() }}
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                @elseif ($showHeaderAvatar && $avatarPosition === 'left-over-banner')
-                                                    <div class="absolute bottom-5 left-5 z-10">
-                                                        @if ($userImage)
-                                                            <img src="{{ $userImage }}" alt="User image"
-                                                                class="h-24 w-24 border-4 border-white object-cover shadow-xl"
-                                                                style="{{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
-                                                        @else
-                                                            <div class="grid h-24 w-24 place-items-center border-4 border-white text-2xl font-black text-white shadow-xl"
-                                                                style="background: {{ $this->accentColor }}; {{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
-                                                                {{ $this->getInitials() }}
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                @elseif ($showHeaderAvatar && $avatarPosition === 'banner-profile-cover')
-                                                    <div
-                                                        class="absolute inset-0 z-10 flex items-center justify-center">
-                                                        <div class="grid h-28 w-28 place-items-center border-4 border-white/90 text-3xl font-black text-white shadow-2xl ring-8 ring-white/10"
-                                                            style="background: {{ $this->accentColor }}; {{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
-                                                            {{ $this->getInitials() }}
-                                                        </div>
-                                                    </div>
-                                                @endif
-                                            </div>
-                                        @else
-                                            <div class="relative rounded-t-[1.9rem] px-5 pt-6 {{ $isGlassPreview ? 'bg-transparent' : '' }}"
-                                                style="{{ $isGlassPreview ? '' : 'background: ' . $previewCardBg . ';' }}">
-                                                @if ($avatarPosition === 'top-center')
-                                                    <div class="flex justify-center">
-                                                        @if ($userImage)
-                                                            <img src="{{ $userImage }}" alt="User image"
-                                                                class="h-28 w-28 border-4 border-white object-cover shadow-xl ring-1 ring-slate-200"
-                                                                style="{{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
-                                                        @else
-                                                            <div class="grid h-28 w-28 place-items-center border-4 border-white text-3xl font-black text-white shadow-xl ring-1 ring-slate-200"
-                                                                style="background: {{ $this->accentColor }}; {{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
-                                                                {{ $this->getInitials() }}
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                @elseif ($avatarPosition === 'left-inline')
-                                                    <div class="flex items-center gap-4">
-                                                        @if ($userImage)
-                                                            <img src="{{ $userImage }}" alt="User image"
-                                                                class="h-20 w-20 object-cover shadow-lg ring-1 ring-slate-200"
-                                                                style="{{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
-                                                        @else
-                                                            <div class="grid h-20 w-20 place-items-center text-2xl font-black text-white shadow-lg ring-1 ring-slate-200"
-                                                                style="background: {{ $this->accentColor }}; {{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
-                                                                {{ $this->getInitials() }}
-                                                            </div>
-                                                        @endif
-
-                                                        <div class="min-w-0">
-                                                            <p
-                                                                class="text-xs font-black uppercase tracking-wider text-slate-400">
-                                                                Digital Card</p>
-                                                            <p class="truncate text-sm font-bold text-slate-700">
-                                                                {{ $this->designation ?: 'Your designation' }}</p>
-                                                        </div>
-                                                    </div>
-                                                @elseif ($avatarPosition === 'square-top')
-                                                    <div class="flex justify-center">
-                                                        @if ($userImage)
-                                                            <img src="{{ $userImage }}" alt="User image"
-                                                                class="h-28 w-28 object-cover shadow-xl ring-1 ring-slate-200"
-                                                                style="{{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
-                                                        @else
-                                                            <div class="grid h-28 w-28 place-items-center text-3xl font-black text-white shadow-xl ring-1 ring-slate-200"
-                                                                style="background: {{ $this->accentColor }}; {{ $avatarRingStyle }} border-radius: {{ $avatarRadius }};">
-                                                                {{ $this->getInitials() }}
-                                                            </div>
-                                                        @endif
-                                                    </div>
-                                                @endif
-                                            </div>
-                                        @endif
-
-                                        <div
-                                            class="relative z-20 flex flex-col px-5 pb-12 {{ $templateHasBanner ? 'pt-4' : 'pt-5' }}">
-                                            <div>
-                                                <h3 class="text-[22px] font-black leading-tight"
-                                                    style="color: {{ $previewText }}">
-                                                    {{ $this->getFullName() }}
-                                                </h3>
-
-                                                @if ($this->designation)
-                                                    <p class="mt-1 text-xs font-semibold"
-                                                        style="color: {{ $previewMuted }}">{{ $this->designation }}
-                                                    </p>
-                                                @endif
-
-                                                @if ($this->aboutMe)
-                                                    <p class="mt-4 text-sm leading-6"
-                                                        style="color: {{ $previewMuted }}">{{ $this->aboutMe }}</p>
-                                                @else
-                                                    <p class="mt-4 text-sm leading-6"
-                                                        style="color: {{ $previewMuted }}">Add a short introduction
-                                                        to make your digital business card feel complete.</p>
-                                                @endif
-                                            </div>
-
-                                            @if ($this->contactButtonPosition === 'top')
-                                                <div class="mt-5 flex items-center gap-3">
-                                                    <button type="button"
-                                                        class="rounded-full px-5 py-2.5 text-sm font-black shadow-lg"
-                                                        style="background: {{ $this->accentColor }}; color: {{ $this->buttonTextColor }}">
-                                                        {{ $this->contactButtonText ?: 'add contact' }}
-                                                    </button>
-
-                                                    @if ($firstPhone)
-                                                        <a href="tel:{{ $firstPhone['value'] }}"
-                                                            class="grid h-10 w-10 place-items-center rounded-full text-sm shadow-sm ring-1"
-                                                            style="background: {{ $previewTopButtonBg }}; color: {{ $this->accentColor }}; --tw-ring-color: {{ $previewTopButtonRing }};">
-                                                            <span class="material-symbols-outlined text-xl">call</span>
-                                                        </a>
-                                                    @endif
-
-                                                    @if ($firstEmail)
-                                                        <a href="mailto:{{ $firstEmail['value'] }}"
-                                                            class="grid h-10 w-10 place-items-center rounded-full text-sm shadow-sm ring-1"
-                                                            style="background: {{ $previewTopButtonBg }}; color: {{ $this->accentColor }}; --tw-ring-color: {{ $previewTopButtonRing }};">
-                                                            <span
-                                                                class="material-symbols-outlined text-xl">{{ $email['icon'] ?? 'mail' }}</span>
-                                                        </a>
+                                                        <p class="mt-4 text-sm leading-6"
+                                                            style="color: {{ $previewMuted }}">Add a short
+                                                            introduction
+                                                            to make your digital business card feel complete.</p>
                                                     @endif
                                                 </div>
-                                            @endif
 
-                                            @if ($hasPreviewContactCards || $hasPreviewLocationCard || $hasPreviewCompanyCards || $hasPreviewSocialCards)
-                                                <div class="mt-6 flex flex-col gap-2.5" x-data="{
-                                                    dragKey: null,
-                                                    order: @js($previewContactSectionOrder),
-                                                    reorder(from, to) {
-                                                        if (!from || !to || from === to) return;
-                                                        const next = [...this.order];
-                                                        const fromIndex = next.indexOf(from);
-                                                        const toIndex = next.indexOf(to);
-                                                        if (fromIndex === -1 || toIndex === -1) return;
-                                                        const moved = next.splice(fromIndex, 1)[0];
-                                                        next.splice(toIndex, 0, moved);
-                                                        this.order = next;
-                                                        this.dragKey = null;
-                                                        $wire.updatePreviewSectionOrder(next);
-                                                    }
-                                                }">
-                                                    @if ($previewPhones->isNotEmpty())
-                                                        <div class="{{ $this->showReorderPanel ? 'cursor-grab rounded-2xl ring-2 ring-cyan-300/35 active:cursor-grabbing' : '' }}"
-                                                            style="{{ $previewSectionStyle('phones') }}"
-                                                            draggable="{{ $this->showReorderPanel ? 'true' : 'false' }}"
-                                                            @dragstart="dragKey = 'phones'" @dragover.prevent
-                                                            @drop="reorder(dragKey, 'phones')"
-                                                            @dragend="dragKey = null">
-                                                            @if ($this->showReorderPanel)
-                                                                <div class="mb-1 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-bold"
-                                                                    style="{{ $dragLabelStyle }}">
-                                                                    <span
-                                                                        class="material-symbols-outlined text-sm">drag_indicator</span>
-                                                                    Drag phone section
-                                                                </div>
-                                                            @endif
+                                                @if ($this->contactButtonPosition === 'top')
+                                                    <div class="mt-5 flex items-center gap-3">
+                                                        <button type="button"
+                                                            class="rounded-full px-5 py-2.5 text-sm font-black shadow-lg"
+                                                            style="background: {{ $this->accentColor }}; color: {{ $this->buttonTextColor }}">
+                                                            {{ $this->contactButtonText ?: 'add contact' }}
+                                                        </button>
 
-                                                            <div class="space-y-2.5">
-                                                                @foreach ($previewPhones as $phone)
-                                                                    @php
-                                                                        $phoneType =
-                                                                            $this->phoneTypes[
-                                                                                $phone['type'] ?? 'other'
-                                                                            ] ?? $this->phoneTypes['other'];
-                                                                        $phoneLabel = filled($phone['label'] ?? '')
-                                                                            ? $phone['label']
-                                                                            : $phoneType['label'];
-                                                                    @endphp
-                                                                    <div class="{{ $fieldCardClass }}"
-                                                                        style="{{ $fieldCardStyle }}">
-                                                                        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
-                                                                            style="{{ $glassIconStyle }}">
-                                                                            <span
-                                                                                class="material-symbols-outlined text-xl">{{ $phone['icon'] ?? $phoneType['icon'] }}</span>
-                                                                        </div>
-                                                                        <div class="min-w-0">
-                                                                            <p class="text-[11px] font-black"
-                                                                                style="color: {{ $previewMuted }}">
-                                                                                {{ $phoneLabel }}</p>
-                                                                            <p class="truncate text-sm font-semibold"
-                                                                                style="color: {{ $previewText }}">
-                                                                                {{ $phone['value'] }}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                @endforeach
-                                                            </div>
-                                                        </div>
-                                                    @endif
-
-                                                    @if ($previewEmails->isNotEmpty())
-                                                        <div class="{{ $this->showReorderPanel ? 'cursor-grab rounded-2xl ring-2 ring-cyan-300/35 active:cursor-grabbing' : '' }}"
-                                                            style="{{ $previewSectionStyle('emails') }}"
-                                                            draggable="{{ $this->showReorderPanel ? 'true' : 'false' }}"
-                                                            @dragstart="dragKey = 'emails'" @dragover.prevent
-                                                            @drop="reorder(dragKey, 'emails')"
-                                                            @dragend="dragKey = null">
-                                                            @if ($this->showReorderPanel)
-                                                                <div class="mb-1 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-bold"
-                                                                    style="{{ $dragLabelStyle }}">
-                                                                    <span
-                                                                        class="material-symbols-outlined text-sm">drag_indicator</span>
-                                                                    Drag email section
-                                                                </div>
-                                                            @endif
-
-                                                            <div class="space-y-2.5">
-                                                                @foreach ($previewEmails as $email)
-                                                                    <div class="{{ $fieldCardClass }}"
-                                                                        style="{{ $fieldCardStyle }}">
-                                                                        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
-                                                                            style="{{ $glassIconStyle }}">
-                                                                            <span
-                                                                                class="material-symbols-outlined text-xl">mail</span>
-                                                                        </div>
-                                                                        <div class="min-w-0">
-                                                                            <p class="text-[11px] font-black"
-                                                                                style="color: {{ $previewMuted }}">
-                                                                                {{ filled($email['label'] ?? '') ? $email['label'] : 'Email' }}
-                                                                            </p>
-                                                                            <p class="truncate text-sm font-semibold"
-                                                                                style="color: {{ $previewText }}">
-                                                                                {{ $email['value'] }}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                @endforeach
-                                                            </div>
-                                                        </div>
-                                                    @endif
-
-                                                    @if ($previewSites->isNotEmpty())
-                                                        <div class="{{ $this->showReorderPanel ? 'cursor-grab rounded-2xl ring-2 ring-cyan-300/35 active:cursor-grabbing' : '' }}"
-                                                            style="{{ $previewSectionStyle('sites') }}"
-                                                            draggable="{{ $this->showReorderPanel ? 'true' : 'false' }}"
-                                                            @dragstart="dragKey = 'sites'" @dragover.prevent
-                                                            @drop="reorder(dragKey, 'sites')"
-                                                            @dragend="dragKey = null">
-                                                            @if ($this->showReorderPanel)
-                                                                <div class="mb-1 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-bold"
-                                                                    style="{{ $dragLabelStyle }}">
-                                                                    <span
-                                                                        class="material-symbols-outlined text-sm">drag_indicator</span>
-                                                                    Drag website section
-                                                                </div>
-                                                            @endif
-
-                                                            <div class="space-y-2.5">
-                                                                @foreach ($previewSites as $site)
-                                                                    <div class="{{ $fieldCardClass }}"
-                                                                        style="{{ $fieldCardStyle }}">
-                                                                        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
-                                                                            style="{{ $glassIconStyle }}">
-                                                                            <span
-                                                                                class="material-symbols-outlined text-xl">{{ $site['icon'] ?? 'language' }}</span>
-                                                                        </div>
-                                                                        <div class="min-w-0">
-                                                                            <p class="text-[11px] font-black"
-                                                                                style="color: {{ $previewMuted }}">
-                                                                                {{ filled($site['label'] ?? '') ? $site['label'] : 'Website' }}
-                                                                            </p>
-                                                                            <p class="truncate text-sm font-semibold"
-                                                                                style="color: {{ $previewText }}">
-                                                                                {{ $site['value'] }}</p>
-                                                                        </div>
-                                                                    </div>
-                                                                @endforeach
-                                                            </div>
-                                                        </div>
-                                                    @endif
-
-                                                    @if ($hasPreviewLocationCard)
-                                                        <div class="{{ $this->showReorderPanel ? 'cursor-grab rounded-2xl ring-2 ring-cyan-300/35 active:cursor-grabbing' : '' }}"
-                                                            style="{{ $previewSectionStyle('location') }}"
-                                                            draggable="{{ $this->showReorderPanel ? 'true' : 'false' }}"
-                                                            @dragstart="dragKey = 'location'" @dragover.prevent
-                                                            @drop="reorder(dragKey, 'location')"
-                                                            @dragend="dragKey = null">
-                                                            @if ($this->showReorderPanel)
-                                                                <div class="mb-1 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-bold"
-                                                                    style="{{ $dragLabelStyle }}">
-                                                                    <span
-                                                                        class="material-symbols-outlined text-sm">drag_indicator</span>
-                                                                    Drag location section
-                                                                </div>
-                                                            @endif
-
-                                                            <a href="{{ $locationHref ?: '#' }}" target="_blank"
-                                                                class="{{ $fieldCardClass }} text-left transition hover:-translate-y-0.5"
-                                                                style="{{ $fieldCardStyle }}">
-                                                                <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
-                                                                    style="{{ $glassIconStyle }}">
-                                                                    <span
-                                                                        class="material-symbols-outlined text-xl">{{ $this->locationIcon ?: 'location_on' }}</span>
-                                                                </div>
-                                                                <div class="min-w-0">
-                                                                    <p class="text-[11px] font-black"
-                                                                        style="color: {{ $previewMuted }}">
-                                                                        {{ $this->locationLabel ?: 'Location' }}</p>
-                                                                    <p class="truncate text-sm font-semibold"
-                                                                        style="color: {{ $previewText }}">
-                                                                        {{ $locationDisplay }}</p>
-                                                                    @if ($locationSubText)
-                                                                        <p class="mt-0.5 truncate text-[11px] font-semibold"
-                                                                            style="color: {{ $previewMuted }}">
-                                                                            {{ $locationSubText }}</p>
-                                                                    @endif
-                                                                </div>
+                                                        @if ($firstPhone)
+                                                            <a href="tel:{{ $firstPhone['value'] }}"
+                                                                class="grid h-10 w-10 place-items-center rounded-full text-sm shadow-sm ring-1"
+                                                                style="background: {{ $previewTopButtonBg }}; color: {{ $this->accentColor }}; --tw-ring-color: {{ $previewTopButtonRing }};">
+                                                                <span
+                                                                    class="material-symbols-outlined text-xl">call</span>
                                                             </a>
-                                                        </div>
-                                                    @endif
+                                                        @endif
 
-                                                    @if ($hasPreviewCompanyCards)
-                                                        <div class="{{ $this->showReorderPanel ? 'cursor-grab rounded-2xl ring-2 ring-cyan-300/35 active:cursor-grabbing' : '' }}"
-                                                            style="{{ $previewSectionStyle('companies') }}"
-                                                            draggable="{{ $this->showReorderPanel ? 'true' : 'false' }}"
-                                                            @dragstart="dragKey = 'companies'" @dragover.prevent
-                                                            @drop="reorder(dragKey, 'companies')"
-                                                            @dragend="dragKey = null">
-                                                            @if ($this->showReorderPanel)
-                                                                <div class="mb-1 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-bold"
-                                                                    style="{{ $dragLabelStyle }}">
-                                                                    <span
-                                                                        class="material-symbols-outlined text-sm">drag_indicator</span>
-                                                                    Drag companies section
-                                                                </div>
-                                                            @endif
+                                                        @if ($firstEmail)
+                                                            <a href="mailto:{{ $firstEmail['value'] }}"
+                                                                class="grid h-10 w-10 place-items-center rounded-full text-sm shadow-sm ring-1"
+                                                                style="background: {{ $previewTopButtonBg }}; color: {{ $this->accentColor }}; --tw-ring-color: {{ $previewTopButtonRing }};">
+                                                                <span
+                                                                    class="material-symbols-outlined text-xl">{{ $email['icon'] ?? 'mail' }}</span>
+                                                            </a>
+                                                        @endif
+                                                    </div>
+                                                @endif
 
-                                                            <div class="space-y-2.5">
-                                                                @foreach ($previewCompanies as $company)
-                                                                    <div class="{{ $fieldCardClass }}"
-                                                                        style="{{ $fieldCardStyle }}">
-                                                                        <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
-                                                                            style="{{ $glassIconStyle }}">
-                                                                            <span
-                                                                                class="material-symbols-outlined text-xl">{{ $company['icon'] ?? 'business_center' }}</span>
-                                                                        </div>
-                                                                        <div class="min-w-0">
-                                                                            <p class="truncate text-[11px] font-black"
-                                                                                style="color: {{ $previewMuted }}">
-                                                                                {{ $company['company_name'] ?? 'Company' }}
-                                                                            </p>
-                                                                            <p class="truncate text-sm font-semibold"
-                                                                                style="color: {{ $previewText }}">
-                                                                                {{ $company['profession'] ?? '' }}</p>
-                                                                        </div>
+                                                @if ($hasPreviewContactCards || $hasPreviewLocationCard || $hasPreviewCompanyCards || $hasPreviewSocialCards)
+                                                    <div class="mt-6 flex flex-col gap-2.5" x-data="{
+                                                        dragKey: null,
+                                                        order: @js($previewContactSectionOrder),
+                                                        reorder(from, to) {
+                                                            if (!from || !to || from === to) return;
+                                                            const next = [...this.order];
+                                                            const fromIndex = next.indexOf(from);
+                                                            const toIndex = next.indexOf(to);
+                                                            if (fromIndex === -1 || toIndex === -1) return;
+                                                            const moved = next.splice(fromIndex, 1)[0];
+                                                            next.splice(toIndex, 0, moved);
+                                                            this.order = next;
+                                                            this.dragKey = null;
+                                                            $wire.updatePreviewSectionOrder(next);
+                                                        }
+                                                    }">
+                                                        @if ($previewPhones->isNotEmpty())
+                                                            <div class="{{ $this->showReorderPanel ? 'cursor-grab rounded-2xl ring-2 ring-cyan-300/35 active:cursor-grabbing' : '' }}"
+                                                                style="{{ $previewSectionStyle('phones') }}"
+                                                                draggable="{{ $this->showReorderPanel ? 'true' : 'false' }}"
+                                                                @dragstart="dragKey = 'phones'" @dragover.prevent
+                                                                @drop="reorder(dragKey, 'phones')"
+                                                                @dragend="dragKey = null">
+                                                                @if ($this->showReorderPanel)
+                                                                    <div class="mb-1 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-bold"
+                                                                        style="{{ $dragLabelStyle }}">
+                                                                        <span
+                                                                            class="material-symbols-outlined text-sm">drag_indicator</span>
+                                                                        Drag phone section
                                                                     </div>
-                                                                @endforeach
-                                                            </div>
-                                                        </div>
-                                                    @endif
+                                                                @endif
 
-                                                    @if ($hasPreviewSocialCards)
-                                                        <div class="{{ $this->showReorderPanel ? 'cursor-grab rounded-2xl ring-2 ring-cyan-300/35 active:cursor-grabbing' : '' }}"
-                                                            style="{{ $previewSectionStyle('social') }}"
-                                                            draggable="{{ $this->showReorderPanel ? 'true' : 'false' }}"
-                                                            @dragstart="dragKey = 'social'" @dragover.prevent
-                                                            @drop="reorder(dragKey, 'social')"
-                                                            @dragend="dragKey = null">
-                                                            @if ($this->showReorderPanel)
-                                                                <div class="mb-1 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-bold"
-                                                                    style="{{ $dragLabelStyle }}">
-                                                                    <span
-                                                                        class="material-symbols-outlined text-sm">drag_indicator</span>
-                                                                    Drag social section
-                                                                </div>
-                                                            @endif
-
-                                                            @if ($this->showSocialAsCards)
                                                                 <div class="space-y-2.5">
-                                                                    @foreach ($this->socialLinks as $platform => $url)
-                                                                        @if (filled($url))
-                                                                            @php
-                                                                                $social = $this->socialOptions[
-                                                                                    $platform
-                                                                                ] ?? [
-                                                                                    'label' => ucfirst($platform),
-                                                                                    'icon_slug' => 'linktree',
-                                                                                    'color' => $this->accentColor,
-                                                                                ];
-                                                                            @endphp
-
-                                                                            <a href="{{ $url }}"
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                                class="{{ $fieldCardClass }} text-left transition hover:-translate-y-0.5"
-                                                                                style="{{ $fieldCardStyle }}">
-                                                                                <div
-                                                                                    class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white shadow-sm ring-1 ring-white/40">
-                                                                                    @if ($this->socialUsesBrandIcon($platform))
-                                                                                        @php $selectedBrand = $this->socialDisplayBrand($platform); @endphp
-                                                                                        <img src="{{ $this->socialIconUrl($selectedBrand) }}"
-                                                                                            alt="{{ $this->socialOptions[$selectedBrand]['label'] ?? ucfirst($selectedBrand) }} icon"
-                                                                                            class="h-5 w-5 object-contain" loading="lazy">
-                                                                                    @else
-                                                                                        <span class="material-symbols-outlined text-xl" style="color: {{ $this->accentColor }};">{{ $this->socialCustomIcon($platform) }}</span>
-                                                                                    @endif
-                                                                                </div>
-                                                                                <div class="min-w-0">
-                                                                                    <p class="text-[11px] font-black"
-                                                                                        style="color: {{ $previewMuted }}">
-                                                                                        {{ $this->socialDisplayLabel($platform) }}</p>
-                                                                                    <p class="truncate text-sm font-semibold"
-                                                                                        style="color: {{ $previewText }}">
-                                                                                        {{ $url }}</p>
-                                                                                </div>
-                                                                            </a>
-                                                                        @endif
+                                                                    @foreach ($previewPhones as $phone)
+                                                                        @php
+                                                                            $phoneType =
+                                                                                $this->phoneTypes[
+                                                                                    $phone['type'] ?? 'other'
+                                                                                ] ?? $this->phoneTypes['other'];
+                                                                            $phoneLabel = filled($phone['label'] ?? '')
+                                                                                ? $phone['label']
+                                                                                : $phoneType['label'];
+                                                                        @endphp
+                                                                        <div class="{{ $fieldCardClass }}"
+                                                                            style="{{ $fieldCardStyle }}">
+                                                                            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
+                                                                                style="{{ $glassIconStyle }}">
+                                                                                <span
+                                                                                    class="material-symbols-outlined text-xl">{{ $phone['icon'] ?? $phoneType['icon'] }}</span>
+                                                                            </div>
+                                                                            <div class="min-w-0">
+                                                                                <p class="text-[11px] font-black"
+                                                                                    style="color: {{ $previewMuted }}">
+                                                                                    {{ $phoneLabel }}</p>
+                                                                                <p class="truncate text-sm font-semibold"
+                                                                                    style="color: {{ $previewText }}">
+                                                                                    {{ $phone['value'] }}</p>
+                                                                            </div>
+                                                                        </div>
                                                                     @endforeach
                                                                 </div>
-                                                            @else
-                                                                <div class="flex flex-wrap justify-center gap-3">
-                                                                    @foreach ($this->socialLinks as $platform => $url)
-                                                                        @if (filled($url))
-                                                                            @php
-                                                                                $social = $this->socialOptions[
-                                                                                    $platform
-                                                                                ] ?? [
-                                                                                    'label' => ucfirst($platform),
-                                                                                    'icon_slug' => 'linktree',
-                                                                                    'color' => $this->accentColor,
-                                                                                ];
-                                                                            @endphp
+                                                            </div>
+                                                        @endif
 
-                                                                            @if ($this->showSocialName)
-                                                                                <a href="{{ $url }}"
-                                                                                    target="_blank"
-                                                                                    rel="noopener noreferrer"
-                                                                                    class="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-2 text-[11px] font-medium tracking-normal shadow-sm ring-1 ring-white/55 backdrop-blur-xl transition hover:-translate-y-0.5"
+                                                        @if ($previewEmails->isNotEmpty())
+                                                            <div class="{{ $this->showReorderPanel ? 'cursor-grab rounded-2xl ring-2 ring-cyan-300/35 active:cursor-grabbing' : '' }}"
+                                                                style="{{ $previewSectionStyle('emails') }}"
+                                                                draggable="{{ $this->showReorderPanel ? 'true' : 'false' }}"
+                                                                @dragstart="dragKey = 'emails'" @dragover.prevent
+                                                                @drop="reorder(dragKey, 'emails')"
+                                                                @dragend="dragKey = null">
+                                                                @if ($this->showReorderPanel)
+                                                                    <div class="mb-1 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-bold"
+                                                                        style="{{ $dragLabelStyle }}">
+                                                                        <span
+                                                                            class="material-symbols-outlined text-sm">drag_indicator</span>
+                                                                        Drag email section
+                                                                    </div>
+                                                                @endif
+
+                                                                <div class="space-y-2.5">
+                                                                    @foreach ($previewEmails as $email)
+                                                                        <div class="{{ $fieldCardClass }}"
+                                                                            style="{{ $fieldCardStyle }}">
+                                                                            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
+                                                                                style="{{ $glassIconStyle }}">
+                                                                                <span
+                                                                                    class="material-symbols-outlined text-xl">mail</span>
+                                                                            </div>
+                                                                            <div class="min-w-0">
+                                                                                <p class="text-[11px] font-black"
+                                                                                    style="color: {{ $previewMuted }}">
+                                                                                    {{ filled($email['label'] ?? '') ? $email['label'] : 'Email' }}
+                                                                                </p>
+                                                                                <p class="truncate text-sm font-semibold"
                                                                                     style="color: {{ $previewText }}">
-                                                                                    @if ($this->socialUsesBrandIcon($platform))
-                                                                                        @php $selectedBrand = $this->socialDisplayBrand($platform); @endphp
-                                                                                        <img src="{{ $this->socialIconUrl($selectedBrand) }}"
-                                                                                            alt="{{ $this->socialOptions[$selectedBrand]['label'] ?? ucfirst($selectedBrand) }} icon"
-                                                                                            class="h-4 w-4 object-contain" loading="lazy">
-                                                                                    @else
-                                                                                        <span class="material-symbols-outlined text-base" style="color: {{ $this->accentColor }};">{{ $this->socialCustomIcon($platform) }}</span>
-                                                                                    @endif
-                                                                                    <span
-                                                                                        class="leading-none opacity-80">{{ $this->socialDisplayLabel($platform) }}</span>
-                                                                                </a>
-                                                                            @else
+                                                                                    {{ $email['value'] }}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                        @endif
+
+                                                        @if ($previewSites->isNotEmpty())
+                                                            <div class="{{ $this->showReorderPanel ? 'cursor-grab rounded-2xl ring-2 ring-cyan-300/35 active:cursor-grabbing' : '' }}"
+                                                                style="{{ $previewSectionStyle('sites') }}"
+                                                                draggable="{{ $this->showReorderPanel ? 'true' : 'false' }}"
+                                                                @dragstart="dragKey = 'sites'" @dragover.prevent
+                                                                @drop="reorder(dragKey, 'sites')"
+                                                                @dragend="dragKey = null">
+                                                                @if ($this->showReorderPanel)
+                                                                    <div class="mb-1 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-bold"
+                                                                        style="{{ $dragLabelStyle }}">
+                                                                        <span
+                                                                            class="material-symbols-outlined text-sm">drag_indicator</span>
+                                                                        Drag website section
+                                                                    </div>
+                                                                @endif
+
+                                                                <div class="space-y-2.5">
+                                                                    @foreach ($previewSites as $site)
+                                                                        <div class="{{ $fieldCardClass }}"
+                                                                            style="{{ $fieldCardStyle }}">
+                                                                            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
+                                                                                style="{{ $glassIconStyle }}">
+                                                                                <span
+                                                                                    class="material-symbols-outlined text-xl">{{ $site['icon'] ?? 'language' }}</span>
+                                                                            </div>
+                                                                            <div class="min-w-0">
+                                                                                <p class="text-[11px] font-black"
+                                                                                    style="color: {{ $previewMuted }}">
+                                                                                    {{ filled($site['label'] ?? '') ? $site['label'] : 'Website' }}
+                                                                                </p>
+                                                                                <p class="truncate text-sm font-semibold"
+                                                                                    style="color: {{ $previewText }}">
+                                                                                    {{ $site['value'] }}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                        @endif
+
+                                                        @if ($hasPreviewLocationCard)
+                                                            <div class="{{ $this->showReorderPanel ? 'cursor-grab rounded-2xl ring-2 ring-cyan-300/35 active:cursor-grabbing' : '' }}"
+                                                                style="{{ $previewSectionStyle('location') }}"
+                                                                draggable="{{ $this->showReorderPanel ? 'true' : 'false' }}"
+                                                                @dragstart="dragKey = 'location'" @dragover.prevent
+                                                                @drop="reorder(dragKey, 'location')"
+                                                                @dragend="dragKey = null">
+                                                                @if ($this->showReorderPanel)
+                                                                    <div class="mb-1 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-bold"
+                                                                        style="{{ $dragLabelStyle }}">
+                                                                        <span
+                                                                            class="material-symbols-outlined text-sm">drag_indicator</span>
+                                                                        Drag location section
+                                                                    </div>
+                                                                @endif
+
+                                                                <a href="{{ $locationHref ?: '#' }}"
+                                                                    target="_blank"
+                                                                    class="{{ $fieldCardClass }} text-left transition hover:-translate-y-0.5"
+                                                                    style="{{ $fieldCardStyle }}">
+                                                                    <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
+                                                                        style="{{ $glassIconStyle }}">
+                                                                        <span
+                                                                            class="material-symbols-outlined text-xl">{{ $this->locationIcon ?: 'location_on' }}</span>
+                                                                    </div>
+                                                                    <div class="min-w-0">
+                                                                        <p class="text-[11px] font-black"
+                                                                            style="color: {{ $previewMuted }}">
+                                                                            {{ $this->locationLabel ?: 'Location' }}
+                                                                        </p>
+                                                                        <p class="truncate text-sm font-semibold"
+                                                                            style="color: {{ $previewText }}">
+                                                                            {{ $locationDisplay }}</p>
+                                                                        @if ($locationSubText)
+                                                                            <p class="mt-0.5 truncate text-[11px] font-semibold"
+                                                                                style="color: {{ $previewMuted }}">
+                                                                                {{ $locationSubText }}</p>
+                                                                        @endif
+                                                                    </div>
+                                                                </a>
+                                                            </div>
+                                                        @endif
+
+                                                        @if ($hasPreviewCompanyCards)
+                                                            <div class="{{ $this->showReorderPanel ? 'cursor-grab rounded-2xl ring-2 ring-cyan-300/35 active:cursor-grabbing' : '' }}"
+                                                                style="{{ $previewSectionStyle('companies') }}"
+                                                                draggable="{{ $this->showReorderPanel ? 'true' : 'false' }}"
+                                                                @dragstart="dragKey = 'companies'" @dragover.prevent
+                                                                @drop="reorder(dragKey, 'companies')"
+                                                                @dragend="dragKey = null">
+                                                                @if ($this->showReorderPanel)
+                                                                    <div class="mb-1 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-bold"
+                                                                        style="{{ $dragLabelStyle }}">
+                                                                        <span
+                                                                            class="material-symbols-outlined text-sm">drag_indicator</span>
+                                                                        Drag companies section
+                                                                    </div>
+                                                                @endif
+
+                                                                <div class="space-y-2.5">
+                                                                    @foreach ($previewCompanies as $company)
+                                                                        <div class="{{ $fieldCardClass }}"
+                                                                            style="{{ $fieldCardStyle }}">
+                                                                            <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
+                                                                                style="{{ $glassIconStyle }}">
+                                                                                <span
+                                                                                    class="material-symbols-outlined text-xl">{{ $company['icon'] ?? 'business_center' }}</span>
+                                                                            </div>
+                                                                            <div class="min-w-0">
+                                                                                <p class="truncate text-[11px] font-black"
+                                                                                    style="color: {{ $previewMuted }}">
+                                                                                    {{ $company['company_name'] ?? 'Company' }}
+                                                                                </p>
+                                                                                <p class="truncate text-sm font-semibold"
+                                                                                    style="color: {{ $previewText }}">
+                                                                                    {{ $company['profession'] ?? '' }}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                        @endif
+
+                                                        @if ($hasPreviewSocialCards)
+                                                            <div class="{{ $this->showReorderPanel ? 'cursor-grab rounded-2xl ring-2 ring-cyan-300/35 active:cursor-grabbing' : '' }}"
+                                                                style="{{ $previewSectionStyle('social') }}"
+                                                                draggable="{{ $this->showReorderPanel ? 'true' : 'false' }}"
+                                                                @dragstart="dragKey = 'social'" @dragover.prevent
+                                                                @drop="reorder(dragKey, 'social')"
+                                                                @dragend="dragKey = null">
+                                                                @if ($this->showReorderPanel)
+                                                                    <div class="mb-1 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[10px] font-bold"
+                                                                        style="{{ $dragLabelStyle }}">
+                                                                        <span
+                                                                            class="material-symbols-outlined text-sm">drag_indicator</span>
+                                                                        Drag social section
+                                                                    </div>
+                                                                @endif
+
+                                                                @if ($this->showSocialAsCards)
+                                                                    <div class="space-y-2.5">
+                                                                        @foreach ($this->socialLinks as $platform => $url)
+                                                                            @if (filled($url))
+                                                                                @php
+                                                                                    $social = $this->socialOptions[
+                                                                                        $platform
+                                                                                    ] ?? [
+                                                                                        'label' => ucfirst($platform),
+                                                                                        'icon_slug' => 'linktree',
+                                                                                        'color' => $this->accentColor,
+                                                                                    ];
+                                                                                @endphp
+
                                                                                 <a href="{{ $url }}"
                                                                                     target="_blank"
                                                                                     rel="noopener noreferrer"
-                                                                                    class="grid h-10 w-10 place-items-center rounded-full bg-white/80 shadow-sm ring-1 ring-white/60 backdrop-blur-xl transition hover:-translate-y-0.5">
-                                                                                    @if ($this->socialUsesBrandIcon($platform))
-                                                                                        @php $selectedBrand = $this->socialDisplayBrand($platform); @endphp
-                                                                                        <img src="{{ $this->socialIconUrl($selectedBrand) }}"
-                                                                                            alt="{{ $this->socialOptions[$selectedBrand]['label'] ?? ucfirst($selectedBrand) }} icon"
-                                                                                            class="h-5 w-5 object-contain" loading="lazy">
-                                                                                    @else
-                                                                                        <span class="material-symbols-outlined text-xl" style="color: {{ $this->accentColor }};">{{ $this->socialCustomIcon($platform) }}</span>
-                                                                                    @endif
+                                                                                    class="{{ $fieldCardClass }} text-left transition hover:-translate-y-0.5"
+                                                                                    style="{{ $fieldCardStyle }}">
+                                                                                    <div
+                                                                                        class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white shadow-sm ring-1 ring-white/40">
+                                                                                        @if ($this->socialUsesBrandIcon($platform))
+                                                                                            @php $selectedBrand = $this->socialDisplayBrand($platform); @endphp
+                                                                                            <img src="{{ $this->socialIconUrl($selectedBrand) }}"
+                                                                                                alt="{{ $this->socialOptions[$selectedBrand]['label'] ?? ucfirst($selectedBrand) }} icon"
+                                                                                                class="h-5 w-5 object-contain"
+                                                                                                loading="lazy">
+                                                                                        @else
+                                                                                            <span
+                                                                                                class="material-symbols-outlined text-xl"
+                                                                                                style="color: {{ $this->accentColor }};">{{ $this->socialCustomIcon($platform) }}</span>
+                                                                                        @endif
+                                                                                    </div>
+                                                                                    <div class="min-w-0">
+                                                                                        <p class="text-[11px] font-black"
+                                                                                            style="color: {{ $previewMuted }}">
+                                                                                            {{ $this->socialDisplayLabel($platform) }}
+                                                                                        </p>
+                                                                                        <p class="truncate text-sm font-semibold"
+                                                                                            style="color: {{ $previewText }}">
+                                                                                            {{ $url }}</p>
+                                                                                    </div>
                                                                                 </a>
                                                                             @endif
-                                                                        @endif
-                                                                    @endforeach
-                                                                </div>
-                                                            @endif
-                                                        </div>
-                                                    @endif
-                                                </div>
-                                            @endif
+                                                                        @endforeach
+                                                                    </div>
+                                                                @else
+                                                                    <div class="flex flex-wrap justify-center gap-3">
+                                                                        @foreach ($this->socialLinks as $platform => $url)
+                                                                            @if (filled($url))
+                                                                                @php
+                                                                                    $social = $this->socialOptions[
+                                                                                        $platform
+                                                                                    ] ?? [
+                                                                                        'label' => ucfirst($platform),
+                                                                                        'icon_slug' => 'linktree',
+                                                                                        'color' => $this->accentColor,
+                                                                                    ];
+                                                                                @endphp
 
+                                                                                @if ($this->showSocialName)
+                                                                                    <a href="{{ $url }}"
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        class="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-2 text-[11px] font-medium tracking-normal shadow-sm ring-1 ring-white/55 backdrop-blur-xl transition hover:-translate-y-0.5"
+                                                                                        style="color: {{ $previewText }}">
+                                                                                        @if ($this->socialUsesBrandIcon($platform))
+                                                                                            @php $selectedBrand = $this->socialDisplayBrand($platform); @endphp
+                                                                                            <img src="{{ $this->socialIconUrl($selectedBrand) }}"
+                                                                                                alt="{{ $this->socialOptions[$selectedBrand]['label'] ?? ucfirst($selectedBrand) }} icon"
+                                                                                                class="h-4 w-4 object-contain"
+                                                                                                loading="lazy">
+                                                                                        @else
+                                                                                            <span
+                                                                                                class="material-symbols-outlined text-base"
+                                                                                                style="color: {{ $this->accentColor }};">{{ $this->socialCustomIcon($platform) }}</span>
+                                                                                        @endif
+                                                                                        <span
+                                                                                            class="leading-none opacity-80">{{ $this->socialDisplayLabel($platform) }}</span>
+                                                                                    </a>
+                                                                                @else
+                                                                                    <a href="{{ $url }}"
+                                                                                        target="_blank"
+                                                                                        rel="noopener noreferrer"
+                                                                                        class="grid h-10 w-10 place-items-center rounded-full bg-white/80 shadow-sm ring-1 ring-white/60 backdrop-blur-xl transition hover:-translate-y-0.5">
+                                                                                        @if ($this->socialUsesBrandIcon($platform))
+                                                                                            @php $selectedBrand = $this->socialDisplayBrand($platform); @endphp
+                                                                                            <img src="{{ $this->socialIconUrl($selectedBrand) }}"
+                                                                                                alt="{{ $this->socialOptions[$selectedBrand]['label'] ?? ucfirst($selectedBrand) }} icon"
+                                                                                                class="h-5 w-5 object-contain"
+                                                                                                loading="lazy">
+                                                                                        @else
+                                                                                            <span
+                                                                                                class="material-symbols-outlined text-xl"
+                                                                                                style="color: {{ $this->accentColor }};">{{ $this->socialCustomIcon($platform) }}</span>
+                                                                                        @endif
+                                                                                    </a>
+                                                                                @endif
+                                                                            @endif
+                                                                        @endforeach
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                        @endif
+                                                    </div>
+                                                @endif
+
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    @if ($this->contactButtonPosition === 'floating')
-                                        <div
-                                            class="absolute {{ $floatingButtonPlacementClass }} z-30 grid h-14 w-14 place-items-center transition hover:scale-105">
-                                            @if ($this->floatingButtonRingEnabled && $this->floatingButtonRingWidth > 0)
-                                                <span class="pointer-events-none absolute"
-                                                    style="inset: -{{ (int) $this->floatingButtonRingWidth }}px; border: {{ (int) $this->floatingButtonRingWidth }}px solid {{ $this->floatingButtonRingColor }}; border-radius: {{ $floatingButtonRingRadius }}; box-shadow: 0 24px 60px rgba(15,23,42,0.30);"></span>
-                                            @endif
-
-                                            <button type="button"
-                                                class="relative grid h-14 w-14 place-items-center shadow-2xl transition"
-                                                style="background: {{ $this->accentColor }}; color: {{ $this->buttonTextColor }}; border-radius: {{ $floatingButtonRadius }};"
-                                                title="{{ $this->contactButtonText }}"
-                                                aria-label="{{ $this->contactButtonText }}">
-                                                <span class="material-symbols-outlined text-2xl">person_add</span>
-                                            </button>
-                                        </div>
-                                    @endif
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mt-4">
-                            <button type="button" wire:click="toggleReorderPanel"
-                                class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-5 py-3 text-xs font-black text-cyan-100 shadow-lg transition hover:-translate-y-0.5 hover:bg-white/12">
-                                <span class="material-symbols-outlined text-base">drag_indicator</span>
-                                {{ $this->showReorderPanel ? 'Drag mode enabled' : 'Reorder Contact & Social Info' }}
-                            </button>
-
-                            @if ($this->showReorderPanel)
-                                <div
-                                    class="mt-3 rounded-3xl border border-cyan-300/20 bg-cyan-400/10 p-4 backdrop-blur-xl">
-                                    <div class="flex items-start justify-between gap-3">
-                                        <div>
-                                            <h3 class="text-sm font-black text-white">Drag sections inside preview
-                                            </h3>
-                                            <p class="mt-1 text-xs leading-5 text-blue-100/55">
-                                                Drag Phone, Email, Website, Location, Companies, or Social Links
-                                                directly inside the
-                                                mobile preview. Name/about and contact button stay fixed.
-                                            </p>
-                                        </div>
-                                        <button type="button" wire:click="toggleReorderPanel"
-                                            class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 hover:bg-white/10">
-                                            <span class="material-symbols-outlined text-base">close</span>
-                                        </button>
-                                    </div>
-
-                                    <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-                                        @foreach ($this->normalizePreviewSectionOrder() as $section)
-                                            @php $sectionMeta = $this->previewSectionLabels[$section] ?? ['label' => ucfirst($section), 'icon' => 'drag_indicator']; @endphp
+                                        @if ($this->contactButtonPosition === 'floating')
                                             <div
-                                                class="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-bold text-blue-100/75">
-                                                <span
-                                                    class="material-symbols-outlined text-sm text-cyan-100">{{ $sectionMeta['icon'] }}</span>
-                                                <span class="truncate">{{ $sectionMeta['label'] }}</span>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endif
-                        </div>
-
-                        @error('vcf')
-                            <p class="mt-3 text-center text-xs font-semibold text-red-300">{{ $message }}</p>
-                        @enderror
-
-                        @error('vcard')
-                            <p class="mt-3 text-center text-xs font-semibold text-red-300">{{ $message }}</p>
-                        @enderror
-
-                        @if (session('vcard_saved'))
-                            <p
-                                class="mt-3 rounded-2xl bg-emerald-400/10 px-4 py-3 text-center text-xs font-bold text-emerald-200">
-                                {{ session('vcard_saved') }}</p>
-                        @endif
-
-                        @if (session('vcard_deleted'))
-                            <p
-                                class="mt-3 rounded-2xl bg-red-400/10 px-4 py-3 text-center text-xs font-bold text-red-200">
-                                {{ session('vcard_deleted') }}</p>
-                        @endif
-
-                        <div class="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
-                            <div class="flex items-center justify-between gap-3">
-                                <div>
-                                    <h3 class="text-sm font-black">QR & Downloads</h3>
-                                    <p class="mt-1 text-xs text-blue-100/45">Save the dynamic vCard and download QR.
-                                    </p>
-                                </div>
-                            </div>
-
-                            @if ($this->qrSvg)
-                                <div id="vcard-qr-svg"
-                                    data-logo-url="{{ $this->qrDisplayLogoUrl ?? '' }}"
-                                    class="relative mt-4 grid place-items-center rounded-2xl bg-white p-4 [&_svg]:h-64 [&_svg]:w-64">
-                                    {!! $this->qrSvg !!}
-
-                                    @if ($this->qrDisplayLogoUrl)
-                                        <div class="pointer-events-none absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white p-2 shadow-lg">
-                                            <img src="{{ $this->qrDisplayLogoUrl }}" alt="QR center logo preview"
-                                                class="max-h-full max-w-full rounded-xl object-contain">
-                                        </div>
-                                    @endif
-                                </div>
-                            @endif
-
-                            <div class="mt-4 space-y-3">
-                                @if ($this->isPremium)
-                                    <div class="rounded-2xl border border-white/10 bg-white/5 p-3">
-                                        <div class="flex items-center justify-between gap-3">
-                                            <div>
-                                                <p class="text-[11px] font-black uppercase tracking-wider text-blue-100/55">QR logo</p>
-                                                <p class="mt-0.5 text-[10px] text-blue-100/35">No logo by default. Upload one only when needed.</p>
-                                            </div>
-
-                                            <div class="inline-flex shrink-0 rounded-xl border border-white/10 bg-black/25 p-1">
-                                                <button type="button"
-                                                    wire:click="$set('qrLogoMode', 'none')"
-                                                    class="rounded-lg px-2.5 py-1.5 text-[10px] font-black transition {{ $this->qrLogoMode === 'none' ? 'bg-cyan-400/15 text-cyan-100 ring-1 ring-cyan-300/30' : 'text-blue-100/55 hover:text-white' }}">
-                                                    No Logo
-                                                </button>
+                                                class="absolute {{ $floatingButtonPlacementClass }} z-30 grid h-14 w-14 place-items-center transition hover:scale-105">
+                                                @if ($this->floatingButtonRingEnabled && $this->floatingButtonRingWidth > 0)
+                                                    <span class="pointer-events-none absolute"
+                                                        style="inset: -{{ (int) $this->floatingButtonRingWidth }}px; border: {{ (int) $this->floatingButtonRingWidth }}px solid {{ $this->floatingButtonRingColor }}; border-radius: {{ $floatingButtonRingRadius }}; box-shadow: 0 24px 60px rgba(15,23,42,0.30);"></span>
+                                                @endif
 
                                                 <button type="button"
-                                                    wire:click="$set('qrLogoMode', 'custom')"
-                                                    class="rounded-lg px-2.5 py-1.5 text-[10px] font-black transition {{ $this->qrLogoMode === 'custom' ? 'bg-cyan-400/15 text-cyan-100 ring-1 ring-cyan-300/30' : 'text-blue-100/55 hover:text-white' }}">
-                                                    Upload Logo
+                                                    class="relative grid h-14 w-14 place-items-center shadow-2xl transition"
+                                                    style="background: {{ $this->accentColor }}; color: {{ $this->buttonTextColor }}; border-radius: {{ $floatingButtonRadius }};"
+                                                    title="{{ $this->contactButtonText }}"
+                                                    aria-label="{{ $this->contactButtonText }}">
+                                                    <span class="material-symbols-outlined text-2xl">person_add</span>
                                                 </button>
                                             </div>
-                                        </div>
-
-                                        @if ($this->qrLogoMode === 'custom')
-                                            <label class="mt-3 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-white/15 bg-black/20 p-3 transition hover:bg-white/8">
-                                                <span class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-400/10 text-cyan-100">
-                                                    <span class="material-symbols-outlined text-xl">add_photo_alternate</span>
-                                                </span>
-                                                <div class="min-w-0 text-left">
-                                                    @if ($this->qrLogoPreview)
-                                                        <p class="text-xs font-bold text-white">Logo selected</p>
-                                                        <p class="mt-0.5 text-[10px] text-blue-100/40">Preview is shown in the center of the QR · Click to replace</p>
-                                                    @else
-                                                        <p class="text-xs font-bold text-white">Choose a center logo</p>
-                                                        <p class="mt-0.5 text-[10px] text-blue-100/40">PNG or JPG · Max 1MB</p>
-                                                    @endif
-                                                </div>
-
-                                                <input wire:model="qrLogo" type="file" accept="image/png,image/jpeg,image/jpg" class="hidden">
-                                            </label>
-
-                                            @if ($this->qrLogoPreview)
-                                                <button type="button" wire:click="removeQrLogo"
-                                                    class="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-red-300 transition hover:bg-red-400/10">
-                                                    <span class="material-symbols-outlined text-sm">delete</span>
-                                                    Remove logo
-                                                </button>
-                                            @endif
-
-                                            @error('qrLogo')
-                                                <p class="mt-2 text-xs text-red-300">{{ $message }}</p>
-                                            @enderror
                                         @endif
                                     </div>
-                                @else
-                                    <div class="rounded-2xl border border-amber-300/15 bg-amber-400/10 p-4 text-xs leading-5 text-amber-100">
-                                        Free users automatically get the site logo inside the QR and 10 scans per week. Premium QR codes have no logo by default and can use an uploaded custom logo.
-                                    </div>
-                                @endif
+                                </div>
+                            </div>
 
-                                <button type="button" wire:click="saveVcard"
-                                    class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-cyan-500 to-blue-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-cyan-500/20 transition hover:-translate-y-0.5">
-                                    <span class="material-symbols-outlined text-base">save</span>
-                                    Save vCard & Generate QR
+                            <div class="mt-4">
+                                <button type="button" wire:click="toggleReorderPanel"
+                                    class="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-5 py-3 text-xs font-black text-cyan-100 shadow-lg transition hover:-translate-y-0.5 hover:bg-white/12">
+                                    <span class="material-symbols-outlined text-base">drag_indicator</span>
+                                    {{ $this->showReorderPanel ? 'Drag mode enabled' : 'Reorder Contact & Social Info' }}
                                 </button>
 
-                                @if ($this->savedVcard && $this->qrSvg)
-                                    <button type="button"
-                                        @click="downloadQrPng(@js(Str::slug($this->savedVcard->full_name ?? $this->getFullName()) ?: 'vcard-qr'))"
-                                        class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/6 px-5 py-3.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10">
-                                        <span class="material-symbols-outlined text-base">download</span>
-                                        Download QR Code PNG
-                                    </button>
-                                @endif
-
-                                {{-- <button type="button" wire:click="generateVcf"
-                                    class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/6 px-5 py-3.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10">
-                                    <span class="material-symbols-outlined text-base">download</span>
-                                    Download VCF
-                                </button> --}}
-
-                                @if ($this->savedVcard)
-                                    <div x-data="{ confirmDelete: false }">
-                                        <template x-if="!confirmDelete">
-                                            <button type="button" @click="confirmDelete = true"
-                                                class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-red-400/20 bg-red-400/10 px-5 py-3.5 text-sm font-black text-red-200 transition hover:-translate-y-0.5 hover:bg-red-400/20">
-                                                <span class="material-symbols-outlined text-base">delete</span>
-                                                Delete vCard
-                                            </button>
-                                        </template>
-                                        <template x-if="confirmDelete">
-                                            <div class="flex items-center gap-2">
-                                                <button type="button" wire:click="deleteVcard({{ $this->savedVcard->id }})"
-                                                    class="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-red-500 px-5 py-3.5 text-sm font-black text-white transition hover:-translate-y-0.5">
-                                                    <span class="material-symbols-outlined text-base">delete</span>
-                                                    Confirm Delete
-                                                </button>
-                                                <button type="button" @click="confirmDelete = false"
-                                                    class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/6 px-4 py-3.5 text-sm font-black text-white transition hover:bg-white/10">
-                                                    <span class="material-symbols-outlined text-base">close</span>
-                                                </button>
+                                @if ($this->showReorderPanel)
+                                    <div
+                                        class="mt-3 rounded-3xl border border-cyan-300/20 bg-cyan-400/10 p-4 backdrop-blur-xl">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div>
+                                                <h3 class="text-sm font-black text-white">Drag sections inside preview
+                                                </h3>
+                                                <p class="mt-1 text-xs leading-5 text-blue-100/55">
+                                                    Drag Phone, Email, Website, Location, Companies, or Social Links
+                                                    directly inside the
+                                                    mobile preview. Name/about and contact button stay fixed.
+                                                </p>
                                             </div>
-                                        </template>
+                                            <button type="button" wire:click="toggleReorderPanel"
+                                                class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/5 text-blue-100/70 hover:bg-white/10">
+                                                <span class="material-symbols-outlined text-base">close</span>
+                                            </button>
+                                        </div>
+
+                                        <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                                            @foreach ($this->normalizePreviewSectionOrder() as $section)
+                                                @php $sectionMeta = $this->previewSectionLabels[$section] ?? ['label' => ucfirst($section), 'icon' => 'drag_indicator']; @endphp
+                                                <div
+                                                    class="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-[10px] font-bold text-blue-100/75">
+                                                    <span
+                                                        class="material-symbols-outlined text-sm text-cyan-100">{{ $sectionMeta['icon'] }}</span>
+                                                    <span class="truncate">{{ $sectionMeta['label'] }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
                                     </div>
                                 @endif
+                            </div>
+
+                            @error('vcf')
+                                <p class="mt-3 text-center text-xs font-semibold text-red-300">{{ $message }}</p>
+                            @enderror
+
+                            @error('vcard')
+                                <p class="mt-3 text-center text-xs font-semibold text-red-300">{{ $message }}</p>
+                            @enderror
+
+                            <div class="mt-5 rounded-3xl border border-white/10 bg-black/20 p-4">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-sm font-black">QR & Downloads</h3>
+                                        <p class="mt-1 text-xs text-blue-100/45">Save the dynamic vCard and download
+                                            QR.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                @if ($this->qrSvg)
+                                    <div id="vcard-qr-svg" data-logo-url="{{ $this->qrDisplayLogoUrl ?? '' }}"
+                                        class="relative mt-4 grid place-items-center rounded-2xl bg-white p-4 [&_svg]:h-64 [&_svg]:w-64">
+                                        {!! $this->qrSvg !!}
+
+                                        @if ($this->qrDisplayLogoUrl)
+                                            <div
+                                                class="pointer-events-none absolute left-1/2 top-1/2 flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl bg-white p-2 shadow-lg">
+                                                <img src="{{ $this->qrDisplayLogoUrl }}"
+                                                    alt="QR center logo preview"
+                                                    class="max-h-full max-w-full rounded-xl object-contain">
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
+
+                                <div class="mt-4 space-y-3">
+                                    @if ($this->isPremium)
+                                        <div class="rounded-2xl border border-white/10 bg-white/5 p-3">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <div>
+                                                    <p
+                                                        class="text-[11px] font-black uppercase tracking-wider text-blue-100/55">
+                                                        QR logo</p>
+                                                    <p class="mt-0.5 text-[10px] text-blue-100/35">No logo by default.
+                                                        Upload one only when needed.</p>
+                                                </div>
+
+                                                <div
+                                                    class="inline-flex shrink-0 rounded-xl border border-white/10 bg-black/25 p-1">
+                                                    <button type="button" wire:click="$set('qrLogoMode', 'none')"
+                                                        class="rounded-lg px-2.5 py-1.5 text-[10px] font-black transition {{ $this->qrLogoMode === 'none' ? 'bg-cyan-400/15 text-cyan-100 ring-1 ring-cyan-300/30' : 'text-blue-100/55 hover:text-white' }}">
+                                                        No Logo
+                                                    </button>
+
+                                                    <button type="button" wire:click="$set('qrLogoMode', 'custom')"
+                                                        class="rounded-lg px-2.5 py-1.5 text-[10px] font-black transition {{ $this->qrLogoMode === 'custom' ? 'bg-cyan-400/15 text-cyan-100 ring-1 ring-cyan-300/30' : 'text-blue-100/55 hover:text-white' }}">
+                                                        Upload Logo
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            @if ($this->qrLogoMode === 'custom')
+                                                <label
+                                                    class="mt-3 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-white/15 bg-black/20 p-3 transition hover:bg-white/8">
+                                                    <span
+                                                        class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-cyan-400/10 text-cyan-100">
+                                                        <span
+                                                            class="material-symbols-outlined text-xl">add_photo_alternate</span>
+                                                    </span>
+                                                    <div class="min-w-0 text-left">
+                                                        @if ($this->qrLogoPreview)
+                                                            <p class="text-xs font-bold text-white">Logo selected</p>
+                                                            <p class="mt-0.5 text-[10px] text-blue-100/40">Preview is
+                                                                shown in the center of the QR · Click to replace</p>
+                                                        @else
+                                                            <p class="text-xs font-bold text-white">Choose a center
+                                                                logo</p>
+                                                            <p class="mt-0.5 text-[10px] text-blue-100/40">PNG or JPG
+                                                                · Max 1MB</p>
+                                                        @endif
+                                                    </div>
+
+                                                    <input wire:model="qrLogo" type="file"
+                                                        accept="image/png,image/jpeg,image/jpg" class="hidden">
+                                                </label>
+
+                                                @if ($this->qrLogoPreview)
+                                                    <button type="button" wire:click="removeQrLogo"
+                                                        class="mt-2 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[10px] font-bold text-red-300 transition hover:bg-red-400/10">
+                                                        <span class="material-symbols-outlined text-sm">delete</span>
+                                                        Remove logo
+                                                    </button>
+                                                @endif
+
+                                                @error('qrLogo')
+                                                    <p class="mt-2 text-xs text-red-300">{{ $message }}</p>
+                                                @enderror
+                                            @endif
+                                        </div>
+                                    @else
+                                        <div
+                                            class="rounded-2xl border border-amber-300/15 bg-amber-400/10 p-4 text-xs leading-5 text-amber-100">
+                                            Free users automatically get the site logo inside the QR and 10 scans per
+                                            week. Premium QR codes have no logo by default and can use an uploaded
+                                            custom logo.
+                                        </div>
+                                    @endif
+
+                                    <button type="button" wire:click="saveVcard"
+                                        class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-linear-to-r from-cyan-500 to-blue-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-cyan-500/20 transition hover:-translate-y-0.5">
+                                        <span class="material-symbols-outlined text-base">save</span>
+                                        Save vCard & Generate QR
+                                    </button>
+
+                                    @if ($this->savedVcard && $this->qrSvg)
+                                        <button type="button" @click="downloadQrPng(@js(Str::slug($this->savedVcard->full_name ?? $this->getFullName()) ?: 'vcard-qr'))"
+                                            class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/6 px-5 py-3.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10">
+                                            <span class="material-symbols-outlined text-base">download</span>
+                                            Download QR Code PNG
+                                        </button>
+                                    @endif
+
+                                    <button type="button" wire:click="generateVcf"
+                                        class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/6 px-5 py-3.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-white/10">
+                                        <span class="material-symbols-outlined text-base">download</span>
+                                        Download VCF
+                                    </button>
+
+                                    @if ($this->savedVcard)
+                                        <div x-data="{ confirmDelete: false }">
+                                            <template x-if="!confirmDelete">
+                                                <button type="button" @click="confirmDelete = true"
+                                                    class="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-red-400/20 bg-red-400/10 px-5 py-3.5 text-sm font-black text-red-200 transition hover:-translate-y-0.5 hover:bg-red-400/20">
+                                                    <span class="material-symbols-outlined text-base">delete</span>
+                                                    Delete vCard
+                                                </button>
+                                            </template>
+                                            <template x-if="confirmDelete">
+                                                <div class="flex items-center gap-2">
+                                                    <button type="button"
+                                                        wire:click="deleteVcard({{ $this->savedVcard->id }})"
+                                                        class="inline-flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-2xl bg-red-500 px-5 py-3.5 text-sm font-black text-white transition hover:-translate-y-0.5">
+                                                        <span
+                                                            class="material-symbols-outlined text-base">delete</span>
+                                                        Confirm Delete
+                                                    </button>
+                                                    <button type="button" @click="confirmDelete = false"
+                                                        class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/6 px-4 py-3.5 text-sm font-black text-white transition hover:bg-white/10">
+                                                        <span class="material-symbols-outlined text-base">close</span>
+                                                    </button>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
+            </aside>
         </div>
     </section>
 
@@ -4501,22 +4572,24 @@ new #[Title('VCard Generator')] class extends Component {
 
                 <div x-show="iconPicker.type === 'social'">
                     <div class="mb-4">
-                        <p class="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-100/55">General icons</p>
-                        <p class="mt-1 text-[10px] leading-4 text-blue-100/35">Includes official colored social icons from Simple Icons and general Material Symbols.</p>
+                        <p class="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-100/55">General icons
+                        </p>
+                        <p class="mt-1 text-[10px] leading-4 text-blue-100/35">Includes official colored social icons
+                            from Simple Icons and general Material Symbols.</p>
                     </div>
 
                     <div class="grid grid-cols-5 gap-2 sm:grid-cols-7 md:grid-cols-10">
                         @foreach ($this->socialOptions as $brand => $social)
                             <button type="button" @click="chooseIcon('brand:{{ $brand }}')"
-                                title="{{ $social['label'] }}"
-                                aria-label="Choose {{ $social['label'] }} icon"
+                                title="{{ $social['label'] }}" aria-label="Choose {{ $social['label'] }} icon"
                                 class="group relative grid h-12 w-full place-items-center rounded-xl border transition hover:border-cyan-300/50 hover:bg-cyan-400/10"
                                 :class="iconPicker.selected === 'brand:{{ $brand }}' ?
                                     'border-cyan-300/70 bg-cyan-400/15 ring-1 ring-cyan-300/25' :
                                     'border-white/10 bg-white/5'">
                                 <span class="grid h-8 w-8 place-items-center rounded-lg bg-white shadow-sm">
-                                    <img src="{{ $this->socialIconUrl($brand) }}" alt="{{ $social['label'] }} icon"
-                                        class="h-5 w-5 object-contain" loading="lazy">
+                                    <img src="{{ $this->socialIconUrl($brand) }}"
+                                        alt="{{ $social['label'] }} icon" class="h-5 w-5 object-contain"
+                                        loading="lazy">
                                 </span>
                                 <span x-show="iconPicker.selected === 'brand:{{ $brand }}'"
                                     class="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-cyan-300 text-[10px] text-slate-950 shadow-lg">
@@ -4527,8 +4600,7 @@ new #[Title('VCard Generator')] class extends Component {
 
                         @foreach ($this->socialCustomIconOptions as $icon => $label)
                             <button type="button" @click="chooseIcon('{{ $icon }}')"
-                                title="{{ $label }}"
-                                aria-label="Choose {{ $label }} icon"
+                                title="{{ $label }}" aria-label="Choose {{ $label }} icon"
                                 class="group relative grid h-12 w-full place-items-center rounded-xl border text-blue-100/70 transition hover:border-cyan-300/50 hover:bg-cyan-400/10 hover:text-cyan-100"
                                 :class="iconPicker.selected === '{{ $icon }}' ?
                                     'border-cyan-300/70 bg-cyan-400/15 text-cyan-100 ring-1 ring-cyan-300/25' :
