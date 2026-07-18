@@ -108,6 +108,9 @@ Route::livewire('/tools/vcard-generator', 'pages::client.tools.v-card.vcard-gene
 // Public vCard
 Route::livewire('/vcard/{slug}', 'pages::client.tools.v-card.show')->name('vcard.public.show');
 
+// pdf tools
+Route::livewire('/tools/pdf-compressor', 'pages::client.tools.pdf.pdf-compressor')->name('client.tools.pdf-compressor');
+
 // Blogs
 Route::livewire('/blogs', 'pages::client.blogs.index')->name('client.blogs');
 Route::livewire('/blogs/{slug}', 'pages::client.blogs.details')->name('client.blogs.details');
