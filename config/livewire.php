@@ -147,7 +147,6 @@ return [
         'rules' => [
             'required',
             'file',
-            'mimes:pdf',
             'max:51200',
         ],
         'directory' => 'livewire-tmp',
