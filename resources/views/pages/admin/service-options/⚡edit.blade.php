@@ -373,7 +373,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Option')] class extends
 
                     <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <!-- Parent Service -->
-                        <div class="space-y-2 md:grid-cols-2">
+                        <div class="space-y-2 md:col-span-2">
                             <label class="block font-label-md text-on-surface">
                                 Parent Service
                             </label>
