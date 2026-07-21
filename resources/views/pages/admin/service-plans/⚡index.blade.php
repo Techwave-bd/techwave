@@ -45,7 +45,7 @@ new #[Layout('layouts.admin-app')] #[Title('Service Plans')] class extends Compo
         $search = trim($this->search);
 
         return ServicePlan::query()
-            ->with('service')
+            ->with('service', 'serviceOption')
             ->withCount('addons')
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
@@ -55,6 +55,9 @@ new #[Layout('layouts.admin-app')] #[Title('Service Plans')] class extends Compo
                         ->orWhere('description', 'like', '%' . $search . '%')
                         ->orWhereHas('service', function ($serviceQuery) use ($search) {
                             $serviceQuery->where('card_title', 'like', '%' . $search . '%');
+                        })
+                        ->orWhereHas('serviceOption', function ($optionQuery) use ($search) {
+                            $optionQuery->where('name', 'like', '%' . $search . '%');
                         });
                 });
             })
@@ -187,6 +190,10 @@ new #[Layout('layouts.admin-app')] #[Title('Service Plans')] class extends Compo
                             </th>
 
                             <th class="px-6 py-4 text-label-sm font-label-sm uppercase tracking-wider text-secondary">
+                                Option
+                            </th>
+
+                            <th class="px-6 py-4 text-label-sm font-label-sm uppercase tracking-wider text-secondary">
                                 Price
                             </th>
 
@@ -212,7 +219,7 @@ new #[Layout('layouts.admin-app')] #[Title('Service Plans')] class extends Compo
                     <tbody class="divide-y divide-slate-100">
                         @forelse ($this->plans() as $plan)
                             @php
-                                $hasOneTimePrice = $this->hasPrice($plan->price);
+                                $hasOneTimePrice = (bool) $plan->has_one_time_price && $this->hasPrice($plan->price);
 
                                 $hasMonthlyPrice =
                                     (bool) $plan->has_monthly_price && $this->hasPrice($plan->monthly_price);
@@ -267,6 +274,12 @@ new #[Layout('layouts.admin-app')] #[Title('Service Plans')] class extends Compo
                                 <td class="px-6 py-4">
                                     <span class="text-body-sm text-on-surface">
                                         {{ $plan->service?->card_title ?? 'No Service' }}
+                                    </span>
+                                </td>
+
+                                <td class="px-6 py-4">
+                                    <span class="text-body-sm text-on-surface">
+                                        {{ $plan->serviceOption?->card_title ?? '—' }}
                                     </span>
                                 </td>
 
@@ -332,7 +345,8 @@ new #[Layout('layouts.admin-app')] #[Title('Service Plans')] class extends Compo
                                     @endphp
 
                                     @if ($addonCount > 0)
-                                        <span class="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
+                                        <span
+                                            class="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
                                             <span class="material-symbols-outlined text-[14px]">extension</span>
                                             {{ $addonCount }}
                                         </span>
@@ -405,7 +419,7 @@ new #[Layout('layouts.admin-app')] #[Title('Service Plans')] class extends Compo
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-6 py-14 text-center">
+                                <td colspan="8" class="px-6 py-14 text-center">
                                     <div class="mx-auto flex max-w-sm flex-col items-center">
                                         <div
                                             class="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-500">

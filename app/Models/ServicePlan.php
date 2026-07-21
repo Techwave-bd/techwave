@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 
 #[Fillable([
     'service_id',
+    'service_option_id',
     'name',
     'slug',
     'badge',
     'description',
+    'has_one_time_price',
     'price',
     'has_monthly_price',
     'monthly_price',
@@ -29,6 +31,7 @@ use Illuminate\Database\Eloquent\Model;
 class ServicePlan extends Model
 {
     protected $casts = [
+        'has_one_time_price' => 'boolean',
         'price' => 'decimal:2',
         'discount_price' => 'decimal:2',
         'has_monthly_price' => 'boolean',
@@ -45,6 +48,16 @@ class ServicePlan extends Model
     public function service()
     {
         return $this->belongsTo(Service::class);
+    }
+
+    public function serviceOption()
+    {
+        return $this->belongsTo(ServiceOption::class);
+    }
+
+    public function subcategory()
+    {
+        return $this->belongsTo(Subcategory::class);
     }
 
     public function hasDiscount(): bool

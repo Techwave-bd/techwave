@@ -3,13 +3,18 @@
 use App\Events\BookingCreated;
 use App\Models\Booking;
 use App\Models\Service;
+use App\Models\ServiceOption;
 use App\Models\SiteSetting;
 use Illuminate\Support\Str;
+use Livewire\Attributes\Title;
 use Livewire\Component;
 
-new class extends Component {
+new #[Title('Service Details | Techwave')] class extends Component {
     public Service $service;
+    public ?ServiceOption $serviceOption = null;
     public SiteSetting $siteSetting;
+    public $entity;
+    public $displayPlans;
 
     public $otherServices;
 
@@ -35,12 +40,22 @@ new class extends Component {
         $this->siteSetting = SiteSetting::current();
 
         $this->service = Service::query()
-            ->with(['category', 'activePlans'])
+            ->with(['category'])
             ->where('slug', $slug)
             ->where('is_active', true)
             ->firstOrFail();
 
+        $optionSlug = request()->query('option');
+
+        if ($optionSlug) {
+            $this->serviceOption = ServiceOption::query()->with('activePlans')->where('service_id', $this->service->id)->where('slug', $optionSlug)->where('is_active', true)->firstOrFail();
+        } else {
+            $this->service->load('activePlans');
+        }
+
         $this->otherServices = Service::query()->where('is_active', true)->where('id', '!=', $this->service->id)->latest()->limit(3)->get();
+        $this->entity = $this->serviceOption ?? $this->service;
+        $this->displayPlans = $this->serviceOption ? $this->serviceOption->activePlans : $this->service->activePlans;
     }
 
     private function makeBookingNo(): string
@@ -91,7 +106,7 @@ new class extends Component {
             ];
         }
 
-        $plan = $this->service->activePlans->firstWhere('id', $planId);
+        $plan = $this->displayPlans->firstWhere('id', $planId);
 
         if (!$plan) {
             return [
@@ -107,7 +122,7 @@ new class extends Component {
 
         $hasYearlyPrice = !empty($plan->has_yearly_price) && !empty($plan->yearly_price) && (float) $plan->yearly_price > 0;
 
-        $hasOneTimePrice = !empty($plan->price) && (float) $plan->price > 0;
+        $hasOneTimePrice = !empty($plan->has_one_time_price) && !empty($plan->price) && (float) $plan->price > 0;
 
         if (!in_array($billingCycle, ['monthly', 'yearly', 'one_time', 'custom'], true)) {
             $billingCycle = match (true) {
@@ -164,7 +179,7 @@ new class extends Component {
 
     public function selectQuotePlan(int $planId, string $billingCycle = 'custom'): void
     {
-        if (!$this->service->activePlans->contains('id', $planId)) {
+        if (!$this->displayPlans->contains('id', $planId)) {
             return;
         }
 
@@ -254,24 +269,16 @@ new class extends Component {
         $this->dispatch('toast', message: 'Your booking request has been submitted successfully.', type: 'success');
     }
 
-    public function planBuyUrl($plan, string $billingCycle): ?string
-    {
-        return match ($billingCycle) {
-            'monthly' => $plan->monthly_buy_url ?: $plan->buy_url,
-            'yearly' => $plan->yearly_buy_url ?: $plan->buy_url,
-            'one_time' => $plan->buy_url,
-            default => $plan->buy_url,
-        };
-    }
-
     public function serviceImage(): string
     {
-        if ($this->service->image) {
-            if (str_starts_with($this->service->image, 'http://') || str_starts_with($this->service->image, 'https://')) {
-                return $this->service->image;
+        $image = $this->entity->image ?? $this->service->image;
+
+        if ($image) {
+            if (str_starts_with($image, 'http://') || str_starts_with($image, 'https://')) {
+                return $image;
             }
 
-            return asset('storage/' . $this->service->image);
+            return asset('storage/' . $image);
         }
 
         return 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1400&q=80';
@@ -279,22 +286,24 @@ new class extends Component {
 
     public function whatsappLink(): string
     {
+        $title = $this->entity->card_title;
+
         if ($this->siteSetting->whatsapp_url) {
-            return $this->siteSetting->whatsapp_url . '?text=' . urlencode('Hello, I am interested in ' . $this->service->card_title);
+            return $this->siteSetting->whatsapp_url . '?text=' . urlencode('Hello, I am interested in ' . $title);
         }
 
         $phone = preg_replace('/[^0-9]/', '', $this->siteSetting->phone ?: 'n/a');
 
-        return 'https://wa.me/' . $phone . '?text=' . urlencode('Hello, I am interested in ' . $this->service->card_title);
+        return 'https://wa.me/' . $phone . '?text=' . urlencode('Hello, I am interested in ' . $title);
     }
 };
 ?>
 
 <div class="relative text-white">
     @push('meta')
-        <meta name="title" content="{{ $service->meta_title ?: $service->card_title }}">
-        <meta name="description" content="{{ $service->meta_description ?: $service->short_description }}">
-        <meta name="keywords" content="{{ $service->meta_keywords }}">
+        <meta name="title" content="{{ $entity->meta_title ?: $entity->card_title }}">
+        <meta name="description" content="{{ $entity->meta_description ?: $entity->short_description }}">
+        <meta name="keywords" content="{{ $entity->meta_keywords }}">
     @endpush
 
     <!-- Hero -->
@@ -313,8 +322,16 @@ new class extends Component {
                         {{ $service->category?->name ?? 'Service Details' }}
                     </div>
 
+                    @if ($serviceOption)
+                        <a href="{{ route('client.services.options', ['slug' => $service->slug]) }}" wire:navigate
+                            class="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-cyan-300/80 transition hover:text-cyan-200">
+                            <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+                            Back to {{ $service->card_title }} options
+                        </a>
+                    @endif
+
                     @php
-                        $title = $service->detail_title ?: $service->card_title;
+                        $title = $entity->detail_title ?: $entity->card_title;
                     @endphp
 
                     <h1
@@ -324,15 +341,15 @@ new class extends Component {
                         </span>
                     </h1>
 
-                    @if ($service->short_description)
+                    @if ($entity->short_description)
                         <p class="mt-6 max-w-2xl text-sm leading-7 text-blue-100/72 sm:text-base sm:leading-8">
-                            {{ $service->short_description }}
+                            {{ $entity->short_description }}
                         </p>
                     @endif
 
-                    @if (!empty($service->tags))
+                    @if (!empty($entity->tags))
                         <div class="mt-8 flex flex-wrap gap-3">
-                            @foreach ($service->tags as $tag)
+                            @foreach ($entity->tags as $tag)
                                 <span
                                     class="rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm text-blue-100/80">
                                     {{ is_array($tag) ? $tag['name'] ?? ($tag['title'] ?? '') : $tag }}
@@ -342,7 +359,7 @@ new class extends Component {
                     @endif
 
                     <div class="mt-8 flex flex-wrap gap-3">
-                        @if ($service->activePlans->count())
+                        @if ($displayPlans->count())
                             <a href="#service-plans"
                                 class="inline-flex items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5">
                                 View Plans
@@ -363,7 +380,7 @@ new class extends Component {
                         <div class="absolute bottom-8 right-8 h-32 w-32 rounded-full bg-blue-500/12 blur-3xl"></div>
 
                         <div class="overflow-hidden rounded-3xl border border-white/10">
-                            <img src="{{ $this->serviceImage() }}" alt="{{ $service->card_title }}"
+                            <img src="{{ $this->serviceImage() }}" alt="{{ $entity->card_title }}"
                                 class="h-80 w-full object-cover sm:h-100">
                         </div>
                     </div>
@@ -378,9 +395,9 @@ new class extends Component {
             <div class="space-y-10">
 
                 <!-- Service Plans -->
-                @if ($service->activePlans->count())
+                @if ($displayPlans->count())
                     @php
-                        $planCount = $service->activePlans->count();
+                        $planCount = $displayPlans->count();
 
                         $planGridClass = match (true) {
                             $planCount === 1 => 'grid gap-6 md:grid-cols-1 md:max-w-md md:mx-auto pt-6',
@@ -388,13 +405,13 @@ new class extends Component {
                             default => 'grid gap-6 md:grid-cols-2 xl:grid-cols-3 pt-6',
                         };
 
-                        $hasAnyMonthlyPlan = $service->activePlans->contains(function ($plan) {
+                        $hasAnyMonthlyPlan = $displayPlans->contains(function ($plan) {
                             return !empty($plan->has_monthly_price) &&
                                 !empty($plan->monthly_price) &&
                                 (float) $plan->monthly_price > 0;
                         });
 
-                        $hasAnyYearlyPlan = $service->activePlans->contains(function ($plan) {
+                        $hasAnyYearlyPlan = $displayPlans->contains(function ($plan) {
                             return !empty($plan->has_yearly_price) &&
                                 !empty($plan->yearly_price) &&
                                 (float) $plan->yearly_price > 0;
@@ -419,7 +436,7 @@ new class extends Component {
                                     </h2>
 
                                     <p class="mt-3 max-w-2xl text-sm leading-7 text-blue-100/66">
-                                        Select a suitable plan for {{ $service->card_title }} based on your
+                                        Select a suitable plan for {{ $entity->card_title }} based on your
                                         business needs,
                                         budget, and support requirements.
                                     </p>
@@ -451,7 +468,7 @@ new class extends Component {
                         </div>
 
                         <div class="{{ $planGridClass }}">
-                            @foreach ($service->activePlans as $plan)
+                            @foreach ($displayPlans as $plan)
                                 @php
                                     $isPopular = $plan->badge && str_contains(strtolower($plan->badge), 'popular');
 
@@ -461,7 +478,7 @@ new class extends Component {
 
                                     $features = is_array($plan->features) ? $plan->features : [];
 
-                                    $hasOneTimePrice = !empty($plan->price) && (float) $plan->price > 0;
+                                    $hasOneTimePrice = !empty($plan->has_one_time_price) && !empty($plan->price) && (float) $plan->price > 0;
 
                                     $hasMonthlyPrice =
                                         !empty($plan->has_monthly_price) &&
@@ -530,7 +547,7 @@ new class extends Component {
                                         class="flex items-start justify-between gap-4 {{ $plan->badge ? 'pt-4' : '' }}">
                                         <div>
                                             <p class="text-xs font-medium uppercase tracking-[0.22em] text-cyan-200/80">
-                                                {{ $service->card_title }}
+                                                {{ $entity->card_title }}
                                             </p>
 
                                             <h3 class="mt-2 text-2xl font-bold text-white">
@@ -683,43 +700,23 @@ new class extends Component {
                                         @endif
                                     </div>
 
-                                    @php
-                                        $monthlyBuyUrl = $hasMonthlyPrice ? $this->planBuyUrl($plan, 'monthly') : null;
-                                        $yearlyBuyUrl = $hasYearlyPrice ? $this->planBuyUrl($plan, 'yearly') : null;
-                                        $oneTimeBuyUrl = $hasOneTimePrice ? $this->planBuyUrl($plan, 'one_time') : null;
-                                    @endphp
-
                                     @if ($hasMonthlyPrice)
                                         <div x-show="billing === 'monthly'" x-cloak>
-                                            @if ($monthlyBuyUrl)
-                                                <a href="{{ $monthlyBuyUrl }}" 
-                                                    class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
-                                                    Choose Plan
-                                                </a>
-                                            @else
-                                                <a href="#quote-form"
-                                                    @click="$wire.selectQuotePlan({{ $plan->id }}, 'monthly')"
-                                                    class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
-                                                    Choose Plan
-                                                </a>
-                                            @endif
+                                            <a href="{{ route('client.services.checkout', [$service->slug, $plan->slug]) }}?billing=monthly"
+                                                wire:navigate
+                                                class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
+                                                Choose Plan
+                                            </a>
                                         </div>
                                     @endif
 
                                     @if ($hasYearlyPrice)
                                         <div x-show="billing === 'yearly'" x-cloak>
-                                            @if ($yearlyBuyUrl)
-                                                <a href="{{ $yearlyBuyUrl }}" 
-                                                    class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
-                                                    Choose Plan
-                                                </a>
-                                            @else
-                                                <a href="#quote-form"
-                                                    @click="$wire.selectQuotePlan({{ $plan->id }}, 'yearly')"
-                                                    class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
-                                                    Choose Plan
-                                                </a>
-                                            @endif
+                                            <a href="{{ route('client.services.checkout', [$service->slug, $plan->slug]) }}?billing=yearly"
+                                                wire:navigate
+                                                class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
+                                                Choose Plan
+                                            </a>
                                         </div>
                                     @endif
 
@@ -742,18 +739,11 @@ new class extends Component {
                                     @endif
 
                                     @if (!$hasMonthlyPrice && !$hasYearlyPrice)
-                                        @if ($oneTimeBuyUrl)
-                                            <a href="{{ $oneTimeBuyUrl }}" 
-                                                class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
-                                                Choose Plan
-                                            </a>
-                                        @else
-                                            <a href="#quote-form"
-                                                @click="$wire.selectQuotePlan({{ $plan->id }}, '{{ $hasOneTimePrice ? 'one_time' : 'custom' }}')"
-                                                class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
-                                                Choose Plan
-                                            </a>
-                                        @endif
+                                        <a href="{{ route('client.services.checkout', [$service->slug, $plan->slug]) }}?billing=one_time"
+                                            wire:navigate
+                                            class="mt-6 inline-flex w-full items-center justify-center rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-6 py-3.5 font-semibold text-white shadow-lg shadow-blue-500/30 backdrop-blur-xl transition hover:-translate-y-0.5">
+                                            Choose Plan
+                                        </a>
                                     @endif
 
                                     <ul class="mt-7 space-y-3 text-sm text-blue-50/85">
@@ -794,7 +784,7 @@ new class extends Component {
 
                     <div class="space-y-6">
                         <!-- Overview -->
-                        @if (!empty($service->overview))
+                        @if (!empty($entity->overview))
                             <div
                                 class="relative overflow-hidden rounded-[30px] border border-white/10 bg-slate-950/35 p-6 sm:p-7">
                                 <div
@@ -819,13 +809,13 @@ new class extends Component {
                                 </div>
 
                                 <div class="service-rich-content mt-5 max-w-none">
-                                    {!! $service->overview !!}
+                                    {!! $entity->overview !!}
                                 </div>
                             </div>
                         @endif
 
                         <!-- Benefits -->
-                        @if ($service->benefits)
+                        @if ($entity->benefits)
                             <div
                                 class="relative overflow-hidden rounded-[30px] border border-white/10 bg-white/[0.045] p-6 sm:p-7">
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -845,7 +835,7 @@ new class extends Component {
                                 </div>
 
                                 <div class="mt-6 grid gap-4 md:grid-cols-2">
-                                    @foreach ($service->benefits as $benefit)
+                                    @foreach ($entity->benefits as $benefit)
                                         <div
                                             class="group relative overflow-hidden rounded-3xl border border-white/10 bg-slate-950/30 p-5 transition duration-300 hover:-translate-y-1 hover:border-cyan-300/25 hover:bg-cyan-400/[0.06]">
                                             <div
@@ -881,7 +871,7 @@ new class extends Component {
                         @endif
 
                         <!-- Features -->
-                        @if (!empty($service->included_items))
+                        @if (!empty($entity->included_items))
                             <div
                                 class="relative overflow-hidden rounded-[30px] border border-white/10 bg-slate-950/35 p-6 sm:p-7">
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -897,12 +887,12 @@ new class extends Component {
 
                                     <div
                                         class="hidden rounded-full border border-white/10 bg-white/6 px-4 py-2 text-xs font-medium text-blue-100/60 sm:inline-flex">
-                                        {{ count($service->included_items) }} items
+                                        {{ count($entity->included_items) }} items
                                     </div>
                                 </div>
 
                                 <div class="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                    @foreach ($service->included_items as $item)
+                                    @foreach ($entity->included_items as $item)
                                         <div
                                             class="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm leading-6 text-blue-50/82 transition hover:border-cyan-300/20 hover:bg-white/[0.07]">
                                             <span
@@ -920,7 +910,7 @@ new class extends Component {
                         @endif
 
                         <!-- Ideal For -->
-                        @if ($service->audience_title || $service->audience_detail)
+                        @if ($entity->audience_title || $entity->audience_detail)
                             <div
                                 class="relative overflow-hidden rounded-[30px] border border-cyan-300/15 bg-linear-to-br from-cyan-400/10 via-blue-500/8 to-white/[0.04] p-6 sm:p-7">
                                 <div class="absolute right-8 top-8 h-28 w-28 rounded-full bg-cyan-300/10 blur-3xl">
@@ -934,13 +924,13 @@ new class extends Component {
                                         </div>
 
                                         <h3 class="mt-4 text-2xl font-bold text-white">
-                                            {{ $service->audience_title ?: 'Who This Service Is For' }}
+                                            {{ $entity->audience_title ?: 'Who This Service Is For' }}
                                         </h3>
                                     </div>
 
-                                    @if ($service->audience_detail)
+                                    @if ($entity->audience_detail)
                                         <div class="space-y-4 text-sm leading-7 text-blue-100/72 sm:text-base">
-                                            @foreach (preg_split('/\r\n|\r|\n/', $service->audience_detail) as $line)
+                                            @foreach (preg_split('/\r\n|\r|\n/', $entity->audience_detail) as $line)
                                                 @if (trim($line))
                                                     <p>{{ $line }}</p>
                                                 @endif
@@ -1031,309 +1021,349 @@ new class extends Component {
                         </div>
                     </div>
                 @endif
-                    
+
                 <!-- Bottom Contact + Quote Section -->
-<div class="relative overflow-hidden rounded-[38px] border border-white/10 bg-white/[0.04] p-4 shadow-[0_30px_100px_rgba(0,0,0,0.24)] backdrop-blur-2xl sm:p-6 lg:p-8">
-    <div class="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl"></div>
-    <div class="pointer-events-none absolute -right-24 bottom-10 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl"></div>
-    <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-cyan-300/60 to-transparent"></div>
-
-    <div class="relative grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
-        <!-- Contact / CTA Side -->
-        <div class="relative overflow-hidden rounded-[32px] border border-cyan-300/15 bg-linear-to-br from-cyan-400/12 via-white/[0.045] to-blue-500/10 p-6 sm:p-8">
-            <div class="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-cyan-300/10 blur-2xl"></div>
-
-            <div class="relative">
                 <div
-                    class="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
-                    <span class="h-2 w-2 rounded-full bg-cyan-300 animate-pulse"></span>
-                    Quick Support
-                </div>
-
-                <h2 class="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">
-                    Need help choosing the right plan?
-                </h2>
-
-                <p class="mt-4 text-sm leading-7 text-blue-100/68 sm:text-base">
-                    Share your requirements with us. We’ll review your needs and suggest the most suitable service package for your business.
-                </p>
-
-                <div class="mt-7 grid gap-4">
-                    <div class="rounded-[24px] border border-white/10 bg-slate-950/30 p-5">
-                        <div class="flex gap-4">
-                            <div
-                                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/15 bg-cyan-400/10 text-cyan-200">
-                                <span class="material-symbols-outlined text-[24px]">call</span>
-                            </div>
-
-                            <div>
-                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/45">
-                                    Call Us
-                                </p>
-
-                                <p class="mt-2 text-lg font-bold text-white">
-                                    {{ $this->siteSetting->phone }}
-                                </p>
-
-                                <p class="mt-1 text-sm leading-6 text-blue-100/55">
-                                    Talk directly with our support team.
-                                </p>
-                            </div>
-                        </div>
+                    class="relative overflow-hidden rounded-[38px] border border-white/10 bg-white/[0.04] p-4 shadow-[0_30px_100px_rgba(0,0,0,0.24)] backdrop-blur-2xl sm:p-6 lg:p-8">
+                    <div
+                        class="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl">
+                    </div>
+                    <div
+                        class="pointer-events-none absolute -right-24 bottom-10 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl">
+                    </div>
+                    <div
+                        class="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-cyan-300/60 to-transparent">
                     </div>
 
-                    <div class="rounded-[24px] border border-white/10 bg-slate-950/30 p-5">
-                        <div class="flex gap-4">
-                            <div
-                                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/15 bg-emerald-400/10 text-emerald-200">
-                                <span class="material-symbols-outlined text-[24px]">forum</span>
-                            </div>
-
-                            <div class="min-w-0 flex-1">
-                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/45">
-                                    WhatsApp
-                                </p>
-
-                                <p class="mt-2 text-lg font-bold text-white">
-                                    Fast Response
-                                </p>
-
-                                <p class="mt-1 text-sm leading-6 text-blue-100/55">
-                                    Send us your requirement instantly.
-                                </p>
-                            </div>
-                        </div>
-
-                        <a href="{{ $this->whatsappLink() }}" 
-                            class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-linear-to-r from-emerald-500 to-green-400 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:-translate-y-0.5">
-                            Chat on WhatsApp
-                            <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
-                        </a>
-                    </div>
-                </div>
-
-                <div class="mt-7 rounded-[24px] border border-white/10 bg-white/[0.045] p-5">
-                    <div class="flex gap-3">
-                        <span
-                            class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-200">
-                            <span class="material-symbols-outlined text-[17px]">verified</span>
-                        </span>
-
-                        <p class="text-sm leading-7 text-blue-100/65">
-                            We’ll contact you after reviewing your selected plan, requirements, budget, and project details.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Quote Form -->
-        <div id="quote-form" class="relative scroll-mt-28 overflow-hidden rounded-[32px] border border-white/10 bg-slate-950/35 p-6 sm:p-8">
-            <div class="pointer-events-none absolute -right-12 top-10 h-48 w-48 rounded-full bg-blue-500/10 blur-3xl"></div>
-
-            <div class="relative">
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
+                    <div class="relative grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
+                        <!-- Contact / CTA Side -->
                         <div
-                            class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/7 px-4 py-2 text-xs font-medium text-blue-100/75">
-                            <span class="material-symbols-outlined text-[18px] text-cyan-200">request_quote</span>
-                            Quote Request
-                        </div>
+                            class="relative overflow-hidden rounded-[32px] border border-cyan-300/15 bg-linear-to-br from-cyan-400/12 via-white/[0.045] to-blue-500/10 p-6 sm:p-8">
+                            <div class="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-cyan-300/10 blur-2xl">
+                            </div>
 
-                        <h3 class="mt-4 text-2xl font-bold text-white sm:text-3xl">
-                            Request a custom quote
-                        </h3>
-
-                        <p class="mt-3 max-w-2xl text-sm leading-7 text-blue-100/62">
-                            Fill out the form and our team will get back to you with the right solution.
-                        </p>
-                    </div>
-
-                    <div class="hidden rounded-2xl border border-cyan-300/15 bg-cyan-400/10 px-4 py-3 text-cyan-100 sm:block">
-                        <span class="material-symbols-outlined text-[28px]">support_agent</span>
-                    </div>
-                </div>
-
-                <form wire:submit.prevent="submitQuoteRequest" class="mt-7">
-                    <input type="hidden" value="{{ $service->id }}">
-
-                    <div class="grid gap-5 md:grid-cols-2">
-                        @if ($service->activePlans->count())
-                            <div class="md:col-span-2">
-                                <label class="mb-2 block text-sm font-medium text-blue-50/85">
-                                    Select Service Plan
-                                </label>
-
-                                <div class="relative">
-                                    <select wire:model.live="quote_selected_package"
-                                        class="contact-input appearance-none pr-10 bg-slate-950/80 text-white [color-scheme:dark]">
-                                        <option class="bg-slate-950 text-white" value="">
-                                            Select a plan or request custom quote
-                                        </option>
-
-                                        @foreach ($service->activePlans as $plan)
-                                            @php
-                                                $hasOneTimePrice = !empty($plan->price) && (float) $plan->price > 0;
-
-                                                $hasMonthlyPrice =
-                                                    !empty($plan->has_monthly_price) &&
-                                                    !empty($plan->monthly_price) &&
-                                                    (float) $plan->monthly_price > 0;
-
-                                                $hasYearlyPrice =
-                                                    !empty($plan->has_yearly_price) &&
-                                                    !empty($plan->yearly_price) &&
-                                                    (float) $plan->yearly_price > 0;
-
-                                                $hasDiscount =
-                                                    $hasOneTimePrice &&
-                                                    !empty($plan->discount_price) &&
-                                                    (float) $plan->discount_price > 0 &&
-                                                    (float) $plan->discount_price < (float) $plan->price;
-
-                                                $hasMonthlyDiscount =
-                                                    $hasMonthlyPrice &&
-                                                    !empty($plan->monthly_discount_price) &&
-                                                    (float) $plan->monthly_discount_price > 0 &&
-                                                    (float) $plan->monthly_discount_price < (float) $plan->monthly_price;
-
-                                                $hasYearlyDiscount =
-                                                    $hasYearlyPrice &&
-                                                    !empty($plan->yearly_discount_price) &&
-                                                    (float) $plan->yearly_discount_price > 0 &&
-                                                    (float) $plan->yearly_discount_price < (float) $plan->yearly_price;
-
-                                                $oneTimePrice = $hasDiscount ? $plan->discount_price : $plan->price;
-                                                $monthlyPrice = $hasMonthlyDiscount ? $plan->monthly_discount_price : $plan->monthly_price;
-                                                $yearlyPrice = $hasYearlyDiscount ? $plan->yearly_discount_price : $plan->yearly_price;
-                                            @endphp
-
-                                            @if ($hasMonthlyPrice)
-                                                <option class="bg-slate-950 text-white" value="{{ $plan->id }}|monthly">
-                                                    {{ $plan->name }} - Monthly -
-                                                    ৳{{ number_format((float) $monthlyPrice, 0) }}
-                                                </option>
-                                            @endif
-
-                                            @if ($hasYearlyPrice)
-                                                <option class="bg-slate-950 text-white" value="{{ $plan->id }}|yearly">
-                                                    {{ $plan->name }} - Yearly -
-                                                    ৳{{ number_format((float) $yearlyPrice, 0) }}
-                                                </option>
-                                            @endif
-
-                                            @if (!$hasMonthlyPrice && !$hasYearlyPrice && $hasOneTimePrice)
-                                                <option class="bg-slate-950 text-white" value="{{ $plan->id }}|one_time">
-                                                    {{ $plan->name }} - One-time -
-                                                    ৳{{ number_format((float) $oneTimePrice, 0) }}
-                                                </option>
-                                            @endif
-
-                                            @if (!$hasMonthlyPrice && !$hasYearlyPrice && !$hasOneTimePrice)
-                                                <option class="bg-slate-950 text-white" value="{{ $plan->id }}|custom">
-                                                    {{ $plan->name }} - Custom Price
-                                                </option>
-                                            @endif
-                                        @endforeach
-                                    </select>
-
-                                    <span
-                                        class="material-symbols-outlined pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-blue-100/45">
-                                        expand_more
-                                    </span>
+                            <div class="relative">
+                                <div
+                                    class="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-100">
+                                    <span class="h-2 w-2 rounded-full bg-cyan-300 animate-pulse"></span>
+                                    Quick Support
                                 </div>
 
-                                @error('quote_selected_package')
-                                    <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                                @enderror
-                            </div>
-                        @endif
+                                <h2 class="mt-5 text-3xl font-bold leading-tight text-white sm:text-4xl">
+                                    Need help choosing the right plan?
+                                </h2>
 
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-blue-50/85">Full Name</label>
-                            <input type="text" wire:model="quote_full_name" placeholder="Enter your name"
-                                class="contact-input">
-
-                            @error('quote_full_name')
-                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-blue-50/85">Phone Number</label>
-                            <input type="text" wire:model="quote_phone" placeholder="017XXXXXXXX"
-                                class="contact-input">
-
-                            @error('quote_phone')
-                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                            @enderror
-                        </div>
-
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-blue-50/85">Email Address</label>
-
-                            <input type="email" wire:model="quote_email" placeholder="Enter your email"
-                                @auth readonly @endauth
-                                class="contact-input {{ auth()->check() ? 'cursor-not-allowed opacity-80' : '' }}">
-
-                            @auth
-                                <p class="mt-1 text-xs text-blue-100/45">
-                                    Your login email will be used for this request.
+                                <p class="mt-4 text-sm leading-7 text-blue-100/68 sm:text-base">
+                                    Share your requirements with us. We’ll review your needs and suggest the most
+                                    suitable service package for your business.
                                 </p>
-                            @endauth
 
-                            @error('quote_email')
-                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                            @enderror
+                                <div class="mt-7 grid gap-4">
+                                    <div class="rounded-[24px] border border-white/10 bg-slate-950/30 p-5">
+                                        <div class="flex gap-4">
+                                            <div
+                                                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-cyan-300/15 bg-cyan-400/10 text-cyan-200">
+                                                <span class="material-symbols-outlined text-[24px]">call</span>
+                                            </div>
+
+                                            <div>
+                                                <p
+                                                    class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/45">
+                                                    Call Us
+                                                </p>
+
+                                                <p class="mt-2 text-lg font-bold text-white">
+                                                    {{ $this->siteSetting->phone }}
+                                                </p>
+
+                                                <p class="mt-1 text-sm leading-6 text-blue-100/55">
+                                                    Talk directly with our support team.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="rounded-[24px] border border-white/10 bg-slate-950/30 p-5">
+                                        <div class="flex gap-4">
+                                            <div
+                                                class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-emerald-300/15 bg-emerald-400/10 text-emerald-200">
+                                                <span class="material-symbols-outlined text-[24px]">forum</span>
+                                            </div>
+
+                                            <div class="min-w-0 flex-1">
+                                                <p
+                                                    class="text-xs font-semibold uppercase tracking-[0.18em] text-blue-100/45">
+                                                    WhatsApp
+                                                </p>
+
+                                                <p class="mt-2 text-lg font-bold text-white">
+                                                    Fast Response
+                                                </p>
+
+                                                <p class="mt-1 text-sm leading-6 text-blue-100/55">
+                                                    Send us your requirement instantly.
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <a href="{{ $this->whatsappLink() }}" target="_blank"
+                                            class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-linear-to-r from-emerald-500 to-green-400 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/25 transition hover:-translate-y-0.5">
+                                            Chat on WhatsApp
+                                            <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <div class="mt-7 rounded-[24px] border border-white/10 bg-white/[0.045] p-5">
+                                    <div class="flex gap-3">
+                                        <span
+                                            class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-200">
+                                            <span class="material-symbols-outlined text-[17px]">verified</span>
+                                        </span>
+
+                                        <p class="text-sm leading-7 text-blue-100/65">
+                                            We’ll contact you after reviewing your selected plan, requirements, budget,
+                                            and project details.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
-                        <div>
-                            <label class="mb-2 block text-sm font-medium text-blue-50/85">Company Name</label>
-                            <input type="text" wire:model="quote_company_name"
-                                placeholder="Enter your company name" class="contact-input">
+                        <!-- Quote Form -->
+                        <div id="quote-form"
+                            class="relative scroll-mt-28 overflow-hidden rounded-[32px] border border-white/10 bg-slate-950/35 p-6 sm:p-8">
+                            <div
+                                class="pointer-events-none absolute -right-12 top-10 h-48 w-48 rounded-full bg-blue-500/10 blur-3xl">
+                            </div>
 
-                            @error('quote_company_name')
-                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                            @enderror
-                        </div>
+                            <div class="relative">
+                                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                    <div>
+                                        <div
+                                            class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/7 px-4 py-2 text-xs font-medium text-blue-100/75">
+                                            <span
+                                                class="material-symbols-outlined text-[18px] text-cyan-200">request_quote</span>
+                                            Quote Request
+                                        </div>
 
-                        <div class="md:col-span-2">
-                            <label class="mb-2 block text-sm font-medium text-blue-50/85">Project Details</label>
-                            <textarea rows="5" wire:model="quote_message"
-                                placeholder="Tell us what you need for {{ $service->card_title }}" class="contact-input resize-none"></textarea>
+                                        <h3 class="mt-4 text-2xl font-bold text-white sm:text-3xl">
+                                            Request a custom quote
+                                        </h3>
 
-                            @error('quote_message')
-                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
-                            @enderror
+                                        <p class="mt-3 max-w-2xl text-sm leading-7 text-blue-100/62">
+                                            Fill out the form and our team will get back to you with the right solution.
+                                        </p>
+                                    </div>
+
+                                    <div
+                                        class="hidden rounded-2xl border border-cyan-300/15 bg-cyan-400/10 px-4 py-3 text-cyan-100 sm:block">
+                                        <span class="material-symbols-outlined text-[28px]">support_agent</span>
+                                    </div>
+                                </div>
+
+                                <form wire:submit.prevent="submitQuoteRequest" class="mt-7">
+                                    <input type="hidden" value="{{ $service->id }}">
+
+                                    <div class="grid gap-5 md:grid-cols-2">
+                                        @if ($displayPlans->count())
+                                            <div class="md:col-span-2">
+                                                <label class="mb-2 block text-sm font-medium text-blue-50/85">
+                                                    Select Service Plan
+                                                </label>
+
+                                                <div class="relative">
+                                                    <select wire:model.live="quote_selected_package"
+                                                        class="contact-input appearance-none pr-10 bg-slate-950/80 text-white [color-scheme:dark]">
+                                                        <option class="bg-slate-950 text-white" value="">
+                                                            Select a plan or request custom quote
+                                                        </option>
+
+                                                        @foreach ($displayPlans as $plan)
+                                                            @php
+                                                                $hasOneTimePrice =
+                                                                    !empty($plan->has_one_time_price) && !empty($plan->price) && (float) $plan->price > 0;
+
+                                                                $hasMonthlyPrice =
+                                                                    !empty($plan->has_monthly_price) &&
+                                                                    !empty($plan->monthly_price) &&
+                                                                    (float) $plan->monthly_price > 0;
+
+                                                                $hasYearlyPrice =
+                                                                    !empty($plan->has_yearly_price) &&
+                                                                    !empty($plan->yearly_price) &&
+                                                                    (float) $plan->yearly_price > 0;
+
+                                                                $hasDiscount =
+                                                                    $hasOneTimePrice &&
+                                                                    !empty($plan->discount_price) &&
+                                                                    (float) $plan->discount_price > 0 &&
+                                                                    (float) $plan->discount_price <
+                                                                        (float) $plan->price;
+
+                                                                $hasMonthlyDiscount =
+                                                                    $hasMonthlyPrice &&
+                                                                    !empty($plan->monthly_discount_price) &&
+                                                                    (float) $plan->monthly_discount_price > 0 &&
+                                                                    (float) $plan->monthly_discount_price <
+                                                                        (float) $plan->monthly_price;
+
+                                                                $hasYearlyDiscount =
+                                                                    $hasYearlyPrice &&
+                                                                    !empty($plan->yearly_discount_price) &&
+                                                                    (float) $plan->yearly_discount_price > 0 &&
+                                                                    (float) $plan->yearly_discount_price <
+                                                                        (float) $plan->yearly_price;
+
+                                                                $oneTimePrice = $hasDiscount
+                                                                    ? $plan->discount_price
+                                                                    : $plan->price;
+                                                                $monthlyPrice = $hasMonthlyDiscount
+                                                                    ? $plan->monthly_discount_price
+                                                                    : $plan->monthly_price;
+                                                                $yearlyPrice = $hasYearlyDiscount
+                                                                    ? $plan->yearly_discount_price
+                                                                    : $plan->yearly_price;
+                                                            @endphp
+
+                                                            @if ($hasMonthlyPrice)
+                                                                <option class="bg-slate-950 text-white"
+                                                                    value="{{ $plan->id }}|monthly">
+                                                                    {{ $plan->name }} - Monthly -
+                                                                    ৳{{ number_format((float) $monthlyPrice, 0) }}
+                                                                </option>
+                                                            @endif
+
+                                                            @if ($hasYearlyPrice)
+                                                                <option class="bg-slate-950 text-white"
+                                                                    value="{{ $plan->id }}|yearly">
+                                                                    {{ $plan->name }} - Yearly -
+                                                                    ৳{{ number_format((float) $yearlyPrice, 0) }}
+                                                                </option>
+                                                            @endif
+
+                                                            @if (!$hasMonthlyPrice && !$hasYearlyPrice && $hasOneTimePrice)
+                                                                <option class="bg-slate-950 text-white"
+                                                                    value="{{ $plan->id }}|one_time">
+                                                                    {{ $plan->name }} - One-time -
+                                                                    ৳{{ number_format((float) $oneTimePrice, 0) }}
+                                                                </option>
+                                                            @endif
+
+                                                            @if (!$hasMonthlyPrice && !$hasYearlyPrice && !$hasOneTimePrice)
+                                                                <option class="bg-slate-950 text-white"
+                                                                    value="{{ $plan->id }}|custom">
+                                                                    {{ $plan->name }} - Custom Price
+                                                                </option>
+                                                            @endif
+                                                        @endforeach
+                                                    </select>
+
+                                                    <span
+                                                        class="material-symbols-outlined pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-blue-100/45">
+                                                        expand_more
+                                                    </span>
+                                                </div>
+
+                                                @error('quote_selected_package')
+                                                    <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                                @enderror
+                                            </div>
+                                        @endif
+
+                                        <div>
+                                            <label class="mb-2 block text-sm font-medium text-blue-50/85">Full
+                                                Name</label>
+                                            <input type="text" wire:model="quote_full_name"
+                                                placeholder="Enter your name" class="contact-input">
+
+                                            @error('quote_full_name')
+                                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div>
+                                            <label class="mb-2 block text-sm font-medium text-blue-50/85">Phone
+                                                Number</label>
+                                            <input type="text" wire:model="quote_phone" placeholder="017XXXXXXXX"
+                                                class="contact-input">
+
+                                            @error('quote_phone')
+                                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div>
+                                            <label class="mb-2 block text-sm font-medium text-blue-50/85">Email
+                                                Address</label>
+
+                                            <input type="email" wire:model="quote_email"
+                                                placeholder="Enter your email" @auth readonly @endauth
+                                                class="contact-input {{ auth()->check() ? 'cursor-not-allowed opacity-80' : '' }}">
+
+                                            @auth
+                                                <p class="mt-1 text-xs text-blue-100/45">
+                                                    Your login email will be used for this request.
+                                                </p>
+                                            @endauth
+
+                                            @error('quote_email')
+                                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div>
+                                            <label class="mb-2 block text-sm font-medium text-blue-50/85">Company
+                                                Name</label>
+                                            <input type="text" wire:model="quote_company_name"
+                                                placeholder="Enter your company name" class="contact-input">
+
+                                            @error('quote_company_name')
+                                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+
+                                        <div class="md:col-span-2">
+                                            <label class="mb-2 block text-sm font-medium text-blue-50/85">Project
+                                                Details</label>
+                                            <textarea rows="5" wire:model="quote_message"
+                                                placeholder="Tell us what you need for {{ $entity->card_title }}" class="contact-input resize-none"></textarea>
+
+                                            @error('quote_message')
+                                                <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                            @enderror
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <p class="text-xs leading-6 text-blue-100/45">
+                                            By submitting this form, our team will review your request and contact you
+                                            shortly.
+                                        </p>
+
+                                        <button type="submit" wire:loading.attr="disabled"
+                                            wire:target="submitQuoteRequest"
+                                            class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-52">
+                                            <span wire:loading.remove wire:target="submitQuoteRequest">
+                                                Send Quote Request
+                                            </span>
+
+                                            <span wire:loading wire:target="submitQuoteRequest">
+                                                Sending...
+                                            </span>
+
+                                            <span wire:loading.remove wire:target="submitQuoteRequest"
+                                                class="material-symbols-outlined text-[18px]">
+                                                arrow_forward
+                                            </span>
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     </div>
-
-                    <div class="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <p class="text-xs leading-6 text-blue-100/45">
-                            By submitting this form, our team will review your request and contact you shortly.
-                        </p>
-
-                        <button type="submit" wire:loading.attr="disabled" wire:target="submitQuoteRequest"
-                            class="inline-flex cursor-pointer items-center justify-center gap-2 rounded-full bg-linear-to-r from-blue-500 to-sky-400 px-7 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:min-w-52">
-                            <span wire:loading.remove wire:target="submitQuoteRequest">
-                                Send Quote Request
-                            </span>
-
-                            <span wire:loading wire:target="submitQuoteRequest">
-                                Sending...
-                            </span>
-
-                            <span wire:loading.remove wire:target="submitQuoteRequest"
-                                class="material-symbols-outlined text-[18px]">
-                                arrow_forward
-                            </span>
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+                </div>
             </div>
         </div>
     </section>

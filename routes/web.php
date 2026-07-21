@@ -80,6 +80,7 @@ Route::livewire('/', 'pages::client.home')->name('home');
 
 // Services
 Route::livewire('/services', 'pages::client.services.index')->name('client.services');
+Route::livewire('/services/{slug}/options', 'pages::client.services.options')->name('client.services.options');
 Route::livewire('/services/{slug}', 'pages::client.services.details')->name('client.services.details');
 Route::livewire('/services/{slug}/checkout/{plan:slug}', 'pages::client.services.checkout')->name('client.services.checkout');
 
@@ -243,6 +244,19 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,manager,
     Route::livewire('/services/create', 'pages::admin.services.create')->name('services.create');
     Route::livewire('/services/{service}/edit', 'pages::admin.services.edit')->name('services.edit');
 
+    // Service Options management
+    Route::livewire('/service-options', 'pages::admin.service-options.index')->name('service-options.index');
+    Route::livewire('/service-options/create', 'pages::admin.service-options.create')->name('service-options.create');
+    Route::livewire('/service-options/{serviceOption}/edit', 'pages::admin.service-options.edit')->name('service-options.edit');
+
+    // Service plan management
+    Route::livewire('/service-plans', 'pages::admin.service-plans.index')->name('service-plans.index');
+    Route::livewire('/service-plans/create', 'pages::admin.service-plans.create')->name('service-plans.create');
+    Route::livewire('/service-plans/{servicePlan}/edit', 'pages::admin.service-plans.edit')->name('service-plans.edit');
+
+    // Service plan addons
+    Route::livewire('/plan-addons', 'pages::admin.plan-addons.index')->name('plan-addons.index');
+
     // Pricing management
     Route::livewire('/pricing', 'pages::admin.pricing.index')->name('pricing.index');
 
@@ -270,14 +284,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,manager,
     Route::livewire('/blogs', 'pages::admin.blogs.index')->name('blogs.index');
     Route::livewire('/blogs/create', 'pages::admin.blogs.create')->name('blogs.create');
     Route::livewire('/blogs/{blog}/edit', 'pages::admin.blogs.edit')->name('blogs.edit');
-
-    // Service plan management
-    Route::livewire('/service-plans', 'pages::admin.service-plans.index')->name('service-plans.index');
-    Route::livewire('/service-plans/create', 'pages::admin.service-plans.create')->name('service-plans.create');
-    Route::livewire('/service-plans/{servicePlan}/edit', 'pages::admin.service-plans.edit')->name('service-plans.edit');
-
-    // Service plan addons
-    Route::livewire('/plan-addons', 'pages::admin.plan-addons.index')->name('plan-addons.index');
 
     // Proposal management
     Route::livewire('/proposals', 'pages::admin.proposals.index')->name('proposals.index');

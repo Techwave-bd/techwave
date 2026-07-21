@@ -2,6 +2,7 @@
 
 use App\Models\PlanAddon;
 use App\Models\Service;
+use App\Models\ServiceOption;
 use App\Models\ServicePlan;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
@@ -10,12 +11,14 @@ use Livewire\Component;
 
 new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends Component {
     public ?int $service_id = null;
+    public ?int $service_option_id = null;
 
     public string $name = '';
     public string $slug = '';
     public string $badge = '';
     public string $description = '';
 
+    public bool $has_one_time_price = false;
     public string $price = '';
     public string $discount_price = '';
 
@@ -42,12 +45,14 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
     {
         return [
             'service_id' => ['required', 'integer', 'exists:services,id'],
+            'service_option_id' => ['nullable', 'integer', 'exists:service_options,id'],
             'name' => ['required', 'string', 'max:160'],
-            'slug' => ['nullable', 'string', 'max:190', 'unique:service_plans,slug'],
+            'slug' => ['nullable', 'string', 'max:190'],
             'badge' => ['nullable', 'string', 'max:80'],
             'description' => ['nullable', 'string', 'max:800'],
 
-            'price' => ['nullable', 'numeric', 'min:0'],
+            'has_one_time_price' => ['boolean'],
+            'price' => [$this->has_one_time_price ? 'required' : 'nullable', 'numeric', 'min:0'],
             'discount_price' => ['nullable', 'numeric', 'min:0', 'lt:price'],
 
             'has_monthly_price' => ['boolean'],
@@ -81,6 +86,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
             'service_id.required' => 'Please select a service.',
             'buy_url.url' => 'Please enter a valid default or one-time buy URL.',
 
+            'price.required' => 'One-time price is required when one-time pricing is enabled.',
             'discount_price.lt' => 'Discount price must be less than regular price.',
 
             'monthly_price.required' => 'Monthly price is required when monthly pricing is enabled.',
@@ -98,6 +104,14 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
         return Service::query()->where('is_active', true)->orderBy('card_title')->get();
     }
 
+    public function serviceOptions()
+    {
+        return ServiceOption::query()
+            ->where('is_active', true)
+            ->orderBy('card_title')
+            ->get();
+    }
+
     public function selectedService()
     {
         if (!$this->service_id) {
@@ -109,6 +123,8 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
 
     public function updatedServiceId(): void
     {
+        $this->service_option_id = null;
+
         $service = Service::find($this->service_id);
 
         if (!$service) return;
@@ -123,6 +139,23 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
 
         if ($this->has_yearly_price && empty($this->yearly_buy_url)) {
             $this->yearly_buy_url = url('/services/' . $service->slug . '/checkout/__PLAN_ID__') . '?billing=yearly';
+        }
+    }
+
+    public function updatedHasOneTimePrice(): void
+    {
+        if (!$this->has_one_time_price) {
+            $this->price = '';
+            $this->discount_price = '';
+            $this->buy_url = '';
+
+            $this->resetValidation(['price', 'discount_price', 'buy_url']);
+        } elseif (empty($this->buy_url) && $this->service_id) {
+            $service = Service::find($this->service_id);
+
+            if ($service) {
+                $this->buy_url = url('/services/' . $service->slug . '/checkout/__PLAN_ID__');
+            }
         }
     }
 
@@ -257,6 +290,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
 
         $plan = ServicePlan::create([
             'service_id' => $validated['service_id'],
+            'service_option_id' => $validated['service_option_id'] ?? null,
 
             'name' => $validated['name'],
             'slug' => $this->uniqueSlug($this->slug ?: $validated['name']),
@@ -264,8 +298,9 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
             'badge' => $validated['badge'] ?: null,
             'description' => $validated['description'] ?: null,
 
-            'price' => filled($validated['price'] ?? null) ? $validated['price'] : null,
-            'discount_price' => filled($validated['discount_price'] ?? null) ? $validated['discount_price'] : null,
+            'has_one_time_price' => $validated['has_one_time_price'] ?? false,
+            'price' => ($validated['has_one_time_price'] ?? false) && filled($validated['price'] ?? null) ? $validated['price'] : null,
+            'discount_price' => ($validated['has_one_time_price'] ?? false) && filled($validated['discount_price'] ?? null) ? $validated['discount_price'] : null,
 
             'has_monthly_price' => $validated['has_monthly_price'] ?? false,
             'monthly_price' => $validated['has_monthly_price'] ?? false ? $validated['monthly_price'] : null,
@@ -308,6 +343,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
             if ($url) return $url;
             if (!($validated['has_yearly_price'] ?? false)) return null;
         } else {
+            if (!($validated['has_one_time_price'] ?? false)) return null;
             $url = $validated['buy_url'] ?? null;
             if ($url) return $url;
         }
@@ -375,9 +411,10 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
 
     public function discard(): void
     {
-        $this->reset(['service_id', 'name', 'slug', 'badge', 'description', 'price', 'discount_price', 'has_monthly_price', 'monthly_price', 'monthly_discount_price', 'monthly_buy_url', 'has_yearly_price', 'yearly_price', 'yearly_discount_price', 'yearly_buy_url', 'buy_url', 'sort_order', 'features', 'feature', 'selectedAddons']);
+        $this->reset(['service_id', 'service_option_id', 'name', 'slug', 'badge', 'description', 'has_one_time_price', 'price', 'discount_price', 'has_monthly_price', 'monthly_price', 'monthly_discount_price', 'monthly_buy_url', 'has_yearly_price', 'yearly_price', 'yearly_discount_price', 'yearly_buy_url', 'buy_url', 'sort_order', 'features', 'feature', 'selectedAddons']);
 
         $this->is_active = true;
+        $this->has_one_time_price = false;
 
         $this->resetValidation();
 
@@ -526,6 +563,132 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                             @enderror
                         </div>
 
+                        @if (count($this->serviceOptions()) > 0)
+                            <div class="space-y-2 md:col-span-2">
+                                <label class="block font-label-md text-on-surface">Service Option</label>
+
+                                <div x-data="{
+                                    open: false,
+                                    search: '',
+                                    selectedId: @entangle('service_option_id'),
+                                    parentServiceId: @entangle('service_id'),
+                                    allOptions: @js(
+                                        $this->serviceOptions()->map(fn($o) => ['id' => $o->id, 'service_id' => $o->service_id, 'title' => $o->card_title])->values()
+                                    ),
+
+                                    get options() {
+                                        const none = { id: null, title: 'Choose service option', disabled: true };
+                                        if (!this.parentServiceId) {
+                                            return [none];
+                                        }
+                                        const matched = this.allOptions.filter(o => o.service_id == this.parentServiceId);
+                                        return [none, ...matched];
+                                    },
+
+                                    get selectedOption() {
+                                        return this.options.find(o => o.id == this.selectedId) || null;
+                                    },
+
+                                    get filteredOptions() {
+                                        if (!this.search.trim()) {
+                                            return this.options;
+                                        }
+
+                                        return this.options.filter(o =>
+                                            o.title.toLowerCase().includes(this.search.toLowerCase())
+                                        );
+                                    },
+
+                                    selectOption(option) {
+                                        this.selectedId = option.id;
+                                        this.search = option.title;
+                                        this.open = false;
+                                    },
+
+                                    clearOption() {
+                                        this.selectedId = null;
+                                        this.search = '';
+                                        this.open = true;
+                                    },
+
+                                    init() {
+                                        this.$watch('parentServiceId', () => {
+                                            this.selectedId = null;
+                                            this.search = '';
+                                        });
+
+                                        this.$watch('selectedId', () => {
+                                            if (this.selectedOption) {
+                                                this.search = this.selectedOption.title;
+                                            } else {
+                                                this.search = '';
+                                            }
+                                        });
+                                    }
+                                }" class="relative" @click.outside="open = false">
+                                    <div class="relative">
+                                        <input type="text" x-model="search" @focus="open=true" @input="open=true"
+                                            @keydown.escape.window="open = false" placeholder="Search and select option..."
+                                            class="w-full rounded border border-outline-variant bg-white px-4 py-2.5 pr-20 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
+
+                                        <div class="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                                            <button type="button" x-show="selectedId !== null" @click="clearOption()"
+                                                class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-red-500">
+                                                <span class="material-symbols-outlined text-[18px]">close</span>
+                                            </button>
+
+                                            <button type="button" @click="open = !open"
+                                                class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100">
+                                                <span class="material-symbols-outlined text-[22px] transition"
+                                                    :class="open ? 'rotate-180' : ''">
+                                                    expand_more
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div x-show="open" x-transition
+                                        class="absolute z-50 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
+                                        style="display: none;">
+                                        <template x-if="filteredOptions.length">
+                                            <div class="space-y-1">
+                                                <template x-for="option in filteredOptions" :key="option.id ?? 'none'">
+                                                    <button type="button" @click="!option.disabled && selectOption(option)"
+                                                        class="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition"
+                                                        :class="option.disabled ? 'cursor-not-allowed text-slate-400' :
+                                                            (selectedId == option.id ? 'bg-primary/10 text-primary' : 'hover:bg-primary/5 text-slate-700')">
+                                                        <span x-text="option.title" class="font-medium"></span>
+
+                                                        <span x-show="selectedId == option.id"
+                                                            class="material-symbols-outlined text-[18px] text-primary">
+                                                            check_circle
+                                                        </span>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </template>
+
+                                        <template x-if="!filteredOptions.length">
+                                            <div class="rounded-lg bg-slate-50 px-4 py-6 text-center">
+                                                <span class="material-symbols-outlined text-3xl text-slate-300">
+                                                    search_off
+                                                </span>
+                                                <p class="mt-2 text-sm font-medium text-slate-500">No option found</p>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </div>
+
+                                <p class="text-xs text-secondary">
+                                    Optionally assign this plan to a specific service option. Leave empty to keep it directly under the service.
+                                </p>
+
+                                @error('service_option_id')
+                                    <p class="text-sm text-red-500">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        @endif
+
                         <div class="space-y-2">
                             <label class="block font-label-md text-on-surface">Plan Name</label>
 
@@ -557,52 +720,75 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                             @enderror
                         </div>
 
-                        <div class="space-y-2">
-                            <label class="block font-label-md text-on-surface">One-time Price</label>
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 md:col-span-2">
+                            <div class="flex items-center justify-between gap-4">
+                                <div>
+                                    <h4 class="font-semibold text-on-surface">One-time Pricing</h4>
+                                    <p class="mt-1 text-xs text-secondary">
+                                        Enable this if this plan has a one-time price and one-time cart URL.
+                                    </p>
+                                </div>
 
-                            <input type="number" step="1" min="0" wire:model="price"
-                                placeholder="e.g., 20000"
-                                class="w-full rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
+                                <label class="relative inline-flex cursor-pointer items-center">
+                                    <input type="checkbox" wire:model.live="has_one_time_price"
+                                        class="peer sr-only" />
+                                    <div
+                                        class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white">
+                                    </div>
+                                </label>
+                            </div>
 
-                            @error('price')
-                                <p class="text-sm text-red-500">{{ $message }}</p>
-                            @enderror
+                            @if ($has_one_time_price)
+                                <div class="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                                    <div class="space-y-2">
+                                        <label class="block font-label-md text-on-surface">One-time Price</label>
 
-                            <p class="text-xs text-secondary">
-                                Leave empty if this plan only has monthly or yearly pricing.
-                            </p>
-                        </div>
+                                        <input type="number" step="1" min="0"
+                                            wire:model="price" placeholder="e.g., 20000"
+                                            class="w-full rounded border border-outline-variant bg-white px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
 
-                        <div class="space-y-2">
-                            <label class="block font-label-md text-on-surface">One-time Discount Price</label>
+                                        @error('price')
+                                            <p class="text-sm text-red-500">{{ $message }}</p>
+                                        @enderror
+                                    </div>
 
-                            <input type="number" step="1" min="0" wire:model="discount_price"
-                                placeholder="e.g., 15000"
-                                class="w-full rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
+                                    <div class="space-y-2">
+                                        <label class="block font-label-md text-on-surface">
+                                            One-time Discount Price
+                                        </label>
 
-                            @error('discount_price')
-                                <p class="text-sm text-red-500">{{ $message }}</p>
-                            @enderror
+                                        <input type="number" step="1" min="0"
+                                            wire:model="discount_price" placeholder="e.g., 15000"
+                                            class="w-full rounded border border-outline-variant bg-white px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
 
-                            <p class="text-xs text-secondary">
-                                Leave empty if there is no one-time discount.
-                            </p>
-                        </div>
+                                        @error('discount_price')
+                                            <p class="text-sm text-red-500">{{ $message }}</p>
+                                        @enderror
 
-                        <div class="space-y-2 md:col-span-2">
-                            <label class="block font-label-md text-on-surface">One-time Buy URL</label>
+                                        <p class="text-xs text-secondary">
+                                            Leave empty if there is no one-time discount.
+                                        </p>
+                                    </div>
 
-                            <input type="url" wire:model="buy_url"
-                                placeholder="https://gipsyhost.com/index.php?rp=/store/shared-hosting/student"
-                                class="w-full rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
+                                    <div class="space-y-2 md:col-span-2">
+                                        <label class="block font-label-md text-on-surface">
+                                            One-time Buy / Cart URL
+                                        </label>
 
-                            @error('buy_url')
-                                <p class="text-sm text-red-500">{{ $message }}</p>
-                            @enderror
+                                        <input type="url" wire:model="buy_url"
+                                            placeholder="https://gipsyhost.com/index.php?rp=/store/shared-hosting/student"
+                                            class="w-full rounded border border-outline-variant bg-white px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10" />
 
-                            <p class="text-xs text-secondary">
-                                Used for one-time purchase. Monthly and yearly plans can use separate URLs.
-                            </p>
+                                        @error('buy_url')
+                                            <p class="text-sm text-red-500">{{ $message }}</p>
+                                        @enderror
+
+                                        <p class="text-xs text-secondary">
+                                            User will go to this URL when one-time billing is selected.
+                                        </p>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
 
                         <div class="rounded-xl border border-slate-200 bg-slate-50 p-5 md:col-span-2">
@@ -618,7 +804,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                                     <input type="checkbox" wire:model.live="has_monthly_price"
                                         class="peer sr-only" />
                                     <div
-                                        class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white">
+                                        class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white">
                                     </div>
                                 </label>
                             </div>
@@ -684,7 +870,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                                 <label class="relative inline-flex cursor-pointer items-center">
                                     <input type="checkbox" wire:model.live="has_yearly_price" class="peer sr-only" />
                                     <div
-                                        class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white">
+                                        class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white">
                                     </div>
                                 </label>
                             </div>
@@ -944,7 +1130,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Plan')] class extends
                         <label class="relative inline-flex cursor-pointer items-center">
                             <input type="checkbox" wire:model="is_active" class="peer sr-only" />
                             <div
-                                class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white">
+                                class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white">
                             </div>
                         </label>
                     </div>

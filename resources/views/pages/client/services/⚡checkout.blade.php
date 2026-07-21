@@ -31,7 +31,6 @@ new #[Title('Checkout')] class extends Component {
     public string $sender_bkash = '';
     public string $transaction_id = '';
 
-
     public function mount(string $slug, ServicePlan $plan): void
     {
         $this->siteSetting = SiteSetting::current();
@@ -82,7 +81,7 @@ new #[Title('Checkout')] class extends Component {
 
     public function planHasOneTime(): bool
     {
-        return !empty($this->plan->price) && (float) $this->plan->price > 0;
+        return !empty($this->plan->has_one_time_price) && !empty($this->plan->price) && (float) $this->plan->price > 0;
     }
 
     public function planPrice(): ?float
@@ -322,15 +321,37 @@ new #[Title('Checkout')] class extends Component {
 ?>
 
 <div>
-    <section class="min-h-screen py-10 text-white">
+    <section class="min-h-screen pb-10 text-white">
         <div class="mx-auto max-w-350 px-4 sm:px-6 lg:px-8">
 
             <div class="mb-8 flex items-center justify-between">
                 <a href="{{ route('client.services.details', $service->slug) }}" wire:navigate
                     class="inline-flex items-center gap-2 text-sm text-blue-100/60 transition hover:text-cyan-200">
                     <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                    Back to {{ $service->card_title }}
+                    Go Back
                 </a>
+
+                {{-- @if ($plan->badge)
+                    <span
+                        class="shrink-0 rounded-full bg-cyan-400 px-3 py-1 text-xs font-bold uppercase tracking-wider text-slate-950">
+                        {{ $plan->badge }}
+                    </span>
+                @endif --}}
+            </div>
+
+            {{-- Header --}}
+            <div class="mb-10 text-center">
+                <p class="text-sm font-medium md:font-semibold uppercase tracking-[0.28em] text-cyan-300">
+                    {{ $service->card_title }}
+                </p>
+
+                <h1 class="mt-3 text-3xl font-bold sm:text-4xl lg:text-5xl">{{ $plan->name }}</h1>
+
+                @if ($plan->description)
+                    <p class="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-blue-100/60 sm:text-base">
+                        {{ $plan->description }}
+                    </p>
+                @endif
             </div>
 
             <form wire:submit.prevent="submit" novalidate>
@@ -512,11 +533,12 @@ new #[Title('Checkout')] class extends Component {
                                             </div>
                                             <div class="text-right shrink-0">
                                                 @if ($aPrice !== null)
-                                                    <span @class([
-                                                        'text-sm font-bold transition',
-                                                        'text-purple-200' => $isSelected,
-                                                        'text-blue-100/60 group-hover:text-blue-100/80' => !$isSelected,
-                                                    ])>+৳{{ number_format($aPrice, 0) }}</span>
+                                                    <span
+                                                        @class([
+                                                            'text-sm font-bold transition',
+                                                            'text-purple-200' => $isSelected,
+                                                            'text-blue-100/60 group-hover:text-blue-100/80' => !$isSelected,
+                                                        ])>+৳{{ number_format($aPrice, 0) }}</span>
                                                 @else
                                                     <span class="text-sm text-blue-100/50">Custom</span>
                                                 @endif
@@ -527,7 +549,7 @@ new #[Title('Checkout')] class extends Component {
                             </div>
                         @endif
 
-                            <div
+                        <div
                             class="rounded-3xl border border-blue-100/10 bg-white/5 p-6 shadow-2xl shadow-blue-950/20 backdrop-blur-xl sm:p-8">
                             <div class="mb-6 flex items-start gap-4">
                                 <div
@@ -634,24 +656,17 @@ new #[Title('Checkout')] class extends Component {
 
                         {{-- bKash Payment --}}
                         <div
-                            class="rounded-3xl border border-blue-100/10 bg-white/5 p-6 shadow-2xl shadow-blue-950/20 backdrop-blur-xl sm:p-8">
-                            <div class="mb-6 flex items-start gap-4">
-                                <div
-                                    class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/20">
-                                    <span class="material-symbols-outlined">payments</span>
-                                </div>
+                            class="rounded-[2rem] border border-white/15 bg-white/[0.07] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.18)] backdrop-blur-2xl sm:p-8">
+                            <h2 class="text-xl font-bold text-white">Pay with bKash</h2>
+                            <p class="mt-1 text-sm text-blue-100/50">
+                                Send the exact amount to our bKash number and submit your transaction details.
+                            </p>
 
-                                <div>
-                                    <h2 class="text-xl font-bold">Pay with bKash</h2>
-                                    <p class="mt-1 text-sm text-blue-100/55">
-                                        Send the amount to our bKash number and enter your transaction details.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div class="mb-6 overflow-hidden rounded-2xl border border-emerald-400/15 bg-emerald-400/5">
-                                <div class="bg-emerald-400/10 px-5 py-3">
-                                    <p class="text-xs font-bold uppercase tracking-wider text-emerald-300">Send Money To
+                            {{-- bKash Payment Info --}}
+                            <div class="mt-6 overflow-hidden rounded-2xl border border-cyan-400/15 bg-cyan-400/5">
+                                <div class="bg-cyan-400/10 px-5 py-3">
+                                    <p class="text-xs font-bold uppercase tracking-wider text-cyan-300">Send Money
+                                        To
                                     </p>
                                 </div>
                                 <div class="p-5">
@@ -666,34 +681,52 @@ new #[Title('Checkout')] class extends Component {
                                 </div>
                             </div>
 
-                            <div class="grid gap-5 sm:grid-cols-2">
+                            {{-- How to pay tutorial (click to reveal) --}}
+                            @if ($siteSetting->bkash_instructions)
+                                <div x-data="{ show: false }"
+                                    class="mt-4 overflow-hidden rounded-xl border border-white/10 bg-black/10">
+                                    <button type="button" @click="show = !show"
+                                        class="flex w-full items-center gap-2 px-4 py-3 text-left transition hover:bg-white/5 cursor-pointer">
+                                        <span class="material-symbols-outlined text-base text-cyan-300">info</span>
+                                        <span
+                                            class="text-xs font-semibold uppercase tracking-wider text-cyan-300/70">How
+                                            to
+                                            pay</span>
+                                        <span class="ml-auto text-blue-100/40 transition"
+                                            :class="{ 'rotate-180': show }">
+                                            <span class="material-symbols-outlined text-base">expand_more</span>
+                                        </span>
+                                    </button>
+                                    <div x-show="show" x-transition
+                                        class="border-t border-white/10 px-4 py-3 space-y-1">
+                                        @foreach (explode("\n", $siteSetting->bkash_instructions) as $line)
+                                            @if (trim($line))
+                                                <p class="text-xs text-blue-100/60">{{ $line }}</p>
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+
+                            <div class="mt-6 space-y-4">
                                 <div>
-                                    <label for="sender_bkash"
-                                        class="mb-2 block text-sm font-semibold text-blue-100/80">
-                                        Your bKash Number <span class="text-red-300">*</span>
-                                    </label>
-
-                                    <input id="sender_bkash" type="text" wire:model.live="sender_bkash"
-                                        placeholder="01XXXXXXXXX"
-                                        class="w-full rounded-2xl border border-blue-100/10 bg-white/10 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-blue-100/35 focus:border-emerald-400/60 focus:bg-white/15">
-
+                                    <label class="mb-1.5 block text-sm font-semibold text-blue-100/80">Your bKash Number</label>
+                                    <input type="text" wire:model.live="sender_bkash"
+                                        class="w-full rounded-xl border border-white/15 bg-white/8 px-4 py-3 text-white placeholder-blue-100/30 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/10"
+                                        placeholder="01XXXXXXXXX" />
                                     @error('sender_bkash')
-                                        <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                        <p class="mt-1 text-sm text-red-400">{{ $message }}</p>
                                     @enderror
                                 </div>
 
                                 <div>
-                                    <label for="transaction_id"
-                                        class="mb-2 block text-sm font-semibold text-blue-100/80">
-                                        bKash Transaction ID <span class="text-red-300">*</span>
-                                    </label>
-
-                                    <input id="transaction_id" type="text" wire:model.live="transaction_id"
-                                        placeholder="Enter the TrxID from your bKash app"
-                                        class="w-full rounded-2xl border border-blue-100/10 bg-white/10 px-4 py-3.5 text-sm text-white outline-none transition placeholder:text-blue-100/35 focus:border-emerald-400/60 focus:bg-white/15">
-
+                                    <label class="mb-1.5 block text-sm font-semibold text-blue-100/80">bKash Transaction ID
+                                        (TrxID)</label>
+                                    <input type="text" wire:model.live="transaction_id"
+                                        class="w-full rounded-xl border border-white/15 bg-white/8 px-4 py-3 text-white placeholder-blue-100/30 outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/10"
+                                        placeholder="Enter the TrxID from your bKash app" />
                                     @error('transaction_id')
-                                        <p class="mt-1 text-xs text-red-300">{{ $message }}</p>
+                                        <p class="mt-1 text-sm text-red-400">{{ $message }}</p>
                                     @enderror
                                 </div>
                             </div>
