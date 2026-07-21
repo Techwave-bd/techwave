@@ -256,6 +256,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,manager,
     Route::livewire('/categories/create', 'pages::admin.categories.create')->name('categories.create');
     Route::livewire('/categories/{category}/edit', 'pages::admin.categories.edit')->name('categories.edit');
 
+    // Subcategory management
+    Route::livewire('/subcategories', 'pages::admin.subcategories.index')->name('subcategories.index');
+    Route::livewire('/subcategories/create', 'pages::admin.subcategories.create')->name('subcategories.create');
+    Route::livewire('/subcategories/{subcategory}/edit', 'pages::admin.subcategories.edit')->name('subcategories.edit');
+
     // Project management
     Route::livewire('/projects', 'pages::admin.projects.index')->name('projects.index');
     Route::livewire('/projects/create', 'pages::admin.projects.create')->name('projects.create');

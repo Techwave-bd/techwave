@@ -135,7 +135,7 @@ new class extends Component {
                 </span>
             </a>
 
-                        <a href="{{ route('admin.tool-subscriptions.index') }}" wire:navigate
+            <a href="{{ route('admin.tool-subscriptions.index') }}" wire:navigate
                 wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
                 class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
                 <span class="material-symbols-outlined shrink-0">subscriptions</span>
@@ -145,11 +145,11 @@ new class extends Component {
             </a>
         </div>
 
-        <!-- Website Content -->
+        <!-- Services & Plans -->
         <div class="mt-4 space-y-1">
             <p x-show="!sidebarCollapsed"
                 class="px-4 pb-2 pt-2 font-manrope text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Website Content
+                Services & Plans
             </p>
             <p x-show="sidebarCollapsed"
                 class="px-4 pb-2 pt-4 font-manrope text-xl font-semibold uppercase tracking-wider text-slate-500 text-center">
@@ -170,12 +170,12 @@ new class extends Component {
                 </span>
             </a>
 
-            <a href="{{ route('admin.company-logos.index') }}" wire:navigate
+            <a href="{{ route('admin.subcategories.index') }}" wire:navigate
                 wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
                 class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
-                <span class="material-symbols-outlined shrink-0">handshake</span>
+                <span class="material-symbols-outlined shrink-0">account_tree</span>
                 <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
-                    Our Clients
+                    Sub-categories
                 </span>
             </a>
 
@@ -240,7 +240,7 @@ new class extends Component {
                     Tool Categories
                 </span>
             </a>
-            
+
 
             <a href="{{ route('admin.tools.index') }}" wire:navigate
                 wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
@@ -251,7 +251,7 @@ new class extends Component {
                 </span>
             </a>
 
-                        <a href="{{ route('admin.tool-plans.index') }}" wire:navigate
+            <a href="{{ route('admin.tool-plans.index') }}" wire:navigate
                 wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
                 class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
                 <span class="material-symbols-outlined shrink-0">workspace_premium</span>
@@ -471,6 +471,15 @@ new class extends Component {
                         fill="currentColor" />
                 </svg>
             </p>
+
+            <a href="{{ route('admin.company-logos.index') }}" wire:navigate
+                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                <span class="material-symbols-outlined shrink-0">handshake</span>
+                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                    Our Clients
+                </span>
+            </a>
 
             <a href="{{ route('admin.live-tv-channels.index') }}" wire:navigate
                 wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
