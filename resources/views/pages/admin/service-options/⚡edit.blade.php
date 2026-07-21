@@ -130,15 +130,12 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Option')] class extends
 
     public function services()
     {
-        return Service::query()
-            ->where('is_active', true)
-            ->orderBy('card_title')
-            ->get();
+        return Service::query()->where('is_active', true)->orderBy('card_title')->get();
     }
 
     public function selectedService()
     {
-        if (! $this->service_id) {
+        if (!$this->service_id) {
             return null;
         }
 
@@ -175,7 +172,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Option')] class extends
             return;
         }
 
-        if (! in_array($item, $this->included_items, true)) {
+        if (!in_array($item, $this->included_items, true)) {
             $this->included_items[] = $item;
         }
 
@@ -199,7 +196,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Option')] class extends
             return;
         }
 
-        if (! in_array($tag, $this->tags, true)) {
+        if (!in_array($tag, $this->tags, true)) {
             $this->tags[] = $tag;
         }
 
@@ -261,7 +258,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Option')] class extends
 
         $benefits = collect($validated['benefits'])
             ->map(
-                fn ($benefit) => [
+                fn($benefit) => [
                     'title' => trim($benefit['title']),
                     'description' => trim($benefit['description']),
                 ],
@@ -376,7 +373,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Option')] class extends
 
                     <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <!-- Parent Service -->
-                        <div class="space-y-2">
+                        <div class="space-y-2 md:grid-cols-2">
                             <label class="block font-label-md text-on-surface">
                                 Parent Service
                             </label>
@@ -555,7 +552,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Option')] class extends
                         </h3>
 
                         <button type="button" wire:click="addBenefit"
-                            class="flex items-center gap-1 text-sm font-semibold text-[#0F52BA] hover:underline">
+                            class="flex items-center gap-1 text-sm font-semibold text-[#0F52BA] hover:text-[#07439c] cursor-pointer">
                             <span class="material-symbols-outlined text-lg">add_circle</span>
                             Add Benefit
                         </button>
@@ -602,83 +599,47 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Option')] class extends
                     @enderror
                 </div>
 
-                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <!-- Included Items -->
-                    <div class="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-                        <label class="mb-4 flex items-center gap-2 font-label-md text-on-surface">
-                            What's Included
-                        </label>
+                <!-- Included Items -->
+                <div class="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+                    <label class="mb-4 flex items-center gap-2 font-label-md text-on-surface">
+                        What's Included
+                    </label>
 
-                        <div class="mb-4 flex gap-3">
-                            <input wire:model.live="included_item" wire:keydown.enter.prevent="addIncludedItem"
-                                class="flex-1 rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10"
-                                placeholder="e.g., 24/7 Monitoring" type="text" />
+                    <div class="mb-4 flex gap-3">
+                        <input wire:model.live="included_item" wire:keydown.enter.prevent="addIncludedItem"
+                            class="flex-1 rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10"
+                            placeholder="e.g., 24/7 Monitoring" type="text" />
 
-                            <button type="button" wire:click="addIncludedItem"
-                                class="flex items-center gap-1 rounded border border-dashed border-[#0F52BA] px-4 py-2.5 text-sm font-semibold text-[#0F52BA] transition-colors hover:bg-primary/5">
-                                <span class="material-symbols-outlined text-sm">add</span>
-                                Item
-                            </button>
-                        </div>
-
-                        <div class="flex min-h-15 flex-wrap gap-2 rounded-lg border border-slate-100 bg-surface p-4">
-                            @forelse ($included_items as $index => $item)
-                                <div wire:key="included-item-{{ $index }}"
-                                    class="flex items-center gap-2 rounded-full border border-outline-variant bg-white px-3 py-1.5 shadow-sm">
-                                    <span class="text-sm font-body-md">{{ $item }}</span>
-
-                                    <button type="button" wire:click="removeIncludedItem({{ $index }})"
-                                        class="material-symbols-outlined text-sm text-outline hover:text-error">
-                                        close
-                                    </button>
-                                </div>
-                            @empty
-                                <p class="text-sm text-secondary">No included items added yet.</p>
-                            @endforelse
-                        </div>
-
-                        @error('included_items')
-                            <p class="mt-2 text-sm text-red-500">{{ $message }}</p>
-                        @enderror
-
-                        @error('included_items.*')
-                            <p class="mt-2 text-sm text-red-500">{{ $message }}</p>
-                        @enderror
+                        <button type="button" wire:click="addIncludedItem"
+                            class="flex items-center gap-1 rounded border border-dashed border-[#0F52BA] px-4 py-2.5 text-sm font-semibold text-[#0F52BA] transition-colors hover:bg-primary/5 cursor-pointer">
+                            <span class="material-symbols-outlined text-sm">add</span>
+                            Item
+                        </button>
                     </div>
 
-                    <!-- Option Tags -->
-                    <div class="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-                        <label class="mb-4 block font-label-md text-on-surface">Option Tags</label>
+                    <div class="flex min-h-15 flex-wrap gap-2 rounded-lg border border-slate-100 bg-surface p-4">
+                        @forelse ($included_items as $index => $item)
+                            <div wire:key="included-item-{{ $index }}"
+                                class="flex items-center gap-2 rounded-full border border-outline-variant bg-white px-3 py-1.5 shadow-sm">
+                                <span class="text-sm font-body-md">{{ $item }}</span>
 
-                        <div class="mb-4 flex gap-3">
-                            <input wire:model.live="tag" wire:keydown.enter.prevent="addTag"
-                                class="flex-1 rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10"
-                                placeholder="e.g., Infrastructure" type="text" />
-
-                            <button type="button" wire:click="addTag"
-                                class="flex items-center gap-1 rounded border border-dashed border-[#0F52BA] px-4 py-2.5 text-sm font-semibold text-[#0F52BA] transition-colors hover:bg-primary/5">
-                                <span class="material-symbols-outlined text-sm">add</span>
-                                Tag
-                            </button>
-                        </div>
-
-                        <div
-                            class="flex min-h-[60px] flex-wrap gap-2 rounded-lg border border-slate-100 bg-surface p-4">
-                            @forelse ($tags as $index => $serviceTag)
-                                <div wire:key="service-tag-{{ $index }}"
-                                    class="flex items-center gap-2 rounded-full border border-outline-variant bg-white px-3 py-1.5 shadow-sm">
-                                    <span class="text-sm font-body-md">{{ $serviceTag }}</span>
-
-                                    <button type="button" wire:click="removeTag({{ $index }})"
-                                        class="material-symbols-outlined text-sm text-outline hover:text-error">
-                                        close
-                                    </button>
-                                </div>
-                            @empty
-                                <p class="text-sm text-secondary">No tags added yet.</p>
-                            @endforelse
-                        </div>
+                                <button type="button" wire:click="removeIncludedItem({{ $index }})"
+                                    class="material-symbols-outlined text-sm text-outline hover:text-error">
+                                    close
+                                </button>
+                            </div>
+                        @empty
+                            <p class="text-sm text-secondary">No included items added yet.</p>
+                        @endforelse
                     </div>
+
+                    @error('included_items')
+                        <p class="mt-2 text-sm text-red-500">{{ $message }}</p>
+                    @enderror
+
+                    @error('included_items.*')
+                        <p class="mt-2 text-sm text-red-500">{{ $message }}</p>
+                    @enderror
                 </div>
 
                 <!-- Target Audience -->
@@ -719,7 +680,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Option')] class extends
                     <div class="flex flex-col items-center justify-center rounded-lg bg-blue-50/50 p-5 text-center">
                         <span class="material-symbols-outlined mb-2 text-4xl text-primary-container">info</span>
 
-                        <p class="max-w-[220px] text-xs font-body-sm text-on-secondary-container">
+                        <p class="max-w-55 text-xs font-body-sm text-on-secondary-container">
                             Audience data helps your option page show clearer value to specific user groups.
                         </p>
                     </div>
@@ -841,8 +802,8 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Option')] class extends
                                 <img src="{{ $image->temporaryUrl() }}" alt="Option preview"
                                     class="h-full w-full object-cover" />
                             @elseif ($serviceOption->image)
-                                <img src="{{ Storage::url($serviceOption->image) }}" alt="{{ $serviceOption->card_title }}"
-                                    class="h-full w-full object-cover" />
+                                <img src="{{ Storage::url($serviceOption->image) }}"
+                                    alt="{{ $serviceOption->card_title }}" class="h-full w-full object-cover" />
                             @else
                                 <span class="material-symbols-outlined mb-2 text-5xl text-outline">
                                     add_photo_alternate
@@ -868,6 +829,39 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Option')] class extends
                         @error('image')
                             <p class="text-sm text-red-500">{{ $message }}</p>
                         @enderror
+                    </div>
+                </div>
+
+                <!-- Option Tags -->
+                <div class="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+                    <label class="mb-4 block font-label-md text-on-surface">Option Tags</label>
+
+                    <div class="mb-4 flex gap-3">
+                        <input wire:model.live="tag" wire:keydown.enter.prevent="addTag"
+                            class="flex-1 rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10"
+                            placeholder="e.g., Infrastructure" type="text" />
+
+                        <button type="button" wire:click="addTag"
+                            class="flex items-center gap-1 rounded border border-dashed border-[#0F52BA] px-4 py-2.5 text-sm font-semibold text-[#0F52BA] transition-colors hover:bg-primary/5 cursor-pointer">
+                            <span class="material-symbols-outlined text-sm">add</span>
+                            Tag
+                        </button>
+                    </div>
+
+                    <div class="flex min-h-15 flex-wrap gap-2 rounded-lg border border-slate-100 bg-surface p-4">
+                        @forelse ($tags as $index => $serviceTag)
+                            <div wire:key="service-tag-{{ $index }}"
+                                class="flex items-center gap-2 rounded-full border border-outline-variant bg-white px-3 py-1.5 shadow-sm">
+                                <span class="text-sm font-body-md">{{ $serviceTag }}</span>
+
+                                <button type="button" wire:click="removeTag({{ $index }})"
+                                    class="material-symbols-outlined text-sm text-outline hover:text-error">
+                                    close
+                                </button>
+                            </div>
+                        @empty
+                            <p class="text-sm text-secondary">No tags added yet.</p>
+                        @endforelse
                     </div>
                 </div>
 
@@ -900,7 +894,7 @@ new #[Layout('layouts.admin-app')] #[Title('Edit Service Option')] class extends
                             <input type="checkbox" wire:model.live="is_active" class="peer sr-only" />
 
                             <div
-                                class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100">
+                                class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100">
                             </div>
                         </label>
                     </div>

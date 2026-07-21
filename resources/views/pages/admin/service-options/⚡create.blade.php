@@ -314,7 +314,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Option')] class exten
 
                     <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                         <!-- Parent Service -->
-                        <div class="space-y-2">
+                        <div class="space-y-2 md:col-span-2">
                             <label class="block font-label-md text-on-surface">Parent Service</label>
 
                             <div class="relative">
@@ -521,8 +521,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Option')] class exten
                     @enderror
                 </div>
 
-                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                    <!-- Included Items -->
+                <!-- Included Items -->
                     <div class="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
                         <label class="mb-4 flex items-center gap-2 font-label-md text-on-surface">
                             What's Included
@@ -534,7 +533,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Option')] class exten
                                 placeholder="e.g., 24/7 Monitoring" type="text" />
 
                             <button type="button" wire:click="addIncludedItem"
-                                class="flex items-center gap-1 rounded border border-dashed border-[#0F52BA] px-4 py-2.5 text-sm font-semibold text-[#0F52BA] transition-colors hover:bg-primary/5">
+                                class="flex items-center gap-1 rounded border border-dashed border-[#0F52BA] px-4 py-2.5 text-sm font-semibold text-[#0F52BA] transition-colors hover:bg-primary/5 cursor-pointer">
                                 <span class="material-symbols-outlined text-sm">add</span>
                                 Item
                             </button>
@@ -564,41 +563,6 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Option')] class exten
                             <p class="mt-2 text-sm text-red-500">{{ $message }}</p>
                         @enderror
                     </div>
-
-                    <!-- Option Tags -->
-                    <div class="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-                        <label class="mb-4 block font-label-md text-on-surface">Option Tags</label>
-
-                        <div class="mb-4 flex gap-3">
-                            <input wire:model.live="tag" wire:keydown.enter.prevent="addTag"
-                                class="flex-1 rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10"
-                                placeholder="e.g., Infrastructure" type="text" />
-
-                            <button type="button" wire:click="addTag"
-                                class="flex items-center gap-1 rounded border border-dashed border-[#0F52BA] px-4 py-2.5 text-sm font-semibold text-[#0F52BA] transition-colors hover:bg-primary/5">
-                                <span class="material-symbols-outlined text-sm">add</span>
-                                Tag
-                            </button>
-                        </div>
-
-                        <div
-                            class="flex min-h-[60px] flex-wrap gap-2 rounded-lg border border-slate-100 bg-surface p-4">
-                            @forelse ($tags as $index => $serviceTag)
-                                <div wire:key="service-tag-{{ $index }}"
-                                    class="flex items-center gap-2 rounded-full border border-outline-variant bg-white px-3 py-1.5 shadow-sm">
-                                    <span class="text-sm font-body-md">{{ $serviceTag }}</span>
-
-                                    <button type="button" wire:click="removeTag({{ $index }})"
-                                        class="material-symbols-outlined text-sm text-outline hover:text-error">
-                                        close
-                                    </button>
-                                </div>
-                            @empty
-                                <p class="text-sm text-secondary">No tags added yet.</p>
-                            @endforelse
-                        </div>
-                    </div>
-                </div>
 
                 <!-- Target Audience -->
                 <div class="grid grid-cols-1 gap-6 rounded-xl border border-slate-200 bg-white p-6 md:grid-cols-2">
@@ -785,6 +749,40 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Option')] class exten
                     </div>
                 </div>
 
+                <!-- Option Tags -->
+                    <div class="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+                        <label class="mb-4 block font-label-md text-on-surface">Option Tags</label>
+
+                        <div class="mb-4 flex gap-3">
+                            <input wire:model.live="tag" wire:keydown.enter.prevent="addTag"
+                                class="flex-1 rounded border border-outline-variant px-4 py-2.5 font-body-md outline-none transition-all focus:ring-2 focus:ring-[#0F52BA] focus:ring-opacity-10"
+                                placeholder="e.g., Infrastructure" type="text" />
+
+                            <button type="button" wire:click="addTag"
+                                class="flex items-center gap-1 rounded border border-dashed border-[#0F52BA] px-4 py-2.5 text-sm font-semibold text-[#0F52BA] transition-colors hover:bg-primary/5 cursor-pointer">
+                                <span class="material-symbols-outlined text-sm">add</span>
+                                Tag
+                            </button>
+                        </div>
+
+                        <div
+                            class="flex min-h-15 flex-wrap gap-2 rounded-lg border border-slate-100 bg-surface p-4">
+                            @forelse ($tags as $index => $serviceTag)
+                                <div wire:key="service-tag-{{ $index }}"
+                                    class="flex items-center gap-2 rounded-full border border-outline-variant bg-white px-3 py-1.5 shadow-sm">
+                                    <span class="text-sm font-body-md">{{ $serviceTag }}</span>
+
+                                    <button type="button" wire:click="removeTag({{ $index }})"
+                                        class="material-symbols-outlined text-sm text-outline hover:text-error">
+                                        close
+                                    </button>
+                                </div>
+                            @empty
+                                <p class="text-sm text-secondary">No tags added yet.</p>
+                            @endforelse
+                        </div>
+                    </div>
+
                 <!-- Option Settings -->
                 <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                     <h3 class="mb-4 text-label-sm font-label-sm uppercase tracking-widest text-secondary">
@@ -814,7 +812,7 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Option')] class exten
                             <input type="checkbox" wire:model.live="is_active" class="peer sr-only" />
 
                             <div
-                                class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100">
+                                class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100">
                             </div>
                         </label>
                     </div>
@@ -825,6 +823,6 @@ new #[Layout('layouts.admin-app')] #[Title('Create Service Option')] class exten
                 </div>
 
             </div>
-        </div>
+        </div>s
     </form>
 </div>
