@@ -490,15 +490,6 @@ new class extends Component {
                 </span>
             </a>
 
-            <a href="{{ route('admin.live-tv-channels.index') }}" wire:navigate
-                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
-                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
-                <span class="material-symbols-outlined shrink-0">live_tv</span>
-                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
-                    Live TV
-                </span>
-            </a>
-
             <a href="{{ route('admin.settings.site-setting') }}" wire:navigate
                 wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
                 class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
@@ -507,14 +498,46 @@ new class extends Component {
                     Site Settings
                 </span>
             </a>
-            <a href="{{ route('admin.icons.material-icons') }}" wire:navigate
-                wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
-                class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
-                <span class="material-symbols-outlined shrink-0">insert_emoticon</span>
-                <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
-                    Icons
-                </span>
-            </a>
+
+            {{-- Pages Dropdown --}}
+            <div x-data="{ open: {{ request()->routeIs('admin.pages.*') ? 'true' : 'false' }} }" class="space-y-1">
+                {{-- Dropdown Button --}}
+                <button type="button" @click="open = !open"
+                    class="flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900 cursor-pointer">
+
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined shrink-0">web</span>
+
+                        <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                            Pages
+                        </span>
+                    </div>
+
+                    <span x-show="!sidebarCollapsed"
+                        class="material-symbols-outlined text-lg transition-transform duration-200"
+                        :class="open ? 'rotate-180' : ''">
+                        expand_more
+                    </span>
+                </button>
+
+                {{-- Dropdown Items --}}
+                <div x-show="open && !sidebarCollapsed" x-collapse
+                    class="ml-4 space-y-1 border-l border-slate-200 pl-3">
+
+                    <a href="{{ route('admin.pages.home-settings') }}" wire:navigate
+                        wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                        class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+
+                        <span class="material-symbols-outlined shrink-0 text-[20px]">
+                            home
+                        </span>
+
+                        <span class="font-manrope text-sm font-medium">
+                            Home
+                        </span>
+                    </a>
+                </div>
+            </div>
 
             {{-- Mail Templates Dropdown --}}
             <div x-data="{ open: {{ request()->routeIs('admin.settings.invoice-templates') ? 'true' : 'false' }} }" class="space-y-1">
@@ -571,6 +594,25 @@ new class extends Component {
 
                 </div>
             </div>
+
+            {{-- <a href="{{ route('admin.live-tv-channels.index') }}" wire:navigate
+                    wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                    class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                    <span class="material-symbols-outlined shrink-0">live_tv</span>
+                    <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                        Live TV
+                    </span>
+                </a> --}}
+
+                {{-- icons --}}
+                <a href="{{ route('admin.icons.material-icons') }}" wire:navigate
+                    wire:current="bg-white text-blue-700 border-l-4 border-blue-700 font-semibold shadow-sm"
+                    class="flex items-center gap-3 rounded-xl px-4 py-2.5 text-slate-600 transition-all duration-150 hover:bg-slate-100 hover:text-slate-900">
+                    <span class="material-symbols-outlined shrink-0">insert_emoticon</span>
+                    <span x-show="!sidebarCollapsed" class="font-manrope text-sm font-medium">
+                        Icons
+                    </span>
+                </a>
         </div>
     </nav>
 

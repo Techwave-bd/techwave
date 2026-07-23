@@ -351,4 +351,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin,manager,
     Route::livewire('/live-tv-channels', 'pages::admin.live-tv-channels.index')->name('live-tv-channels.index');
     Route::livewire('/live-tv-channels/create', 'pages::admin.live-tv-channels.create')->name('live-tv-channels.create');
     Route::livewire('/live-tv-channels/{liveTvChannel}/edit', 'pages::admin.live-tv-channels.edit')->name('live-tv-channels.edit');
+
+    // Home Page Settings
+    Route::livewire('/home-settings', 'pages::admin.pages.home-settings')->name('pages.home-settings');
 });
