@@ -30,7 +30,7 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
 
         $count = FeaturedServiceGrid::countForStyle($style);
 
-        return Service::query()->with('category')->where('is_active', true)->where('is_featured', true)->latest()->limit($count)->get();
+        return Service::query()->with(['category', 'serviceOptions' => fn($q) => $q->where('is_active', true)])->where('is_active', true)->where('is_featured', true)->latest()->limit($count)->get();
     }
 
     public function homeSettingImage(?string $image, string $fallback): string
@@ -106,6 +106,15 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
             ->filter()
             ->values()
             ->toArray();
+    }
+
+    public function serviceLink(Service $service): string
+    {
+        if ($service->serviceOptions->isNotEmpty()) {
+            return route('client.services.options', $service->slug);
+        }
+
+        return route('client.services.details', $service->slug);
     }
 
     public function getFeaturedBlogsProperty()
@@ -230,6 +239,14 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
                                 </div>
                                 <div class="absolute bottom-16 right-10 h-28 w-28 rounded-full bg-blue-500/20 blur-3xl">
                                 </div>
+
+                                <!-- Blip Dots -->
+                                <div class="absolute left-[18%] top-[15%] h-2 w-2 rounded-full bg-cyan-300 animate-ping"></div>
+                                <div class="absolute right-[20%] top-[25%] h-2.5 w-2.5 rounded-full bg-blue-400 animate-ping [animation-delay:0.3s]"></div>
+                                <div class="absolute left-[15%] bottom-[30%] h-2 w-2 rounded-full bg-violet-400 animate-ping [animation-delay:0.6s]"></div>
+                                <div class="absolute right-[15%] bottom-[20%] h-2.5 w-2.5 rounded-full bg-sky-300 animate-ping [animation-delay:0.9s]"></div>
+                                <div class="absolute left-[40%] top-[8%] h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping [animation-delay:1.2s]"></div>
+                                <div class="absolute right-[35%] bottom-[10%] h-1.5 w-1.5 rounded-full bg-pink-400 animate-ping [animation-delay:0.5s]"></div>
                             </div>
                         </div>
                     </div>
@@ -336,7 +353,7 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
                             $isStatsBoardShortCard = $isStatsBoardLayout && in_array($loop->index, [1, 6], true);
                         @endphp
 
-                        <a href="{{ route('client.services.details', $service->slug) }}" wire:navigate
+                        <a href="{{ $this->serviceLink($service) }}" wire:navigate
                             class="group relative min-w-0 w-full overflow-hidden border border-white/8 transition duration-500
                                 {{ $serviceSpanClass }}
                                 {{ $isCompactServiceLayout
@@ -411,9 +428,7 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
                             @elseif ($isDashboardServiceLayout)
                                 <div
                                     class="relative z-10 flex h-full flex-col
-                                        {{ $isStatsBoardLayout
-                                            ? 'min-h-[250px] md:min-h-0 p-5 lg:p-6'
-                                            : 'min-h-[300px] justify-between p-6 sm:p-7' }}">
+                                        {{ $isStatsBoardLayout ? 'min-h-[250px] md:min-h-0 p-5 lg:p-6' : 'min-h-[300px] justify-between p-6 sm:p-7' }}">
                                     <div class="flex items-start justify-between gap-4">
                                         <span
                                             class="rounded-full border border-white/10 bg-slate-950/55 px-3 py-1.5 text-[10px] font-medium text-blue-50/80 backdrop-blur-xl">
@@ -434,17 +449,19 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
                                                 class="wrap-break-word font-manrope font-bold leading-tight text-white
                                                     {{ $isStatsBoardShortCard
                                                         ? 'text-lg lg:text-xl'
-                                                        : ($isLargeServiceCard ? 'text-2xl lg:text-3xl' : 'text-xl lg:text-2xl') }}">
+                                                        : ($isLargeServiceCard
+                                                            ? 'text-2xl lg:text-3xl'
+                                                            : 'text-xl lg:text-2xl') }}">
                                                 {{ $service->card_title }}
                                             </h3>
 
-                                            @if (! $isStatsBoardShortCard && filled($service->short_description))
+                                            @if (!$isStatsBoardShortCard && filled($service->short_description))
                                                 <p class="mt-3 line-clamp-2 text-sm leading-6 text-blue-100/62">
                                                     {{ Str::limit($service->short_description, $descriptionLimit) }}
                                                 </p>
                                             @endif
 
-                                            @if (! $isStatsBoardShortCard)
+                                            @if (!$isStatsBoardShortCard)
                                                 <div
                                                     class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-white/85 transition group-hover:text-violet-200">
                                                     Learn More
@@ -1273,7 +1290,8 @@ new #[Title('Techwave | Complete IT Solutions in Bangladesh – Web, Email, Netw
                             </div>
                         </div>
 
-                        <a :href="`{{ route('client.checkout.pricing', $plan->id) }}?billing=${billing}`" wire:navigate
+                        <a :href="`{{ route('client.checkout.pricing', $plan->id) }}?billing=${billing}`"
+                            wire:navigate
                             class="mt-6 inline-flex w-full items-center justify-center rounded-full {{ $isPopular ? 'bg-linear-to-r from-blue-500 to-sky-400 shadow-lg shadow-blue-500/30 hover:-translate-y-0.5' : 'border border-white/15 bg-white/8 hover:bg-white/12' }} px-6 py-3.5 font-semibold text-white backdrop-blur-xl transition">
                             Choose Plan
                         </a>
